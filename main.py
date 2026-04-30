@@ -1,27 +1,30 @@
-from kivymd.app import MDApp
-from kivymd.uix.button import MDRaisedButton
-from kivymd.uix.screen import MDScreen
-from kivymd.uix.label import MDLabel
+from kivy.app import App
+from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.label import Label
+from kivy.uix.button import Button
 
-class TestApp(MDApp):
+class TestApp(App):
     def build(self):
-        screen = MDScreen()
-        self.label = MDLabel(
-            text="Salam! Ye meri pehli App hai",
-            halign="center",
-            pos_hint={"center_y": 0.6}
+        layout = BoxLayout(orientation='vertical', padding=50, spacing=20)
+        
+        # Welcome message
+        hello_label = Label(
+            text='Salam Dost! App Chal Gayi!', 
+            font_size='30sp',
+            color=(0, 1, 0, 1)  # Green color
         )
-        btn = MDRaisedButton(
-            text="Click Karein!",
-            pos_hint={"center_x": 0.5, "center_y": 0.4},
-            on_release=self.button_pressed
+        
+        # Simple Button
+        btn = Button(
+            text='Mubarak Ho!', 
+            size_hint=(.8, .2), 
+            pos_hint={'center_x': .5}
         )
-        screen.add_widget(self.label)
-        screen.add_widget(btn)
-        return screen
+        
+        layout.add_widget(hello_label)
+        layout.add_widget(btn)
+        
+        return layout
 
-    def button_pressed(self, instance):
-        self.label.text = "Zabardast! Button kaam kar raha hai."
-
-TestApp().run()
-
+if __name__ == '__main__':
+    TestApp().run()
