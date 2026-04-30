@@ -1,10 +1,9 @@
 name: Build APK
-on: [push, pull_request]
-
 on:
   workflow_dispatch:
   push:
     branches: [ main ]
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -21,5 +20,5 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v3
         with:
-          name: package
+          name: my-apk
           path: bin/*.apk
