@@ -11,8 +11,9 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Build with Buildozer
-        uses: GearSack/buildozer-action@v2
+        uses: ArtemSerebrenninkov/buildozer-action@v1
         with:
+          buildozer_version: master
           command: buildozer -v android debug
           repository_root: .
 
