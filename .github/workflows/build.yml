@@ -10,17 +10,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
       - name: Install Dependencies
         run: |
           sudo apt update
           sudo apt install -y python3-pip build-essential git python3-dev ffmpeg libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev libportmidi-dev libswscale-dev libavformat-dev libavcodec-dev zlib1g-dev
-          sudo apt install -y libsqlite3-dev sqlite3 bzip2 libbz2-dev zlib1g-dev libssl-dev gcc g++
+          sudo apt install -y libsqlite3-dev sqlite3 bzip2 libbz2-dev zlib1g-dev libssl-dev gcc g++ openjdk-17-jdk unzip
           pip3 install --user --upgrade Cython==0.29.33 buildozer
 
       - name: Build with Buildozer
         run: |
           export PATH=$PATH:$HOME/.local/bin
-          yes | buildozer -v android debug
+          # Buildozer ko license accept karne ke liye auto-confirm mode mein chalana
+          buildozer android debug -- --accept-sdk-license
+        env:
+          ACCEPT_SDK_LICENSE: "True"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
