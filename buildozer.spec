@@ -5,16 +5,14 @@ package.domain = org.test
 source.dir = .
 source.include_exts = py,png,jpg,kv,atlas
 version = 0.1
-requirements = python3, kivy, gTTS, requests, ffpyplayer
+requirements = python3, kivy, gTTS, requests, android
 orientation = portrait
 fullscreen = 0
 android.archs = arm64-v8a, armeabi-v7a
 android.allow_backup = True
 android.accept_sdk_license = True
 p4a.branch = master
-# (list) Permissions
-android.permissions = INTERNET, RECORD_AUDIO
-
+android.permissions = INTERNET, WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE
 # (int) Target Android API, should be as high as possible.
 android.api = 31
 
