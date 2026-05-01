@@ -1,24 +1,28 @@
 [app]
-title = My text to voice
+title = Voice Bot Pro
 package.name = voicebot
 package.domain = org.test
 source.dir = .
 source.include_exts = py,png,jpg,kv,atlas
 version = 0.1
-requirements = python3, kivy, gTTS, requests, android
+
+# Requirements
+requirements = python3, kivy, gTTS, requests
+
 orientation = portrait
 fullscreen = 0
+
+# Android specific
 android.archs = arm64-v8a, armeabi-v7a
 android.allow_backup = True
 android.accept_sdk_license = True
-p4a.branch = master
-android.permissions = INTERNET, WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE, MANAGE_EXTERNAL_STORAGE
 android.api = 31
 android.minapi = 21
 android.sdk = 31
-# (int) Target Android API, should be as high as possible.
-# (int) Minimum API your APK will support.
-android.minapi = 21
+
+# Permissions
+android.permissions = INTERNET, WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE
+
 [buildozer]
 log_level = 2
 warn_on_root = 1
