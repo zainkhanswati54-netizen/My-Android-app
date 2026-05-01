@@ -1,6 +1,6 @@
 [app]
 title = My text to voice
-package.name = package.name = voicebot
+package.name = voicebot
 package.domain = org.test
 source.dir = .
 source.include_exts = py,png,jpg,kv,atlas
