@@ -53,17 +53,19 @@ class VoiceBotPro(App):
         
         return self.layout
 
-    def generate_voice(self, instance):
+def generate_voice(self, instance):
         text = self.txt_input.text
         if text.strip():
             try:
                 self.status_label.text = "Status: Generating..."
-                # Saving to a common downloads folder
-                filename = "/sdcard/Download/VoiceGenerated.mp3"
-                tts = gTTS(text=text, lang='en') # English Voice
+                # App ke andar hi file save karein taake crash na ho
+                filename = "VoiceGenerated.mp3" 
+                tts = gTTS(text=text, lang='en')
                 tts.save(filename)
-                self.status_label.text = "Status: Saved to Downloads!"
-                self.status_label.color = (0, 1, 0, 1) # Green for success
+                
+                self.status_label.text = "Status: Created Successfully!"
+                self.status_label.color = (0, 1, 0, 1)
             except Exception as e:
-                self.status_label.text = f"Error: {str(e)}"
-                self.status_label.color = (1, 0, 0, 1) # Red for error
+                self.status_label.text = "Status: Storage Error"
+                self.status_label.color = (1, 0, 0, 1)
+                print(f"Error: {e}")
