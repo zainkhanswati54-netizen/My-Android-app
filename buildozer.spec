@@ -1,25 +1,24 @@
 [app]
-title = Pro Voice Generator
+title = Pro Voice Bot
 package.name = voicebotpro
-package.domain = org.test
+package.domain = org.pro
 source.dir = .
 source.include_exts = py,png,jpg,kv,atlas
 version = 1.0
 
-# In requirements se app stable rahegi
-requirements = python3, kivy, plyer, pyobjus, android
+# Simple and Clean Requirements
+requirements = python3, kivy, android
 
 orientation = portrait
 fullscreen = 0
 
-# Android Hardware Settings
+# Android Architecture
 android.archs = arm64-v8a, armeabi-v7a
 android.api = 31
 android.minapi = 21
-android.sdk = 31
 
-# Permissions for hardware & storage
-android.permissions = INTERNET, WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE, MODIFY_AUDIO_SETTINGS
+# Necessary Permissions
+android.permissions = INTERNET, MODIFY_AUDIO_SETTINGS
 
 [buildozer]
 log_level = 2
