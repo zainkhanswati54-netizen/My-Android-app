@@ -15,9 +15,8 @@ p4a.branch = master
 android.permissions = INTERNET, WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE, MANAGE_EXTERNAL_STORAGE
 android.api = 31
 android.minapi = 21
+android.sdk = 31
 # (int) Target Android API, should be as high as possible.
-android.api = 31
-
 # (int) Minimum API your APK will support.
 android.minapi = 21
 [buildozer]
