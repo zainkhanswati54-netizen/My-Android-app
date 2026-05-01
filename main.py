@@ -1,30 +1,41 @@
 from kivy.app import App
 from kivy.uix.boxlayout import BoxLayout
-from kivy.uix.label import Label
+from kivy.uix.textinput import TextInput
 from kivy.uix.button import Button
+from gtts import gTTS
+import os
 
-class TestApp(App):
+class VoiceApp(App):
     def build(self):
-        layout = BoxLayout(orientation='vertical', padding=50, spacing=20)
+        layout = BoxLayout(orientation='vertical', padding=20, spacing=10)
         
-        # Welcome message
-        hello_label = Label(
-            text='Salam Dost! App Chal Gayi!', 
-            font_size='30sp',
-            color=(0, 1, 0, 1)  # Green color
+        # Text Input jahan user likhega
+        self.txt_input = TextInput(
+            text='Yahan kuch likhein...', 
+            multiline=False, 
+            size_hint=(1, 0.2)
         )
         
-        # Simple Button
-        btn = Button(
-            text='Mubarak Ho!', 
-            size_hint=(.8, .2), 
-            pos_hint={'center_x': .5}
+        # Bolne wala button
+        speak_btn = Button(
+            text='Awaz Suniye!', 
+            size_hint=(1, 0.2),
+            background_color=(0, 0.7, 0.9, 1)
         )
+        speak_btn.bind(on_press=self.generate_voice)
         
-        layout.add_widget(hello_label)
-        layout.add_widget(btn)
-        
+        layout.add_widget(self.txt_input)
+        layout.add_widget(speak_btn)
         return layout
 
+    def generate_voice(self, instance):
+        text = self.txt_input.text
+        if text.strip():
+            tts = gTTS(text=text, lang='hi') # Urdu/Hindi ke liye 'hi' ya 'ur'
+            tts.save("speech.mp3")
+            # Note: Mobile par play karne ke liye humein baad mein 
+            # ek 'audio player' library bhi chahiye hogi, abhi ye sirf file banayega.
+            print("Awaz tayyar hai!")
+
 if __name__ == '__main__':
-    TestApp().run()
+    VoiceApp().run()
