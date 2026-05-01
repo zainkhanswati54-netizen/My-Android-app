@@ -7,6 +7,7 @@ from kivy.uix.progressbar import ProgressBar
 from kivy.core.window import Window
 from kivy.utils import get_color_from_hex
 from kivy.clock import Clock
+from kivy.core.audio import SoundLoader
 import threading
 from gtts import gTTS
 import os
@@ -14,74 +15,84 @@ import os
 class ProVoiceApp(App):
     def build(self):
         Window.clearcolor = get_color_from_hex('#0A0E14')
-        self.layout = BoxLayout(orientation='vertical', padding=40, spacing=20)
+        self.layout = BoxLayout(orientation='vertical', padding=40, spacing=15)
+        self.sound = None
         
         # Header
-        self.header = Label(text="PRO VOICE GENERATOR", font_size='28sp', bold=True, 
-                            color=get_color_from_hex('#00B4D8'), size_hint=(1, 0.1))
+        self.layout.add_widget(Label(text="PRO VOICE GENERATOR", font_size='28sp', bold=True, 
+                                     color=get_color_from_hex('#00B4D8'), size_hint=(1, 0.1)))
         
-        # Input Area
-        self.text_input = TextInput(hint_text="Enter text to convert to voice...", multiline=True,
-                                    size_hint=(1, 0.4), font_size='18sp', background_color=(1, 1, 1, 0.9))
-        
-        # Professional Progress Bar
-        self.progress = ProgressBar(max=100, value=0, size_hint=(1, 0.1), opacity=0)
-        
-        # Action Button
-        self.btn = Button(text="GENERATE & SAVE AUDIO", size_hint=(1, 0.15), bold=True,
-                          background_normal='', background_color=get_color_from_hex('#0077B6'))
-        self.btn.bind(on_press=self.start_process)
-        
-        self.status = Label(text="Status: Ready", font_size='14sp', color=(0.5, 0.5, 0.5, 1))
-
-        self.layout.add_widget(self.header)
+        # Input
+        self.text_input = TextInput(hint_text="Enter text...", multiline=True,
+                                    size_hint=(1, 0.3), font_size='18sp')
         self.layout.add_widget(self.text_input)
+        
+        # Progress & Info
+        self.progress = ProgressBar(max=100, value=0, size_hint=(1, 0.05))
+        self.status = Label(text="Status: Ready", font_size='14sp', color=(0.5, 0.5, 0.5, 1))
+        self.duration_label = Label(text="Duration: 00:00", font_size='14sp')
+        
         self.layout.add_widget(self.progress)
-        self.layout.add_widget(self.btn)
         self.layout.add_widget(self.status)
+        self.layout.add_widget(self.duration_label)
+        
+        # Audio Controls
+        ctrl_layout = BoxLayout(size_hint=(1, 0.1), spacing=10)
+        self.play_btn = Button(text="PLAY", on_press=self.play_audio, disabled=True)
+        self.stop_btn = Button(text="STOP", on_press=self.stop_audio, disabled=True)
+        ctrl_layout.add_widget(self.play_btn)
+        ctrl_layout.add_widget(self.stop_btn)
+        self.layout.add_widget(ctrl_layout)
+        
+        # Generate Button
+        self.gen_btn = Button(text="GENERATE AUDIO", size_hint=(1, 0.15), bold=True,
+                              background_color=get_color_from_hex('#0077B6'))
+        self.gen_btn.bind(on_press=self.start_process)
+        self.layout.add_widget(self.gen_btn)
         
         return self.layout
 
     def start_process(self, instance):
         content = self.text_input.text.strip()
         if content:
-            self.btn.disabled = True
-            self.progress.opacity = 1
-            self.status.text = "Initializing Engine..."
-            # Background thread taake UI freeze na ho
+            self.gen_btn.disabled = True
+            self.status.text = "Converting..."
             threading.Thread(target=self.run_engine, args=(content,)).start()
 
     def run_engine(self, text):
         try:
-            # Step 1: Processing
-            Clock.schedule_once(lambda dt: self.update_status("Converting Text...", 30))
-            tts = gTTS(text=text, lang='en')
-            
-            # Step 2: Saving File
-            Clock.schedule_once(lambda dt: self.update_status("Saving to Storage...", 70))
             filename = "generated_voice.mp3"
+            tts = gTTS(text=text, lang='en')
             tts.save(filename)
-            
-            # Step 3: Done
             Clock.schedule_once(lambda dt: self.finalize(filename))
         except Exception as e:
-            Clock.schedule_once(lambda dt: self.handle_error(str(e)))
-
-    def update_status(self, msg, val):
-        self.status.text = f"Status: {msg}"
-        self.progress.value = val
+            Clock.schedule_once(lambda dt: self.handle_error())
 
     def finalize(self, filename):
-        self.progress.value = 100
-        self.status.text = f"Success! Saved as {filename}"
-        self.btn.disabled = False
-        # Audio automatically play karne ke liye
-        os.system(f"termux-media-player play {filename}")
+        self.status.text = f"Saved: {filename}"
+        self.gen_btn.disabled = False
+        self.sound = SoundLoader.load(filename)
+        if self.sound:
+            # Duration calculate karna
+            mins, secs = divmod(int(self.sound.length), 60)
+            self.duration_label.text = f"Duration: {mins:02d}:{secs:02d}"
+            self.play_btn.disabled = False
+            self.stop_btn.disabled = False
 
-    def handle_error(self, err):
-        self.status.text = "Error: Check Connection"
-        self.btn.disabled = False
-        self.progress.value = 0
+    def play_audio(self, instance):
+        if self.sound:
+            if self.sound.state == 'play':
+                self.sound.stop()
+                self.play_btn.text = "PLAY"
+            else:
+                self.sound.play()
+                self.play_btn.text = "PAUSE"
 
-if __name__ == '__main__':
-    ProVoiceApp().run()
+    def stop_audio(self, instance):
+        if self.sound:
+            self.sound.stop()
+            self.play_btn.text = "PLAY"
+
+    def handle_error(self):
+        self.status.text = "Error in Generation"
+        self.gen_btn.disabled = False
