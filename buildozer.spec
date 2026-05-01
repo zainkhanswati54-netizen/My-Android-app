@@ -16,8 +16,11 @@ android.archs = arm64-v8a, armeabi-v7a
 android.api = 31
 android.minapi = 21
 
-# Necessary Permissions
-android.permissions = INTERNET, MODIFY_AUDIO_SETTINGS
+# Ye permissions crash ko rokengi
+android.permissions = INTERNET, WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE, MODIFY_AUDIO_SETTINGS
+
+# Requirements mein ffpyplayer add karna zaroori hai audio ke liye
+requirements = python3, kivy, gTTS, requests, certifi, android, ffpyplayer
 
 [buildozer]
 log_level = 2
