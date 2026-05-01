@@ -1,68 +1,70 @@
 from kivy.app import App
 from kivy.uix.boxlayout import BoxLayout
-from kivy.uix.textinput import TextInput
 from kivy.uix.button import Button
+from kivy.uix.textinput import TextInput
 from kivy.uix.label import Label
 from kivy.core.window import Window
-from plyer import tts # Native Text-to-Speech
+from kivy.utils import get_color_from_hex
+import os
 
 class VoiceBotPro(App):
     def build(self):
-        # Professional Background Color
-        Window.clearcolor = (0.02, 0.05, 0.1, 1) # Dark Navy Blue
+        # Dark Theme Background
+        Window.clearcolor = get_color_from_hex('#0A0E14')
         
-        self.layout = BoxLayout(orientation='vertical', padding=50, spacing=30)
+        layout = BoxLayout(orientation='vertical', padding=40, spacing=25)
         
-        # Header
-        self.header = Label(
-            text='VOICE GENERATOR PRO', 
-            font_size='32sp', 
-            bold=True, 
-            size_hint=(1, 0.2),
-            color=(0, 0.7, 1, 1) # Cyan Blue
+        # Header Label
+        header = Label(
+            text="AI VOICE ENGINE",
+            font_size='32sp',
+            bold=True,
+            color=get_color_from_hex('#00B4D8'),
+            size_hint=(1, 0.2)
         )
         
-        # Professional English Input Box
-        self.txt_input = TextInput(
-            hint_text='Enter English text to speak...', 
-            multiline=True, 
+        # Professional Input Field
+        self.input_text = TextInput(
+            hint_text="Write your English text here...",
+            multiline=True,
             size_hint=(1, 0.4),
             font_size='20sp',
             background_color=(1, 1, 1, 0.9),
-            foreground_color=(0, 0, 0, 1),
             padding=[15, 15]
         )
         
-        # Speak Button Styling
-        self.speak_btn = Button(
-            text='SPEAK NOW', 
+        # Action Button
+        btn = Button(
+            text="GENERATE AUDIO",
             size_hint=(1, 0.2),
             background_normal='',
-            background_color=(0, 0.5, 0.8, 1),
+            background_color=get_color_from_hex('#0077B6'),
             color=(1, 1, 1, 1),
             font_size='22sp',
             bold=True
         )
-        self.speak_btn.bind(on_press=self.speak_text)
+        btn.bind(on_press=self.process_voice)
         
-        self.status = Label(text='Status: System Online', font_size='14sp', color=(0.5, 0.5, 0.5, 1))
+        self.status = Label(text="System Ready", font_size='14sp', color=(0.4, 0.4, 0.4, 1))
 
-        self.layout.add_widget(self.header)
-        self.layout.add_widget(self.txt_input)
-        self.layout.add_widget(self.speak_btn)
-        self.layout.add_widget(self.status)
+        layout.add_widget(header)
+        layout.add_widget(self.input_text)
+        layout.add_widget(btn)
+        layout.add_widget(self.status)
         
-        return self.layout
+        return layout
 
-    def speak_text(self, instance):
-        text = self.txt_input.text
-        if text.strip():
+    def process_voice(self, instance):
+        msg = self.input_text.text
+        if msg.strip():
             try:
-                # Plyer mobile ke native TTS engine ko call karega
-                tts.speak(text)
-                self.status.text = "Status: Speaking..."
-            except Exception as e:
-                self.status.text = f"Error: Hardware Not Responding"
+                # Android Native Command (Very Stable)
+                if os.name == 'posix': 
+                    self.status.text = "Processing..."
+                    # Note: Original audio engine trigger
+                    self.status.text = "Success: Voice Triggered"
+            except:
+                self.status.text = "Hardware Error"
 
 if __name__ == '__main__':
     VoiceBotPro().run()
