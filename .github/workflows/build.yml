@@ -1,4 +1,4 @@
-name: Titan AI Studio Final Build
+name: Titan Ultimate Build
 on:
   workflow_dispatch:
   push:
@@ -6,28 +6,31 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install System Tools
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install Build Tools
         run: |
           sudo apt update
-          sudo apt install -y python3-pip build-essential git python3 python3-dev ffmpeg libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev libportmidi-dev libswscale-dev libavformat-dev libavcodec-dev zlib1g-dev libgstreamer1.0-dev gstreamer1.0-plugins-base gstreamer1.0-plugins-good libsqlite3-dev sqlite3 bzip2 libbz2-dev libssl-dev openssl libgdbm-dev libgdbm-compat-dev liblzma-dev libreadline-dev libncursesw5-dev libffi-dev uuid-dev tar bzip2 libncurses5-dev libncursesw5-dev libtinfo5 adb autopoint autoconf automake libtool pkg-config gettext
-
-      - name: Install Python Dependencies
-        run: |
+          sudo apt install -y build-essential libffi-dev libssl-dev libsqlite3-dev
           pip install --upgrade pip
           pip install buildozer cython==0.29.33 kivy
 
-      - name: Build Android APK
+      - name: Build with Buildozer
         run: |
+          # Is command se saari licenses khud accept ho jayengi
           yes | buildozer android debug
         env:
           ACCEPT_SDK_LICENSE: "True"
 
-      - name: Upload APK Artifact
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Titan-AI-Studio-Pro
+          name: Titan-AI-Full-Options
           path: bin/*.apk
