@@ -6,17 +6,17 @@ source.dir = .
 source.include_exts = py,png,jpg,kv,atlas,mp3,json,ttf,txt,wav
 version = 6.0.0
 
-# Optimized requirements for speed and success
+# Future-proof requirements (Full Options)
 requirements = python3, kivy==2.2.1, gTTS, requests, certifi, android, hostpython3, pillow, pyjnius, numpy
 
 orientation = portrait
 fullscreen = 0
 android.wakelock = True
 
-# Single line permissions - No duplicates
-android.permissions = INTERNET, WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE, MANAGE_EXTERNAL_STORAGE, ACCESS_NETWORK_STATE
+# Permissions (Single Line - Do not repeat!)
+android.permissions = INTERNET, WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE, MANAGE_EXTERNAL_STORAGE, ACCESS_NETWORK_STATE, WAKE_LOCK
 
-# Clean API settings (android.sdk removed to avoid warnings)
+# Stable API Settings
 android.api = 31
 android.minapi = 21
 android.ndk = 25b
