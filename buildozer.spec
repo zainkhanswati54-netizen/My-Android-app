@@ -6,14 +6,17 @@ source.dir = .
 source.include_exts = py,png,jpg,kv,atlas,mp3,json,ttf,txt,wav
 version = 6.0.0
 
+# Requirements: Sirf zaroori libraries rakhi hain
 requirements = python3, kivy==2.2.1, gTTS, requests, certifi, android, hostpython3, pillow, pyjnius, numpy
 
 orientation = portrait
 fullscreen = 0
 android.wakelock = True
 
+# Permissions (Single Line)
 android.permissions = INTERNET, WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE, MANAGE_EXTERNAL_STORAGE, ACCESS_NETWORK_STATE
 
+# API Settings (No 'android.sdk' line)
 android.api = 31
 android.minapi = 21
 android.ndk = 25b
