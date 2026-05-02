@@ -14,91 +14,90 @@ class VoicemakerApp(App):
     def build(self):
         self.sound = None
         self.last_pos = 0
-        self.save_path = ""
         
-        layout = BoxLayout(orientation='vertical', padding=30, spacing=15)
+        layout = BoxLayout(orientation='vertical', padding=30, spacing=20)
         
-        # Header - Professional Look
-        layout.add_widget(Label(text="PRO VOICE STUDIO", font_size='24sp', bold=True, color=(0, 0.7, 1, 1)))
+        # UI jaise aapne Voicemaker ka mangi thi
+        layout.add_widget(Label(text="AI VOICE STUDIO PRO", font_size='22sp', bold=True, color=(0, 0.6, 1, 1)))
         
-        self.txt = TextInput(hint_text="Apna text yahan likhein...", multiline=True, size_hint=(1, 0.4))
+        self.txt = TextInput(hint_text="Enter text here...", multiline=True, size_hint=(1, 0.4), font_size='18sp')
         layout.add_widget(self.txt)
 
-        # Progress Section (% Loading)
-        self.progress_label = Label(text="System Ready: 0%", size_hint=(1, 0.05))
-        self.bar = ProgressBar(max=100, value=0, size_hint=(1, 0.05))
-        layout.add_widget(self.progress_label)
+        self.status = Label(text="System: Waiting for input", size_hint=(1, 0.1), color=(1, 1, 1, 1))
+        self.bar = ProgressBar(max=100, value=0, size_hint=(1, 0.1), opacity=0)
+        layout.add_widget(self.status)
         layout.add_widget(self.bar)
 
-        # Playback Controls (Play/Pause/Stop)
-        ctrls = BoxLayout(size_hint=(1, 0.15), spacing=10)
-        self.btn_play = Button(text="PLAY", on_press=self.toggle_audio, disabled=True)
-        self.btn_stop = Button(text="STOP", on_press=self.stop_audio, disabled=True)
-        ctrls.add_widget(self.btn_play)
-        ctrls.add_widget(self.btn_stop)
-        layout.add_widget(ctrls)
+        # Controls
+        ctrl_layout = BoxLayout(size_hint=(1, 0.15), spacing=10)
+        self.btn_p = Button(text="PLAY/PAUSE", on_press=self.toggle, disabled=True)
+        self.btn_s = Button(text="STOP", on_press=self.stop, disabled=True)
+        ctrl_layout.add_widget(self.btn_p)
+        ctrl_layout.add_widget(self.btn_s)
+        layout.add_widget(ctrl_layout)
 
-        # Convert Button
-        self.gen_btn = Button(text="CONVERT TO SPEECH", size_hint=(1, 0.2), background_color=(0, 0.4, 0.8, 1), bold=True)
-        self.gen_btn.bind(on_press=self.start_generation)
+        self.gen_btn = Button(text="CONVERT & SAVE", size_hint=(1, 0.2), background_color=(0, 0.5, 0.8, 1), bold=True)
+        self.gen_btn.bind(on_press=self.start_work)
         layout.add_widget(self.gen_btn)
-
+        
         return layout
 
-    def start_generation(self, instance):
+    def start_work(self, instance):
         if self.txt.text.strip():
             self.gen_btn.disabled = True
-            self.btn_play.disabled = True
-            self.update_progress(10, "Initializing...")
-            threading.Thread(target=self.process_audio).start()
+            self.bar.opacity = 1
+            self.status.text = "Status: Connecting to Server (20%)..."
+            self.bar.value = 20
+            threading.Thread(target=self.run_tts).start()
 
-    def process_audio(self):
+    def run_tts(self):
         try:
-            Clock.schedule_once(lambda dt: self.update_progress(40, "Converting Text..."))
+            # Internal storage use karenge taake permission ka masla shuru mein na aaye
+            save_dir = self.user_data_dir
+            path = os.path.join(save_dir, "voice.mp3")
+            
+            Clock.schedule_once(lambda dt: self.update_ui(50, "Generating Audio..."))
             tts = gTTS(text=self.txt.text, lang='en')
+            tts.save(path)
             
-            Clock.schedule_once(lambda dt: self.update_progress(70, "Saving to Storage..."))
-            # Internal app storage is safest to avoid immediate crashes
-            self.save_path = os.path.join(self.user_data_dir, "voice_output.mp3")
-            tts.save(self.save_path)
-            
-            Clock.schedule_once(lambda dt: self.load_audio())
-        except:
-            Clock.schedule_once(lambda dt: self.update_progress(0, "Error: Check Internet"))
-            Clock.schedule_once(lambda dt: setattr(self.gen_btn, 'disabled', False))
+            Clock.schedule_once(lambda dt: self.update_ui(90, "Loading Sound Driver..."))
+            Clock.schedule_once(lambda dt: self.finalize(path))
+        except Exception as e:
+            Clock.schedule_once(lambda dt: self.error_ui(str(e)))
 
-    def update_progress(self, val, msg):
+    def update_ui(self, val, msg):
         self.bar.value = val
-        self.progress_label.text = f"{msg} ({val}%)"
+        self.status.text = f"Status: {msg}"
 
-    def load_audio(self):
+    def finalize(self, path):
         if self.sound: self.sound.unload()
-        self.sound = SoundLoader.load(self.save_path)
+        self.sound = SoundLoader.load(path)
         if self.sound:
-            self.update_progress(100, "Voice Ready!")
-            self.btn_play.disabled = False
-            self.btn_stop.disabled = False
+            self.update_ui(100, "Ready! Voice Saved Internally")
+            self.btn_p.disabled = False
+            self.btn_s.disabled = False
+        else:
+            self.status.text = "Driver Error: Audio Not Supported"
         self.gen_btn.disabled = False
 
-    def toggle_audio(self, instance):
+    def toggle(self, instance):
         if self.sound:
             if self.sound.state == 'play':
                 self.last_pos = self.sound.get_pos()
                 self.sound.stop()
-                self.btn_play.text = "RESUME"
-                self.progress_label.text = "Paused"
+                self.btn_p.text = "RESUME"
             else:
                 self.sound.play()
                 if self.last_pos > 0: self.sound.seek(self.last_pos)
-                self.btn_play.text = "PAUSE"
-                self.progress_label.text = "Playing..."
+                self.btn_p.text = "PAUSE"
 
-    def stop_audio(self, instance):
+    def stop(self, instance):
         if self.sound:
             self.sound.stop()
             self.last_pos = 0
-            self.btn_play.text = "PLAY"
-            self.progress_label.text = "Stopped"
+            self.btn_p.text = "PLAY"
 
-if __name__ == '__main__':
-    VoicemakerApp().run()
+    def error_ui(self, err):
+        self.status.text = "Check Internet / Server Busy"
+        self.gen_btn.disabled = False
+        self.bar.opacity = 0
