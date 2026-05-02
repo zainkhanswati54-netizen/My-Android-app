@@ -51,7 +51,6 @@ android.enable_androidx = True
 
 # (list) The Android libs to copy in the libs directory
 # Isse app ka size maintain rehta hai aur crash nahi hota
-android.copy_libs = 1
 
 # (str) Android logcat filters
 android.logcat_filters = *:S python:D
