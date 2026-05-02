@@ -1,192 +1,211 @@
+import os
+import threading
+import time
+import shutil
+
+# Kivy configurations to prevent startup crashes
+os.environ['KIVY_AUDIO'] = 'android' 
+
 from kivy.app import App
 from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.gridlayout import GridLayout
 from kivy.uix.button import Button
 from kivy.uix.textinput import TextInput
 from kivy.uix.label import Label
 from kivy.uix.slider import Slider
-from kivy.uix.scrollview import ScrollView
 from kivy.uix.progressbar import ProgressBar
+from kivy.uix.scrollview import ScrollView
 from kivy.core.audio import SoundLoader
 from kivy.core.window import Window
 from kivy.clock import Clock
+from kivy.utils import get_color_from_hex
 from kivy.graphics import Color, RoundedRectangle
-import threading
-import os
-import shutil
-import time
 
-# Android specific imports with safety checks
+# --- Safety Check for Android ---
 try:
     from android.permissions import request_permissions, Permission
-    from android.storage import primary_external_storage_path
+    ANDROID = True
 except ImportError:
-    request_permissions = None
-    primary_external_storage_path = None
+    ANDROID = False
 
-class ModernButton(Button):
-    def __init__(self, **kwargs):
+# --- Custom UI Elements ---
+class StyledButton(Button):
+    def __init__(self, bg_color='#0078D7', **kwargs):
         super().__init__(**kwargs)
         self.background_normal = ''
         self.background_color = (0, 0, 0, 0)
-        self.bind(pos=self.update_canvas, size=self.update_canvas)
+        self.color_hex = bg_color
+        self.bind(pos=self.draw, size=self.draw)
 
-    def update_canvas(self, *args):
+    def draw(self, *args):
         self.canvas.before.clear()
         with self.canvas.before:
-            Color(0, 0.5, 0.8, 1)
-            RoundedRectangle(pos=self.pos, size=self.size, radius=[15])
+            Color(*get_color_from_hex(self.color_hex))
+            RoundedRectangle(pos=self.pos, size=self.size, radius=[12])
 
-class ProVoiceStudio(App):
+class VoiceStudioPro(App):
     def build(self):
-        Window.clearcolor = (0.02, 0.02, 0.05, 1)
-        self.title = "AI Voice Studio Pro"
+        # 1. Base Setup
+        self.title = "AI Voice Studio Elite"
+        Window.clearcolor = get_color_from_hex('#0A0E14')
         self.sound = None
-        self.temp_file = os.path.join(self.user_data_dir, "last_voice.mp3")
+        self.is_generating = False
+        self.temp_path = os.path.join(self.user_data_dir, "output_audio.mp3")
         
-        # Main Scroll Container
-        root = ScrollView(size_hint=(1, 1))
-        self.main_layout = BoxLayout(orientation='vertical', padding=30, spacing=20, size_hint_y=None)
-        self.main_layout.bind(minimum_height=self.main_layout.setter('height'))
+        # 2. Layout Structure
+        self.root_layout = BoxLayout(orientation='vertical', padding=20, spacing=15)
+        
+        # Scrollable Content
+        scroll = ScrollView(size_hint=(1, 1))
+        content = BoxLayout(orientation='vertical', size_hint_y=None, spacing=20, padding=[10, 20])
+        content.bind(minimum_height=content.setter('height'))
 
-        # Header Section
-        header = Label(text="ULTIMATE VOICE ENGINE", font_size='28sp', bold=True, color=(0, 0.8, 1, 1), size_hint_y=None, height=80)
-        self.main_layout.add_widget(header)
-
-        # Input Section
-        self.main_layout.add_widget(Label(text="Enter Your Text Below:", size_hint_y=None, height=30, halign='left'))
-        self.txt_input = TextInput(
-            hint_text="Type something deep...",
-            multiline=True,
-            size_hint_y=None,
-            height=300,
-            background_color=(0.1, 0.1, 0.15, 1),
-            foreground_color=(1, 1, 1, 1),
-            padding=[15, 15]
+        # Header
+        header = Label(
+            text="[b]AI VOICE STUDIO ELITE[/b]", 
+            markup=True, font_size='32sp', 
+            color=get_color_from_hex('#00CCFF'),
+            size_hint_y=None, height=100
         )
-        self.main_layout.add_widget(self.txt_input)
+        content.add_widget(header)
 
-        # Speed Controls
-        speed_box = BoxLayout(orientation='vertical', size_hint_y=None, height=120, spacing=10)
-        self.speed_label = Label(text="Playback Speed: 1.0x (Normal)", color=(0.7, 0.7, 0.7, 1))
+        # Text Area
+        content.add_widget(Label(text="Input Script:", size_hint_y=None, height=40, halign='left'))
+        self.text_input = TextInput(
+            hint_text="Write your script here...",
+            multiline=True, size_hint_y=None, height=400,
+            background_color=get_color_from_hex('#1A1F26'),
+            foreground_color=(1, 1, 1, 1),
+            cursor_color=get_color_from_hex('#00CCFF'),
+            font_size='18sp', padding=[15, 15]
+        )
+        content.add_widget(self.text_input)
+
+        # Control Panel (Grid)
+        controls = GridLayout(cols=1, spacing=15, size_hint_y=None, height=250)
+        
+        # Speed Slider
+        self.speed_label = Label(text="Voice Speed: 1.0x (Normal)", color=get_color_from_hex('#BBBBBB'))
         self.speed_slider = Slider(min=0.5, max=2.0, value=1.0, step=0.1)
-        self.speed_slider.bind(value=self.on_speed_update)
-        speed_box.add_widget(self.speed_label)
-        speed_box.add_widget(self.speed_slider)
+        self.speed_slider.bind(value=self.update_speed_text)
         
-        # 1.5x 2.0x Labels
-        label_box = BoxLayout(size_hint_y=None, height=20)
-        label_box.add_widget(Label(text="0.5x", font_size='10sp'))
-        label_box.add_widget(Label(text="1.0x", font_size='10sp'))
-        label_box.add_widget(Label(text="2.0x", font_size='10sp'))
-        speed_box.add_widget(label_box)
-        self.main_layout.add_widget(speed_box)
-
-        # Progress Bar
-        self.progress = ProgressBar(max=100, value=0, size_hint_y=None, height=20)
-        self.main_layout.add_widget(self.progress)
+        controls.add_widget(self.speed_label)
+        controls.add_widget(self.speed_slider)
         
-        self.status = Label(text="System Initialized", font_size='14sp', italic=True, size_hint_y=None, height=40)
-        self.main_layout.add_widget(self.status)
+        # Progress Tracking
+        self.status_label = Label(text="Status: System Idle", font_size='14sp', color=(0.5, 0.5, 0.5, 1))
+        self.progress_bar = ProgressBar(max=100, value=0, size_hint_y=None, height=20)
+        controls.add_widget(self.status_label)
+        controls.add_widget(self.progress_bar)
+        
+        content.add_widget(controls)
 
-        # Playback Controls
-        ctrl_layout = BoxLayout(size_hint_y=None, height=80, spacing=15)
-        self.play_btn = ModernButton(text="PLAY PREVIEW", disabled=True)
-        self.play_btn.bind(on_press=self.toggle_audio)
-        self.stop_btn = ModernButton(text="STOP", disabled=True)
-        self.stop_btn.bind(on_press=self.stop_audio)
-        ctrl_layout.add_widget(self.play_btn)
-        ctrl_layout.add_widget(self.stop_btn)
-        self.main_layout.add_widget(ctrl_layout)
+        # Playback Buttons
+        play_box = BoxLayout(size_hint_y=None, height=80, spacing=15)
+        self.btn_play = StyledButton(text="PLAY PREVIEW", bg_color='#28A745', disabled=True)
+        self.btn_play.bind(on_press=self.play_audio)
+        self.btn_stop = StyledButton(text="STOP", bg_color='#DC3545', disabled=True)
+        self.btn_stop.bind(on_press=self.stop_audio)
+        play_box.add_widget(self.btn_play)
+        play_box.add_widget(self.btn_stop)
+        content.add_widget(play_box)
 
         # Action Buttons
-        self.gen_btn = ModernButton(text="GENERATE AI VOICE", size_hint_y=None, height=100)
-        self.gen_btn.bind(on_press=self.start_generation)
-        self.main_layout.add_widget(self.gen_btn)
+        self.btn_gen = StyledButton(text="GENERATE VOICE", bg_color='#0078D7', height=100, size_hint_y=None)
+        self.btn_gen.bind(on_press=self.start_voice_thread)
+        content.add_widget(self.btn_gen)
 
-        self.save_btn = ModernButton(text="EXPORT TO DOWNLOADS", size_hint_y=None, height=80, disabled=True)
-        self.save_btn.bind(on_press=self.export_file)
-        self.main_layout.add_widget(self.save_btn)
+        self.btn_export = StyledButton(text="SAVE TO DOWNLOADS", bg_color='#6F42C1', height=80, size_hint_y=None, disabled=True)
+        self.btn_export.bind(on_press=self.export_to_phone)
+        content.add_widget(self.btn_export)
 
-        root.add_widget(self.main_layout)
+        scroll.add_widget(content)
+        self.root_layout.add_widget(scroll)
+
+        # Final Initialization delay to prevent crash
+        Clock.schedule_once(self.late_init, 1.0)
         
-        # Delayed permissions for safety
-        Clock.schedule_once(self.check_perms, 1.5)
-        return root
+        return self.root_layout
 
-    def on_speed_update(self, inst, val):
-        self.speed_label.text = f"Playback Speed: {round(val, 1)}x"
+    def update_speed_text(self, instance, value):
+        self.speed_label.text = f"Voice Speed: {round(value, 1)}x"
 
-    def check_perms(self, dt):
-        if request_permissions:
+    def late_init(self, dt):
+        if ANDROID:
             request_permissions([Permission.WRITE_EXTERNAL_STORAGE, Permission.READ_EXTERNAL_STORAGE])
-        self.status.text = "Status: Ready to work"
+        self.status_label.text = "Status: Ready"
 
-    def start_generation(self, instance):
-        if not self.txt_input.text.strip():
-            self.status.text = "Error: Input text is empty"
+    def start_voice_thread(self, instance):
+        if not self.text_input.text.strip():
+            self.status_label.text = "Status: Error - Text Empty!"
             return
         
-        self.gen_btn.disabled = True
-        self.status.text = "Status: Connecting to AI Engine..."
-        self.progress.value = 20
-        threading.Thread(target=self.process_voice).start()
+        self.is_generating = True
+        self.btn_gen.disabled = True
+        self.progress_bar.value = 10
+        self.status_label.text = "Status: Initializing AI..."
+        threading.Thread(target=self.generate_voice_logic).start()
 
-    def process_voice(self):
+    def generate_voice_logic(self):
         try:
             from gtts import gTTS
-            # Logic for speed
-            is_slow = self.speed_slider.value < 1.0
-            tts = gTTS(text=self.txt_input.text, lang='en', slow=is_slow)
+            Clock.schedule_once(lambda dt: self.update_ui(40, "Status: Synthesizing..."))
             
-            Clock.schedule_once(lambda dt: self.update_progress(60, "Status: Writing Audio File..."))
-            tts.save(self.temp_file)
+            # Speed logic: slow if slider < 1.0
+            tts = gTTS(text=self.text_input.text, lang='en', slow=(self.speed_slider.value < 1.0))
             
-            Clock.schedule_once(lambda dt: self.load_finished())
+            Clock.schedule_once(lambda dt: self.update_ui(70, "Status: Saving Audio..."))
+            tts.save(self.temp_path)
+            
+            Clock.schedule_once(lambda dt: self.finish_generation())
         except Exception as e:
-            Clock.schedule_once(lambda dt: self.report_crash(str(e)))
+            Clock.schedule_once(lambda dt: self.handle_error(str(e)))
 
-    def update_progress(self, val, msg):
-        self.progress.value = val
-        self.status.text = msg
+    def update_ui(self, progress, status):
+        self.progress_bar.value = progress
+        self.status_label.text = status
 
-    def load_finished(self):
+    def finish_generation(self):
         if self.sound: self.sound.unload()
-        self.sound = SoundLoader.load(self.temp_file)
-        if self.sound:
-            self.update_progress(100, f"Ready! File size: {os.path.getsize(self.temp_file)//1024} KB")
-            self.play_btn.disabled = False
-            self.stop_btn.disabled = False
-            self.save_btn.disabled = False
-        else:
-            self.status.text = "Error: Audio Driver Failure"
-        self.gen_btn.disabled = False
+        self.sound = SoundLoader.load(self.temp_path)
+        
+        self.progress_bar.value = 100
+        self.status_label.text = "Status: Voice Ready!"
+        self.btn_play.disabled = False
+        self.btn_stop.disabled = False
+        self.btn_export.disabled = False
+        self.btn_gen.disabled = False
 
-    def toggle_audio(self, instance):
+    def play_audio(self, instance):
         if self.sound:
             if self.sound.state == 'play':
                 self.sound.stop()
-                self.play_btn.text = "RESUME"
+                self.btn_play.text = "PLAY PREVIEW"
             else:
                 self.sound.play()
-                self.play_btn.text = "PAUSE"
+                self.btn_play.text = "PAUSE"
 
     def stop_audio(self, instance):
         if self.sound:
             self.sound.stop()
-            self.play_btn.text = "PLAY PREVIEW"
+            self.btn_play.text = "PLAY PREVIEW"
 
-    def export_file(self, instance):
+    def export_to_phone(self, instance):
         try:
-            # Fixing the path for modern Android
-            export_path = "/sdcard/Download/AI_Studio_Voice.mp3"
-            shutil.copyfile(self.temp_file, export_path)
-            self.status.text = f"Saved: {export_path}"
+            # Standard Download Path
+            target = "/sdcard/Download/AI_Voice_Studio.mp3"
+            shutil.copyfile(self.temp_path, target)
+            self.status_label.text = f"Status: Exported to {target}"
         except Exception as e:
-            self.status.text = "Permission Error: Check Settings"
+            self.status_label.text = f"Status: Export Failed - {str(e)[:20]}"
 
-    def report_crash(self, msg):
-        self.status.text = f"CRASH PREVENTED: {msg[:50]}"
-        self.gen_btn.disabled = False
+    def handle_error(self, err):
+        self.status_label.text = f"CRITICAL ERROR: {err[:50]}"
+        self.btn_gen.disabled = False
+        self.progress_bar.value = 0
 
 if __name__ == '__main__':
-    ProVoiceStudio().run()
+    try:
+        VoiceStudioPro().run()
+    except Exception as e:
+        print(f"App level crash: {e}")
