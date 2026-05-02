@@ -20,5 +20,5 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Titan-AI-Studio
+          name: Titan-Studio-Build
           path: bin/*.apk
