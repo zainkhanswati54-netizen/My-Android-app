@@ -40,3 +40,22 @@ jobs:
         with:
           name: my-apk
           path: bin/*.apk
+steps:
+      - uses: actions/checkout@v2
+
+      - name: Install Build Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y autoconf automake libtool pkg-config gettext autopoint
+
+      - name: Build with Buildozer
+        uses: ArtemSBulgakov/buildozer-action@v1
+        with:
+          buildozer_version: master
+          command: buildozer android debug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: my-apk
+          path: bin/*.apk
