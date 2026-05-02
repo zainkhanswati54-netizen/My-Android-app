@@ -10,11 +10,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Get Date
-        id: get-date
-        run: |
-          echo "date=$(date -u +'%Y%m%d')" >> $GITHUB_OUTPUT
-
       - name: Free Disk Space
         run: |
           sudo docker image prune --all --force
@@ -32,7 +27,7 @@ jobs:
 
       - name: Build with Buildozer
         run: |
-          buildozer android debug
+          yes | buildozer android debug
         env:
           ACCEPT_SDK_LICENSE: "True"
 
