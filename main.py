@@ -4,7 +4,6 @@ from kivy.uix.button import Button
 from kivy.uix.textinput import TextInput
 from kivy.uix.label import Label
 from kivy.uix.progressbar import ProgressBar
-from kivy.core.audio import SoundLoader
 from kivy.clock import Clock
 import threading
 from gtts import gTTS
@@ -12,77 +11,58 @@ import os
 
 class ProVoiceApp(App):
     def build(self):
-        self.sound = None
-        self.last_pos = 0
-        layout = BoxLayout(orientation='vertical', padding=40, spacing=15)
+        self.sound_path = None
+        self.is_playing = False
         
-        self.txt = TextInput(hint_text="Enter text here...", size_hint=(1, 0.3))
-        self.loading_bar = ProgressBar(max=100, value=0, size_hint=(1, 0.05), opacity=0)
-        self.status = Label(text="System Ready", size_hint=(1, 0.1))
+        layout = BoxLayout(orientation='vertical', padding=30, spacing=20)
         
-        # Controls
-        btn_layout = BoxLayout(size_hint=(1, 0.15), spacing=10)
-        self.p_btn = Button(text="PLAY", on_press=self.toggle_audio, disabled=True)
-        self.s_btn = Button(text="STOP", on_press=self.stop_audio, disabled=True)
-        btn_layout.add_widget(self.p_btn)
-        btn_layout.add_widget(self.s_btn)
+        self.txt = TextInput(hint_text="Enter English text...", size_hint=(1, 0.4), font_size='18sp')
+        self.bar = ProgressBar(max=100, value=0, size_hint=(1, 0.1), opacity=0)
+        self.status = Label(text="Ready to Generate", size_hint=(1, 0.1), color=(0, 1, 0, 1))
         
-        self.gen_btn = Button(text="GENERATE", size_hint=(1, 0.2), background_color=(0, 0.4, 0.7, 1))
-        self.gen_btn.bind(on_press=self.generate)
+        # Action Buttons
+        self.gen_btn = Button(text="GENERATE & SAVE VOICE", size_hint=(1, 0.2), bold=True, background_color=(0, 0.5, 0.8, 1))
+        self.gen_btn.bind(on_press=self.start_thread)
         
         layout.add_widget(self.txt)
-        layout.add_widget(self.loading_bar)
+        layout.add_widget(self.bar)
         layout.add_widget(self.status)
-        layout.add_widget(btn_layout)
         layout.add_widget(self.gen_btn)
         return layout
 
-    def generate(self, instance):
+    def start_thread(self, instance):
         if self.txt.text.strip():
             self.gen_btn.disabled = True
-            self.loading_bar.opacity = 1
-            self.status.text = "Processing..."
-            threading.Thread(target=self.worker).start()
+            self.bar.opacity = 1
+            self.status.text = "Processing... Please Wait"
+            threading.Thread(target=self.generate_audio).start()
 
-    def worker(self):
+    def generate_audio(self):
         try:
-            # Internal storage use karein taake permission ka lafara na ho
-            path = os.path.join(App.get_running_app().user_data_dir, "voice.mp3")
+            # Save path - Downloads folder for easy access
+            save_folder = "/sdcard/Download"
+            if not os.path.exists(save_folder):
+                save_folder = os.getcwd()
+                
+            self.sound_path = os.path.join(save_folder, "my_voice_ai.mp3")
+            
             tts = gTTS(text=self.txt.text, lang='en')
-            tts.save(path)
-            Clock.schedule_once(lambda dt: self.load_sound(path))
-        except:
-            Clock.schedule_once(lambda dt: self.handle_error())
+            tts.save(self.sound_path)
+            
+            Clock.schedule_once(lambda dt: self.finish_up())
+        except Exception as e:
+            Clock.schedule_once(lambda dt: self.show_error())
 
-    def load_sound(self, path):
-        self.sound = SoundLoader.load(path)
-        if self.sound:
-            self.status.text = "Success! Voice Ready"
-            self.p_btn.disabled = False
-            self.s_btn.disabled = False
-        else:
-            self.status.text = "Audio Load Failed"
+    def finish_up(self):
+        self.bar.value = 100
+        self.status.text = f"Saved in Downloads!\nPath: {self.sound_path}"
         self.gen_btn.disabled = False
-        self.loading_bar.opacity = 0
+        # Play using Android's internal system (No Crash)
+        os.system(f"am start -a android.intent.action.VIEW -d file://{self.sound_path} -t audio/mp3")
 
-    def toggle_audio(self, instance):
-        if self.sound:
-            if self.sound.state == 'play':
-                self.last_pos = self.sound.get_pos()
-                self.sound.stop()
-                self.p_btn.text = "RESUME"
-            else:
-                self.sound.play()
-                if self.last_pos > 0: self.sound.seek(self.last_pos)
-                self.p_btn.text = "PAUSE"
-
-    def stop_audio(self, instance):
-        if self.sound:
-            self.sound.stop()
-            self.last_pos = 0
-            self.p_btn.text = "PLAY"
-
-    def handle_error(self):
-        self.status.text = "Internet Error"
+    def show_error(self):
+        self.status.text = "Error: Check Internet or Storage"
         self.gen_btn.disabled = False
-        self.loading_bar.opacity = 0
+
+if __name__ == '__main__':
+    ProVoiceApp().run()
