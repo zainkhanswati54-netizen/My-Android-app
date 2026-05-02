@@ -1,4 +1,4 @@
-name: Titan Ultimate Build
+name: Titan Final Success Build
 on:
   workflow_dispatch:
   push:
@@ -10,15 +10,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Free Disk Space
+      - name: Fix Apt and Install Dependencies
         run: |
-          sudo docker image prune --all --force
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
-
-      - name: Install System Dependencies
-        run: |
-          sudo apt update
-          sudo apt install -y python3-pip build-essential git python3 python3-dev ffmpeg libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev libportmidi-dev libswscale-dev libavformat-dev libavcodec-dev zlib1g-dev libgstreamer1.0-dev gstreamer1.0-plugins-base gstreamer1.0-plugins-good libsqlite3-dev sqlite3 bzip2 libbz2-dev libssl-dev openssl libgdbm-dev libgdbm-compat-dev liblzma-dev libreadline-dev libncursesw5-dev libffi-dev uuid-dev tar bzip2 libncurses5-dev libncursesw5-dev libtinfo5 adb autopoint autoconf automake libtool pkg-config gettext
+          sudo apt-get clean
+          sudo apt-get update --fix-missing
+          # Forcefully fixing broken dependencies
+          sudo apt-get install -y -f
+          sudo apt-get install -y build-essential libffi-dev libssl-dev python3-pip python3-setuptools
 
       - name: Install Build Tools
         run: |
@@ -27,6 +25,8 @@ jobs:
 
       - name: Build with Buildozer
         run: |
+          # Adding path to ensure buildozer is found
+          export PATH=$PATH:$HOME/.local/bin
           yes | buildozer android debug
         env:
           ACCEPT_SDK_LICENSE: "True"
@@ -34,5 +34,5 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Titan-AI-App
+          name: Titan-AI-Studio-Pro
           path: bin/*.apk
