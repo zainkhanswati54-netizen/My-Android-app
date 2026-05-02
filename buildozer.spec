@@ -7,7 +7,7 @@ source.include_exts = py,png,jpg,kv,atlas
 version = 1.0
 
 # Critical Fix: Added 'chardet' and 'idna' for network stability
-requirements = python3, kivy==2.2.1, gTTS, requests, certifi, chardet, idna, android, ffpyplayer
+requirements = python3, kivy==2.2.1, gTTS, requests, certifi, chardet, idna, android
 
 orientation = portrait
 fullscreen = 0
