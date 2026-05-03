@@ -1,572 +1,727 @@
-import os
-import threading
-import time
-import shutil
-import json
-
-# ─── Android Detection ───────────────────────────────────────────────────────
-try:
-    from android.permissions import request_permissions, Permission
-    ANDROID_ENV = True
-    os.environ['KIVY_AUDIO'] = 'android'
-except ImportError:
-    ANDROID_ENV = False
-
-# ─── Kivy Config (imports se PEHLE) ──────────────────────────────────────────
-from kivy.config import Config
-Config.set('graphics', 'resizable', '0')
-# FIX #1: Android par OpenGL ES 2 force karo — warna black screen / crash
-Config.set('graphics', 'multisamples', '0')
-
-from kivy.app import App
-from kivy.uix.boxlayout import BoxLayout
-from kivy.uix.floatlayout import FloatLayout
-from kivy.uix.gridlayout import GridLayout
-from kivy.uix.button import Button
-from kivy.uix.textinput import TextInput
-from kivy.uix.label import Label
-from kivy.uix.progressbar import ProgressBar
-from kivy.uix.scrollview import ScrollView
-from kivy.uix.spinner import Spinner
-from kivy.uix.popup import Popup
-from kivy.uix.screenmanager import ScreenManager, Screen, FadeTransition
-from kivy.core.audio import SoundLoader
-from kivy.clock import Clock
-from kivy.utils import get_color_from_hex
-from kivy.graphics import Color, RoundedRectangle, Rectangle, Line
-
-# ─── Languages ────────────────────────────────────────────────────────────────
-LANGUAGES = {
-    'English':  'en',
-    'Urdu':     'ur',
-    'Hindi':    'hi',
-    'Arabic':   'ar',
-    'French':   'fr',
-    'Spanish':  'es',
-    'German':   'de',
-    'Turkish':  'tr',
-    'Russian':  'ru',
-    'Chinese':  'zh',
-    'Japanese': 'ja',
-    'Korean':   'ko',
-}
-
-# ─── Voice Profiles ───────────────────────────────────────────────────────────
-VOICE_PROFILES = {
-    'Male':    {'tld': 'com',    'slow': False},
-    'Female':  {'tld': 'com.au', 'slow': False},
-    'Child':   {'tld': 'co.uk',  'slow': True },
-    'News':    {'tld': 'ca',     'slow': False},
-    'Soft':    {'tld': 'co.in',  'slow': True },
-}
-
-# ─── History Helpers ──────────────────────────────────────────────────────────
-def get_history_path():
-    app = App.get_running_app()
-    base = app.user_data_dir if app else '.'
-    return os.path.join(base, 'download_history.json')
-
-def load_history():
-    try:
-        with open(get_history_path(), 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except Exception:
-        return []
-
-def save_to_history(entry):
-    history = load_history()
-    history.insert(0, entry)
-    try:
-        with open(get_history_path(), 'w', encoding='utf-8') as f:
-            json.dump(history[:50], f, ensure_ascii=False, indent=2)
-    except Exception:
-        pass
-
-# ─── UI Components ────────────────────────────────────────────────────────────
-class NeonPanel(FloatLayout):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        with self.canvas.before:
-            Color(*get_color_from_hex('#020617'))
-            self.rect   = Rectangle(pos=self.pos, size=self.size)
-            Color(*get_color_from_hex('#1E293B'))
-            self.border = Line(
-                rectangle=(self.x, self.y, self.width, self.height), width=2)
-        self.bind(pos=self._upd, size=self._upd)
-
-    def _upd(self, *a):
-        self.rect.pos   = self.pos
-        self.rect.size  = self.size
-        self.border.rectangle = (
-            self.x+5, self.y+5, self.width-10, self.height-10)
-
-
-class ProButton(Button):
-    def __init__(self, main_color='#3B82F6', **kwargs):
-        super().__init__(**kwargs)
-        self.background_normal = ''
-        self.background_color  = (0, 0, 0, 0)
-        self.m_color = main_color
-        self.color   = (1, 1, 1, 1)
-        self.bind(pos=self.render, size=self.render)
-
-    def render(self, *a):
-        self.canvas.before.clear()
-        with self.canvas.before:
-            Color(*get_color_from_hex(self.m_color))
-            RoundedRectangle(pos=self.pos, size=self.size, radius=[14])
-
-
-# ─── Splash Screen ────────────────────────────────────────────────────────────
-class SplashScreen(Screen):
-    def __init__(self, **kw):
-        super().__init__(**kw)
-        layout = NeonPanel()
-        layout.add_widget(Label(
-            text='TITAN AI', font_size='50sp', bold=True,
-            color=get_color_from_hex('#38BDF8'),
-            pos_hint={'center_x': 0.5, 'center_y': 0.62}
-        ))
-        self.lbl = Label(
-            text='Initializing...',
-            color=get_color_from_hex('#94A3B8'),
-            pos_hint={'center_x': 0.5, 'center_y': 0.47}
-        )
-        layout.add_widget(self.lbl)
-        self.pb = ProgressBar(
-            max=100, size_hint=(0.65, None), height=22,
-            pos_hint={'center_x': 0.5, 'center_y': 0.40}
-        )
-        layout.add_widget(self.pb)
-        self.add_widget(layout)
-
-    def on_enter(self):
-        self._ev = Clock.schedule_interval(self._tick, 0.04)
-
-    def on_leave(self):
-        if hasattr(self, '_ev'):
-            self._ev.cancel()
-
-    def _tick(self, dt):
-        if self.pb.value < 100:
-            self.pb.value += 2
-            v = self.pb.value
-            if v == 30:  self.lbl.text = 'Loading Audio Engines...'
-            elif v == 60: self.lbl.text = 'Loading Voice Profiles...'
-            elif v == 90: self.lbl.text = 'Almost Ready!'
-        else:
-            self.manager.current = 'studio'
-
-
-# ─── History Screen ───────────────────────────────────────────────────────────
-class HistoryScreen(Screen):
-    def __init__(self, **kw):
-        super().__init__(**kw)
-        self._active_sounds = []
-        self._build()
-
-    def _build(self):
-        panel = NeonPanel()
-        outer = BoxLayout(orientation='vertical', padding=15, spacing=12)
-
-        # Header
-        hdr = BoxLayout(size_hint_y=None, height=65, spacing=10)
-        back = ProButton(text='<- Back', main_color='#475569', size_hint_x=0.3)
-        back.bind(on_press=lambda x: setattr(self.manager, 'current', 'studio'))
-        hdr.add_widget(back)
-        hdr.add_widget(Label(
-            text='[b]Download History[/b]', markup=True,
-            font_size='20sp', color=get_color_from_hex('#22D3EE')
-        ))
-        outer.add_widget(hdr)
-
-        scroll = ScrollView(size_hint=(1, 1))
-        self.list_box = BoxLayout(
-            orientation='vertical', spacing=8,
-            size_hint_y=None, padding=[0, 5]
-        )
-        self.list_box.bind(minimum_height=self.list_box.setter('height'))
-        scroll.add_widget(self.list_box)
-        outer.add_widget(scroll)
-
-        clr = ProButton(
-            text='Clear All History', main_color='#7F1D1D',
-            size_hint_y=None, height=58
-        )
-        clr.bind(on_press=self._clear_all)
-        outer.add_widget(clr)
-
-        # FIX #2: outer ko NeonPanel ke andar daalo, phir screen mein add karo
-        panel.add_widget(outer)
-        self.add_widget(panel)
-
-    def on_enter(self):
-        self._refresh()
-
-    def _refresh(self):
-        self.list_box.clear_widgets()
-        history = load_history()
-        if not history:
-            self.list_box.add_widget(Label(
-                text='Abhi tak koi download nahi hua.',
-                color=(0.5, 0.5, 0.5, 1),
-                size_hint_y=None, height=60
-            ))
-            return
-
-        for entry in history:
-            # FIX #3: canvas.before mein bind karo pos/size ke saath
-            # warna RoundedRectangle galat jagah render hoti thi (crash / glitch)
-            row = BoxLayout(
-                size_hint_y=None, height=88,
-                spacing=10, padding=[10, 4]
-            )
-
-            def _draw_row(widget, *a):
-                widget.canvas.before.clear()
-                with widget.canvas.before:
-                    Color(*get_color_from_hex('#0F172A'))
-                    RoundedRectangle(
-                        pos=widget.pos, size=widget.size, radius=[10])
-
-            row.bind(pos=_draw_row, size=_draw_row)
-
-            info = BoxLayout(orientation='vertical', size_hint_x=0.78)
-            info.add_widget(Label(
-                text='[b]' + entry.get('filename', 'Unknown') + '[/b]',
-                markup=True, font_size='13sp',
-                color=get_color_from_hex('#E2E8F0'),
-                halign='left', valign='middle',
-                size_hint_y=None, height=34,
-                text_size=(None, None)
-            ))
-            info.add_widget(Label(
-                text=(entry.get('lang', '') + '  ' +
-                      entry.get('voice', '') + '  ' +
-                      entry.get('time', '')),
-                font_size='11sp', color=(0.4, 0.8, 0.4, 1),
-                halign='left', valign='middle',
-                size_hint_y=None, height=28,
-                text_size=(None, None)
-            ))
-            row.add_widget(info)
-
-            fpath = entry.get('path', '')
-            if os.path.exists(fpath):
-                pb2 = ProButton(
-                    text='PLAY', main_color='#10B981',
-                    size_hint_x=None, width=62, font_size='12sp'
-                )
-                pb2.bind(on_press=lambda x, p=fpath: self._replay(p))
-                row.add_widget(pb2)
-
-            self.list_box.add_widget(row)
-
-    def _replay(self, path):
-        snd = SoundLoader.load(path)
-        if snd:
-            self._active_sounds.append(snd)
-            snd.play()
-
-    def _clear_all(self, *a):
-        try:
-            with open(get_history_path(), 'w') as f:
-                json.dump([], f)
-        except Exception:
-            pass
-        self._refresh()
-
-
-# ─── Studio Screen ────────────────────────────────────────────────────────────
-class StudioScreen(Screen):
-    def __init__(self, **kw):
-        super().__init__(**kw)
-        self.audio_handler  = None
-        self.out_file       = None
-        self.speed_mode     = 'Normal'
-        self.selected_voice = 'Male'
-        self._build()
-
-    # ── small helper ──────────────────────────────────────────────────────────
-    def _lbl(self, txt):
-        return Label(
-            text=txt, bold=True,
-            color=(0.6, 0.8, 1, 1),
-            size_hint_y=None, height=36
-        )
-
-    def _build(self):
-        panel   = NeonPanel()
-        scroll  = ScrollView(size_hint=(1, 1))
-        content = BoxLayout(
-            orientation='vertical', padding=28, spacing=16,
-            size_hint_y=None
-        )
-        content.bind(minimum_height=content.setter('height'))
-
-        # Title
-        content.add_widget(Label(
-            text='[b]TITAN AI STUDIO PRO[/b]', markup=True,
-            font_size='30sp', color=get_color_from_hex('#22D3EE'),
-            size_hint_y=None, height=85
-        ))
-
-        # Language spinner
-        content.add_widget(self._lbl('Language:'))
-        self.lang_spinner = Spinner(
-            text='English', values=list(LANGUAGES.keys()),
-            size_hint_y=None, height=58,
-            background_color=get_color_from_hex('#1E3A5F'),
-            color=(1, 1, 1, 1), font_size='16sp'
-        )
-        content.add_widget(self.lang_spinner)
-
-        # Voice type
-        content.add_widget(self._lbl('Voice Type:'))
-        # FIX #4: Emoji characters removed from button text —
-        # Android par kuch fonts mein emoji crash karta tha
-        vgrid = GridLayout(cols=3, size_hint_y=None, height=120, spacing=8)
-        self.voice_btns = {}
-        for vname in VOICE_PROFILES:
-            btn = ProButton(text=vname, main_color='#1E3A5F', font_size='14sp')
-            btn.bind(on_press=lambda x, n=vname: self._sel_voice(n))
-            vgrid.add_widget(btn)
-            self.voice_btns[vname] = btn
-        content.add_widget(vgrid)
-        self._sel_voice('Male')
-
-        # Text input
-        content.add_widget(self._lbl('Script:'))
-        self.text_input = TextInput(
-            hint_text='Yahan apna text likho...',
-            multiline=True, size_hint_y=None, height=260,
-            background_color=get_color_from_hex('#0F172A'),
-            foreground_color=(1, 1, 1, 1),
-            font_size='17sp', padding=[18, 18],
-            cursor_color=get_color_from_hex('#22D3EE')
-        )
-        self.text_input.bind(text=self._upd_count)
-        content.add_widget(self.text_input)
-
-        self.wc_label = Label(
-            text='Words: 0  |  Chars: 0',
-            color=(0.5, 0.5, 0.5, 1), size_hint_y=None, height=32
-        )
-        content.add_widget(self.wc_label)
-
-        # Speed
-        content.add_widget(self._lbl('Speed:'))
-        self.speed_label = Label(
-            text='Selected: Normal',
-            color=(0.7, 0.9, 0.7, 1), size_hint_y=None, height=34
-        )
-        content.add_widget(self.speed_label)
-        spd_row = BoxLayout(size_hint_y=None, height=62, spacing=10)
-        self.speed_btns = {}
-        for spd, col in [('Slow', '#6366F1'), ('Normal', '#10B981'), ('Fast', '#F59E0B')]:
-            b = ProButton(text=spd, main_color=col)
-            b.bind(on_press=lambda x, s=spd: self._set_speed(s))
-            spd_row.add_widget(b)
-            self.speed_btns[spd] = b
-        content.add_widget(spd_row)
-        self._set_speed('Normal')
-
-        # Status + Progress
-        self.status = Label(
-            text='Ready',
-            italic=True, color=(0.5, 0.5, 0.5, 1),
-            size_hint_y=None, height=42
-        )
-        content.add_widget(self.status)
-        self.progress = ProgressBar(
-            max=100, value=0, size_hint_y=None, height=16)
-        content.add_widget(self.progress)
-
-        # Generate button
-        self.gen_btn = ProButton(
-            text='GENERATE SPEECH', main_color='#2563EB',
-            size_hint_y=None, height=90, font_size='18sp', bold=True
-        )
-        self.gen_btn.bind(on_press=self._start_tts)
-        content.add_widget(self.gen_btn)
-
-        # Play / Stop
-        ps = BoxLayout(size_hint_y=None, height=80, spacing=14)
-        self.play_btn = ProButton(
-            text='PLAY', main_color='#10B981', disabled=True)
-        self.stop_btn = ProButton(
-            text='STOP', main_color='#EF4444', disabled=True)
-        self.play_btn.bind(on_press=self._play)
-        self.stop_btn.bind(on_press=self._stop)
-        ps.add_widget(self.play_btn)
-        ps.add_widget(self.stop_btn)
-        content.add_widget(ps)
-
-        # Download
-        self.dl_btn = ProButton(
-            text='DOWNLOAD AUDIO', main_color='#0EA5E9',
-            size_hint_y=None, height=85, font_size='17sp', disabled=True
-        )
-        self.dl_btn.bind(on_press=self._download)
-        content.add_widget(self.dl_btn)
-
-        # History
-        hist = ProButton(
-            text='DOWNLOAD HISTORY', main_color='#7C3AED',
-            size_hint_y=None, height=75
-        )
-        hist.bind(on_press=lambda x: setattr(self.manager, 'current', 'history'))
-        content.add_widget(hist)
-
-        # Clear text
-        clr = ProButton(
-            text='CLEAR TEXT', main_color='#475569',
-            size_hint_y=None, height=65
-        )
-        clr.bind(on_press=lambda x: setattr(self.text_input, 'text', ''))
-        content.add_widget(clr)
-
-        scroll.add_widget(content)
-        panel.add_widget(scroll)
-        self.add_widget(panel)
-
-    # ── Callbacks ─────────────────────────────────────────────────────────────
-
-    def _sel_voice(self, name):
-        self.selected_voice = name
-        for n, btn in self.voice_btns.items():
-            btn.m_color = '#22C55E' if n == name else '#1E3A5F'
-            btn.render()
-
-    def _set_speed(self, mode):
-        self.speed_mode = mode
-        self.speed_label.text = f'Selected: {mode}'
-        for n, btn in self.speed_btns.items():
-            btn.m_color = ('#22C55E' if n == mode
-                           else ('#6366F1' if n == 'Slow'
-                                 else ('#10B981' if n == 'Normal'
-                                       else '#F59E0B')))
-            btn.render()
-
-    def _upd_count(self, inst, val):
-        w = len(val.split()) if val.strip() else 0
-        self.wc_label.text = f'Words: {w}  |  Chars: {len(val)}'
-
-    # ── TTS ───────────────────────────────────────────────────────────────────
-
-    def _start_tts(self, *a):
-        text = self.text_input.text.strip()
-        if not text:
-            self.status.text = 'Error: Text khaali hai!'
-            return
-        self._lock_ui(True)
-        self.progress.value = 0
-        self.status.text    = 'Generating...'
-        threading.Thread(target=self._worker, daemon=True).start()
-
-    def _worker(self):
-        try:
-            from gtts import gTTS
-            Clock.schedule_once(
-                lambda dt: self._set_ui(25, 'Connecting to server...'))
-
-            lang    = LANGUAGES.get(self.lang_spinner.text, 'en')
-            profile = VOICE_PROFILES.get(
-                self.selected_voice, VOICE_PROFILES['Male'])
-            tld      = profile['tld']
-            use_slow = (self.speed_mode == 'Slow') or profile['slow']
-
-            Clock.schedule_once(
-                lambda dt: self._set_ui(55, 'Synthesizing voice...'))
-
-            tts = gTTS(
-                text=self.text_input.text,
-                lang=lang, tld=tld, slow=use_slow
-            )
-            out = os.path.join(
-                App.get_running_app().user_data_dir, 'titan_out.mp3')
-            tts.save(out)
-            self.out_file = out
-
-            Clock.schedule_once(lambda dt: self._done())
-
-        except Exception as e:
-            err = str(e)
-            Clock.schedule_once(lambda dt: self._err(err))
-
-    def _set_ui(self, val, msg):
-        self.progress.value = val
-        self.status.text    = msg
-
-    def _done(self):
-        # Safe audio reload
-        if self.audio_handler:
-            try:
-                self.audio_handler.stop()
-                self.audio_handler.unload()
-            except Exception:
-                pass
-            self.audio_handler = None
-
-        self.audio_handler = SoundLoader.load(self.out_file)
-        self.progress.value = 100
-        self.status.text    = 'Ready! Play ya Download karo.'
-        self._lock_ui(False)
-
-    def _err(self, err):
-        e = err.lower()
-        if any(k in e for k in ['network', 'connection', 'gaierror', 'timeout']):
-            msg = 'Error: Internet nahi hai!'
-        elif 'lang' in e:
-            msg = 'Error: Is language ke saath yeh voice nahi chalti.'
-        else:
-            msg = f'Error: {err[:50]}'
-        self.status.text    = msg
-        self.progress.value = 0
-        self._lock_ui(False, audio_ready=False)
-
-    def _lock_ui(self, locked, audio_ready=True):
-        self.gen_btn.disabled  = locked
-        self.play_btn.disabled = locked or not audio_ready
-        self.stop_btn.disabled = locked or not audio_ready
-        self.dl_btn.disabled   = locked or not audio_ready
-
-    # ── Playback ──────────────────────────────────────────────────────────────
-
-    def _play(self, *a):
-        if not self.audio_handler:
-            return
-        if self.audio_handler.state == 'play':
-            self.audio_handler.stop()
-            self.play_btn.text = 'PLAY'
-        else:
-            self.audio_handler.play()
-            self.play_btn.text = 'PAUSE'
-
-    def _stop(self, *a):
-        if self.audio_handler:
-            self.audio_handler.stop()
-        self.play_btn.text = 'PLAY'
-
-    # ── Download ──────────────────────────────────────────────────────────────
-
-    def _download(self, *a):
-        if not self.out_file or not os.path.exists(self.out_file):
-            self.status.text = 'Error: Pehle speech generate karo!'
-            return
-
-        ts    = int(time.time())
-        fname = f"Titan_{self.lang_spinner.text}_{ts}.mp3"
-        ddir  = '/sdcard/Download' if ANDROID_ENV else os.path.expanduser('~')
-        dest  = os.path.join(ddir, fname)
-
-        try:
-            os.makedirs(ddir, exist_ok=True)
-            shutil.copyfile(self.out_file, dest)
-            self.status.text = f'Downloaded: {fname}'
-
-            save_to_history({
-                'filename': fname,
-                'path':     dest,
-                'lang':     self.lang_spinner.text,
-                'voice':    self.selected_voice,
+‎"""
+‎Titan AI Studio Pro
+‎- Text to Speech (gTTS)
+‎- Voice Types: Male, Female, Child, News, Soft
+‎- Languages: 12 languages
+‎- Speed: Slow / Normal / Fast
+‎- Download Audio
+‎- Download History (JSON)
+‎"""
+‎
+‎import os
+‎import threading
+‎import time
+‎import shutil
+‎import json
+‎
+‎# ── Android check (import se pehle) ──────────────────────────────────────────
+‎try:
+‎    from android.permissions import request_permissions, Permission
+‎    ANDROID_ENV = True
+‎except Exception:
+‎    ANDROID_ENV = False
+‎
+‎# ── Kivy config (Window open hone se PEHLE) ──────────────────────────────────
+‎from kivy.config import Config
+‎Config.set('kivy',     'log_level',    'warning')
+‎Config.set('graphics', 'multisamples', '0')
+‎Config.set('graphics', 'resizable',    '0')
+‎
+‎# ── Kivy imports ─────────────────────────────────────────────────────────────
+‎from kivy.app                          import App
+‎from kivy.clock                        import Clock
+‎from kivy.core.audio                   import SoundLoader
+‎from kivy.core.window                  import Window
+‎from kivy.graphics                     import Color, Rectangle, RoundedRectangle, Line
+‎from kivy.uix.boxlayout                import BoxLayout
+‎from kivy.uix.button                   import Button
+‎from kivy.uix.floatlayout              import FloatLayout
+‎from kivy.uix.gridlayout               import GridLayout
+‎from kivy.uix.label                    import Label
+‎from kivy.uix.popup                    import Popup
+‎from kivy.uix.progressbar              import ProgressBar
+‎from kivy.uix.screenmanager            import ScreenManager, Screen, FadeTransition
+‎from kivy.uix.scrollview               import ScrollView
+‎from kivy.uix.spinner                  import Spinner
+‎from kivy.uix.textinput                import TextInput
+‎from kivy.utils                        import get_color_from_hex
+‎
+‎# ── Constants ─────────────────────────────────────────────────────────────────
+‎C_BG      = '#0A0F1E'
+‎C_CARD    = '#0F172A'
+‎C_ACCENT  = '#38BDF8'
+‎C_GREEN   = '#22C55E'
+‎C_RED     = '#EF4444'
+‎C_PURPLE  = '#7C3AED'
+‎C_BLUE    = '#2563EB'
+‎C_CYAN    = '#0EA5E9'
+‎C_GRAY    = '#475569'
+‎C_INDIGO  = '#6366F1'
+‎C_AMBER   = '#F59E0B'
+‎
+‎LANGUAGES = {
+‎    'English':  'en',
+‎    'Urdu':     'ur',
+‎    'Hindi':    'hi',
+‎    'Arabic':   'ar',
+‎    'French':   'fr',
+‎    'Spanish':  'es',
+‎    'German':   'de',
+‎    'Turkish':  'tr',
+‎    'Russian':  'ru',
+‎    'Chinese':  'zh',
+‎    'Japanese': 'ja',
+‎    'Korean':   'ko',
+‎}
+‎
+‎# tld = Google TTS server domain — alag server = alag voice tone
+‎VOICE_PROFILES = {
+‎    'Male':   {'tld': 'com',    'slow': False},
+‎    'Female': {'tld': 'com.au', 'slow': False},
+‎    'Child':  {'tld': 'co.uk',  'slow': True },
+‎    'News':   {'tld': 'ca',     'slow': False},
+‎    'Soft':   {'tld': 'co.in',  'slow': True },
+‎}
+‎# ── History helpers ───────────────────────────────────────────────────────────
+‎def _history_path():
+‎    app = App.get_running_app()
+‎    d   = app.user_data_dir if app else '.'
+‎    return os.path.join(d, 'history.json')
+‎
+‎def history_load():
+‎    try:
+‎        with open(_history_path(), 'r', encoding='utf-8') as f:
+‎            return json.load(f)
+‎    except Exception:
+‎        return []
+‎
+‎def history_save(entry):
+‎    data = history_load()
+‎    data.insert(0, entry)
+‎    try:
+‎        with open(_history_path(), 'w', encoding='utf-8') as f:
+‎            json.dump(data[:50], f, ensure_ascii=False, indent=2)
+‎    except Exception:
+‎        pass
+‎
+‎# ─────────────────────────────────────────────────────────────────────────────
+‎#  REUSABLE WIDGETS
+‎# ─────────────────────────────────────────────────────────────────────────────
+‎
+‎class FlatBtn(Button):
+‎    """Simple flat rounded button — no emoji, no background_normal issues."""
+‎
+‎    def __init__(self, bg=C_BLUE, **kw):
+‎        super().__init__(**kw)
+‎        self.bg = bg
+‎        self.background_normal  = ''
+‎        self.background_down    = ''
+‎        self.background_color   = (0, 0, 0, 0)
+‎        self.color              = (1, 1, 1, 1)
+‎        self.bind(pos=self._draw, size=self._draw)
+‎
+‎    def set_bg(self, color):
+‎        self.bg = color
+‎        self._draw()
+‎
+‎    def _draw(self, *_):
+‎        self.canvas.before.clear()
+‎        with self.canvas.before:
+‎            Color(*get_color_from_hex(self.bg))
+‎            RoundedRectangle(pos=self.pos, size=self.size, radius=[12])
+‎
+‎
+‎class DarkPanel(FloatLayout):
+‎    """Full dark background panel."""
+‎
+‎    def __init__(self, **kw):
+‎        super().__init__(**kw)
+‎        with self.canvas.before:
+‎            Color(*get_color_from_hex(C_BG))
+‎            self._rect = Rectangle(pos=self.pos, size=self.size)
+‎        self.bind(pos=self._upd, size=self._upd)
+‎
+‎    def _upd(self, *_):
+‎        self._rect.pos  = self.pos
+‎        self._rect.size = self.size
+‎
+‎
+‎def make_label(text='', size=16, color=C_ACCENT, bold=False, h=40):
+‎    return Label(
+‎        text=text,
+‎        font_size=f'{size}sp',
+‎        color=get_color_from_hex(color),
+‎        bold=bold,
+‎        size_hint_y=None,
+‎        height=h,
+‎        halign='left',
+‎        valign='middle',
+‎    )
+‎‎# ─────────────────────────────────────────────────────────────────────────────
+‎#  SPLASH SCREEN
+‎# ─────────────────────────────────────────────────────────────────────────────
+‎
+‎class SplashScreen(Screen):
+‎
+‎    def __init__(self, **kw):
+‎        super().__init__(**kw)
+‎        root = DarkPanel()
+‎
+‎        self.title_lbl = Label(
+‎            text='TITAN AI',
+‎            font_size='52sp', bold=True,
+‎            color=get_color_from_hex(C_ACCENT),
+‎            pos_hint={'center_x': 0.5, 'center_y': 0.62},
+‎        )
+‎        root.add_widget(self.title_lbl)
+‎
+‎        self.sub_lbl = Label(
+‎            text='Studio Pro',
+‎            font_size='20sp',
+‎            color=get_color_from_hex('#64748B'),
+‎            pos_hint={'center_x': 0.5, 'center_y': 0.54},
+‎        )
+‎        root.add_widget(self.sub_lbl)
+‎
+‎        self.info_lbl = Label(
+‎            text='Loading...',
+‎            font_size='15sp',
+‎            color=get_color_from_hex('#94A3B8'),
+‎            pos_hint={'center_x': 0.5, 'center_y': 0.44},
+‎        )
+‎        root.add_widget(self.info_lbl)
+‎
+‎        self.pb = ProgressBar(
+‎            max=100, value=0,
+‎            size_hint=(0.7, None), height=18,
+‎            pos_hint={'center_x': 0.5, 'center_y': 0.37},
+‎        )
+‎        root.add_widget(self.pb)
+‎
+‎        self.add_widget(root)
+‎
+‎    def on_enter(self, *_):
+‎        self.pb.value = 0
+‎        self._ev = Clock.schedule_interval(self._tick, 0.035)
+‎
+‎    def on_leave(self, *_):
+‎        if hasattr(self, '_ev'):
+‎            self._ev.cancel()
+‎
+‎    def _tick(self, dt):
+‎        self.pb.value = min(self.pb.value + 2, 100)
+‎        v = self.pb.value
+‎        if   v == 30: self.info_lbl.text = 'Loading audio engine...'
+‎        elif v == 60: self.info_lbl.text = 'Preparing voice profiles...'
+‎        elif v == 85: self.info_lbl.text = 'Almost ready...'
+‎        if v >= 100:
+‎            self._ev.cancel()
+‎            Clock.schedule_once(
+‎                lambda dt: setattr(self.manager, 'current', 'studio'), 0.3)
+‎
+‎
+‎# ─────────────────────────────────────────────────────────────────────────────
+‎#  HISTORY SCREEN
+‎# ─────────────────────────────────────────────────────────────────────────────
+‎
+‎class HistoryScreen(Screen):
+‎
+‎    def __init__(self, **kw):
+‎        super().__init__(**kw)
+‎        self._sounds = []
+‎        self._build()
+‎
+‎    def _build(self):
+‎        root  = DarkPanel()
+‎        outer = BoxLayout(
+‎            orientation='vertical', padding=15, spacing=10)
+‎
+‎        # header
+‎        hdr = BoxLayout(size_hint_y=None, height=60, spacing=10)
+‎        back = FlatBtn(text='Back', bg=C_GRAY,
+‎                       size_hint_x=None, width=100, font_size='15sp')
+‎        back.bind(on_press=lambda *_: setattr(
+‎            self.manager, 'current', 'studio'))
+‎        hdr.add_widget(back)
+‎        hdr.add_widget(Label(
+‎            text='Download History',
+‎            font_size='20sp', bold=True,
+‎            color=get_color_from_hex(C_ACCENT),
+‎        ))
+‎        outer.add_widget(hdr)
+‎
+‎        sv = ScrollView(size_hint=(1, 1))
+‎        self.list_box = BoxLayout(
+‎            orientation='vertical',
+‎            size_hint_y=None, spacing=8, padding=[0, 5])
+‎        self.list_box.bind(
+‎            minimum_height=self.list_box.setter('height'))
+‎        sv.add_widget(self.list_box)
+‎        outer.add_widget(sv)
+‎
+‎        clr = FlatBtn(
+‎            text='Clear All History', bg='#7F1D1D',
+‎            size_hint_y=None, height=55, font_size='15sp')
+‎        clr.bind(on_press=self._clear)
+‎        outer.add_widget(clr)
+‎
+‎        root.add_widget(outer)
+‎        self.add_widget(root)
+‎
+‎    def on_enter(self, *_):
+‎        self._refresh()
+‎
+‎    def _refresh(self):
+‎        self.list_box.clear_widgets()
+‎        data = history_load()
+‎
+‎        if not data:
+‎            self.list_box.add_widget(Label(
+‎                text='No downloads yet.',
+‎                color=get_color_from_hex('#64748B'),
+‎                size_hint_y=None, height=60,
+‎            ))
+‎            return
+‎
+‎        for entry in data:
+‎            row = BoxLayout(
+‎                size_hint_y=None, height=80,
+‎                spacing=8, padding=[10, 4])
+‎
+‎            # card background — bind correctly
+‎            with row.canvas.before:
+‎                Color(*get_color_from_hex(C_CARD))
+‎                rr = RoundedRectangle(
+‎                    pos=row.pos, size=row.size, radius=[10])
+‎
+‎            def _upd_rr(w, *_, _rr=rr):
+‎                _rr.pos  = w.pos
+‎                _rr.size = w.size
+‎
+‎            row.bind(pos=_upd_rr, size=_upd_rr)
+‎
+‎            info = BoxLayout(orientation='vertical', size_hint_x=0.80)
+‎            info.add_widget(Label(
+‎                text=entry.get('filename', 'unknown'),
+‎                font_size='13sp', bold=True,
+‎                color=(0.9, 0.9, 0.9, 1),
+‎                halign='left', valign='middle',
+‎                size_hint_y=None, height=36,
+‎            ))
+‎            info.add_widget(Label(
+‎                text=(entry.get('lang', '') + '   ' +
+‎                      entry.get('voice', '') + '   ' +
+‎                      entry.get('time', '')),
+‎                font_size='11sp',
+‎                color=(0.4, 0.8, 0.4, 1),
+‎                halign='left', valign='middle',
+‎                size_hint_y=None, height=28,
+‎            ))
+‎            row.add_widget(info)
+‎
+‎            fp = entry.get('path', '')
+‎            if os.path.exists(fp):
+‎                pb = FlatBtn(
+‎                    text='PLAY', bg=C_GREEN,
+‎                    size_hint_x=None, width=68, font_size='13sp')
+‎                pb.bind(on_press=lambda *_, p=fp: self._play(p))
+‎                row.add_widget(pb)
+‎
+‎            self.list_box.add_widget(row)
+‎
+‎    def _play(self, path):
+‎        snd = SoundLoader.load(path)
+‎        if snd:
+‎            self._sounds.append(snd)
+‎            snd.play()
+‎
+‎    def _clear(self, *_):
+‎        try:
+‎            with open(_history_path(), 'w') as f:
+‎                json.dump([], f)
+‎        except Exception:
+‎            pass
+‎        self._refresh()
+‎
+‎‎# ─────────────────────────────────────────────────────────────────────────────
+‎#  STUDIO SCREEN
+‎# ─────────────────────────────────────────────────────────────────────────────
+‎
+‎class StudioScreen(Screen):
+‎
+‎    def __init__(self, **kw):
+‎        super().__init__(**kw)
+‎        self._audio        = None
+‎        self.out_file      = None
+‎        self.voice_sel     = 'Male'
+‎        self.speed_sel     = 'Normal'
+‎        self._build()
+‎
+‎    # ── build ─────────────────────────────────────────────────────────────────
+‎
+‎    def _build(self):
+‎        root    = DarkPanel()
+‎        scroll  = ScrollView(size_hint=(1, 1))
+‎        content = BoxLayout(
+‎            orientation='vertical',
+‎            size_hint_y=None,
+‎            padding=24, spacing=14)
+‎        content.bind(minimum_height=content.setter('height'))
+‎
+‎        def sec(txt):
+‎            content.add_widget(Label(
+‎                text=txt, font_size='13sp', bold=True,
+‎                color=get_color_from_hex('#64748B'),
+‎                size_hint_y=None, height=30,
+‎                halign='left', valign='middle',
+‎            ))
+‎
+‎        # ── title
+‎        content.add_widget(Label(
+‎            text='TITAN AI STUDIO PRO',
+‎            font_size='28sp', bold=True,
+‎            color=get_color_from_hex(C_ACCENT),
+‎            size_hint_y=None, height=80,
+‎        ))
+‎
+‎        # ── language
+‎        sec('LANGUAGE')
+‎        self.lang_spin = Spinner(
+‎            text='English',
+‎            values=list(LANGUAGES.keys()),
+‎            size_hint_y=None, height=55,
+‎            font_size='16sp',
+‎            color=(1, 1, 1, 1),
+‎            background_color=get_color_from_hex('#1E3A5F'),
+‎        )
+‎        content.add_widget(self.lang_spin)
+‎
+‎        # ── voice type
+‎        sec('VOICE TYPE')
+‎        vgrid = GridLayout(
+‎            cols=3, rows=2,
+‎            size_hint_y=None, height=130, spacing=8)
+‎        self._vbtns = {}
+‎        for name in VOICE_PROFILES:
+‎            b = FlatBtn(text=name, bg='#1E3A5F', font_size='14sp')
+‎            b.bind(on_press=lambda *_, n=name: self._pick_voice(n))
+‎            vgrid.add_widget(b)
+‎            self._vbtns[name] = b
+‎        content.add_widget(vgrid)
+‎        self._pick_voice('Male')
+‎
+‎        # ── text input
+‎        sec('SCRIPT')
+‎        self.txt = TextInput(
+‎            hint_text='Yahan apna text likho...',
+‎            multiline=True,
+‎            size_hint_y=None, height=240,
+‎            background_color=get_color_from_hex(C_CARD),
+‎            foreground_color=(1, 1, 1, 1),
+‎            hint_text_color=(0.4, 0.4, 0.4, 1),
+‎            cursor_color=get_color_from_hex(C_ACCENT),
+‎            font_size='17sp',
+‎            padding=[16, 16],
+‎        )
+‎        self.txt.bind(text=self._count)
+‎        content.add_widget(self.txt)
+‎
+‎        self.count_lbl = Label(
+‎            text='Words: 0   Chars: 0',
+‎            font_size='12sp',
+‎            color=get_color_from_hex('#475569'),
+‎            size_hint_y=None, height=28,
+‎        )
+‎        content.add_widget(self.count_lbl)
+‎
+‎        # ── speed
+‎        sec('SPEED')
+‎        self.speed_lbl = Label(
+‎            text='Selected: Normal',
+‎            font_size='13sp',
+‎            color=get_color_from_hex(C_GREEN),
+‎            size_hint_y=None, height=30,
+‎        )
+‎        content.add_widget(self.speed_lbl)
+‎        srow = BoxLayout(size_hint_y=None, height=58, spacing=10)
+‎        self._sbtns = {}
+‎        for spd, col in [('Slow', C_INDIGO), ('Normal', C_GREEN), ('Fast', C_AMBER)]:
+‎            b = FlatBtn(text=spd, bg=col, font_size='15sp')
+‎            b.bind(on_press=lambda *_, s=spd: self._pick_speed(s))
+‎            srow.add_widget(b)
+‎            self._sbtns[spd] = b
+‎        content.add_widget(srow)
+‎        self._pick_speed('Normal')
+‎
+‎        # ── status + progress
+‎        self.status_lbl = Label(
+‎            text='Ready',
+‎            font_size='14sp', italic=True,
+‎            color=get_color_from_hex('#64748B'),
+‎            size_hint_y=None, height=38,
+‎        )
+‎        content.add_widget(self.status_lbl)
+‎
+‎        self.prog = ProgressBar(
+‎            max=100, value=0,
+‎            size_hint_y=None, height=14)
+‎        content.add_widget(self.prog)
+‎
+‎        # ── generate
+‎        self.gen_btn = FlatBtn(
+‎            text='GENERATE SPEECH', bg=C_BLUE,
+‎            size_hint_y=None, height=85,
+‎            font_size='18sp', bold=True)
+‎        self.gen_btn.bind(on_press=self._generate)
+‎        content.add_widget(self.gen_btn)
+‎
+‎        # ── play / stop
+‎        ps = BoxLayout(size_hint_y=None, height=72, spacing=12)
+‎        self.play_btn = FlatBtn(
+‎            text='PLAY', bg=C_GREEN,
+‎            font_size='16sp', disabled=True)
+‎        self.stop_btn = FlatBtn(
+‎            text='STOP', bg=C_RED,
+‎            font_size='16sp', disabled=True)
+‎        self.play_btn.bind(on_press=self._play)
+‎        self.stop_btn.bind(on_press=self._stop)
+‎        ps.add_widget(self.play_btn)
+‎        ps.add_widget(self.stop_btn)
+‎        content.add_widget(ps)
+‎
+‎        # ── download
+‎        self.dl_btn = FlatBtn(
+‎            text='DOWNLOAD AUDIO', bg=C_CYAN,
+‎            size_hint_y=None, height=78,
+‎            font_size='17sp', disabled=True)
+‎        self.dl_btn.bind(on_press=self._download)
+‎        content.add_widget(self.dl_btn)
+‎
+‎        # ── history
+‎        hbtn = FlatBtn(
+‎            text='DOWNLOAD HISTORY', bg=C_PURPLE,
+‎            size_hint_y=None, height=68, font_size='16sp')
+‎        hbtn.bind(on_press=lambda *_: setattr(
+‎            self.manager, 'current', 'history'))
+‎        content.add_widget(hbtn)
+‎
+‎        # ── clear
+‎        cbtn = FlatBtn(
+‎            text='CLEAR TEXT', bg=C_GRAY,
+‎            size_hint_y=None, height=60, font_size='15sp')
+‎        cbtn.bind(on_press=lambda *_: setattr(self.txt, 'text', ''))
+‎        content.add_widget(cbtn)
+‎
+‎        # spacing at bottom
+‎        content.add_widget(Label(size_hint_y=None, height=30))
+‎
+‎        scroll.add_widget(content)
+‎        root.add_widget(scroll)
+‎        self.add_widget(root)
+‎
+‎    # ── selection helpers ─────────────────────────────────────────────────────
+‎
+‎    def _pick_voice(self, name):
+‎        self.voice_sel = name
+‎        for n, b in self._vbtns.items():
+‎            b.set_bg(C_GREEN if n == name else '#1E3A5F')
+‎
+‎    def _pick_speed(self, spd):
+‎        self.speed_sel = spd
+‎        self.speed_lbl.text = f'Selected: {spd}'
+‎        colors = {'Slow': C_INDIGO, 'Normal': C_GREEN, 'Fast': C_AMBER}
+‎        for n, b in self._sbtns.items():
+‎            b.set_bg(C_ACCENT if n == spd else colors[n])
+‎
+‎    def _count(self, inst, val):
+‎        w = len(val.split()) if val.strip() else 0
+‎        self.count_lbl.text = f'Words: {w}   Chars: {len(val)}'
+‎
+‎    # ── UI lock ───────────────────────────────────────────────────────────────
+‎
+‎    def _set_ready(self, audio_ok=True):
+‎        self.gen_btn.disabled  = False
+‎        self.play_btn.disabled = not audio_ok
+‎        self.stop_btn.disabled = not audio_ok
+‎        self.dl_btn.disabled   = not audio_ok
+‎
+‎    def _set_busy(self):
+‎        self.gen_btn.disabled  = True
+‎        self.play_btn.disabled = True
+‎        self.stop_btn.disabled = True
+‎        self.dl_btn.disabled   = True
+‎
+‎    def _upd_status(self, val, msg):
+‎        self.prog.value     = val
+‎        self.status_lbl.text = msg
+‎
+‎    # ── TTS ───────────────────────────────────────────────────────────────────
+‎
+‎    def _generate(self, *_):
+‎        text = self.txt.text.strip()
+‎        if not text:
+‎            self.status_lbl.text = 'Error: Text khaali hai!'
+‎            return
+‎        self._set_busy()
+‎        self._upd_status(0, 'Starting...')
+‎        threading.Thread(target=self._worker, daemon=True).start()
+‎
+‎    def _worker(self):
+‎        try:
+‎            from gtts import gTTS
+‎
+‎            Clock.schedule_once(
+‎                lambda dt: self._upd_status(20, 'Connecting...'))
+‎
+‎            lang    = LANGUAGES.get(self.lang_spin.text, 'en')
+‎            prof    = VOICE_PROFILES.get(self.voice_sel, VOICE_PROFILES['Male'])
+‎            slow    = (self.speed_sel == 'Slow') or prof['slow']
+‎
+‎            Clock.schedule_once(
+‎                lambda dt: self._upd_status(50, 'Generating audio...'))
+‎
+‎            tts = gTTS(
+‎                text=self.txt.text,
+‎                lang=lang,
+‎                tld=prof['tld'],
+‎                slow=slow,
+‎            )
+‎
+‎            out = os.path.join(
+‎                App.get_running_app().user_data_dir,
+‎                'tts_output.mp3')
+‎
+‎            Clock.schedule_once(
+‎                lambda dt: self._upd_status(80, 'Saving file...'))
+‎
+‎            tts.save(out)
+‎            self.out_file = out
+‎
+‎            Clock.schedule_once(lambda dt: self._on_done())
+‎
+‎        except Exception as exc:
+‎            msg = str(exc)
+‎            Clock.schedule_once(lambda dt, m=msg: self._on_err(m))
+‎
+‎    def _on_done(self):
+‎        # unload old audio safely
+‎        if self._audio:
+‎            try:
+‎                self._audio.stop()
+‎                self._audio.unload()
+‎            except Exception:
+‎                pass
+‎            self._audio = None
+‎
+‎        self._audio = SoundLoader.load(self.out_file)
+‎        self._upd_status(100, 'Done! Play ya Download karo.')
+‎        self._set_ready(audio_ok=True)
+‎
+‎    def _on_err(self, msg):
+‎        m = msg.lower()
+‎        if any(k in m for k in ['network', 'connection', 'gaierror', 'timeout']):
+‎            txt = 'Error: Internet nahi hai!'
+‎        elif 'lang' in m:
+‎            txt = 'Error: Is language ke saath yeh voice nahi chalti.'
+‎        else:
+‎            txt = f'Error: {msg[:55]}'
+‎        self._upd_status(0, txt)
+‎        self._set_ready(audio_ok=False)
+‎‎    # ── playback ──────────────────────────────────────────────────────────────
+‎
+‎    def _play(self, *_):
+‎        if not self._audio:
+‎            return
+‎        if self._audio.state == 'play':
+‎            self._audio.stop()
+‎            self.play_btn.text = 'PLAY'
+‎        else:
+‎            self._audio.play()
+‎            self.play_btn.text = 'PAUSE'
+‎
+‎    def _stop(self, *_):
+‎        if self._audio:
+‎            self._audio.stop()
+‎        self.play_btn.text = 'PLAY'
+‎
+‎    # ── download ──────────────────────────────────────────────────────────────
+‎
+‎    def _download(self, *_):
+‎        if not self.out_file or not os.path.exists(self.out_file):
+‎            self.status_lbl.text = 'Error: Pehle speech generate karo!'
+‎            return
+‎
+‎        fname    = f"Titan_{self.lang_spin.text}_{int(time.time())}.mp3"
+‎        dest_dir = '/sdcard/Download' if ANDROID_ENV else os.path.expanduser('~')
+‎        dest     = os.path.join(dest_dir, fname)
+‎
+‎        try:
+‎            os.makedirs(dest_dir, exist_ok=True)
+‎            shutil.copyfile(self.out_file, dest)
+‎            self.status_lbl.text = f'Saved: {fname}'
+‎
+‎            history_save({
+‎                'filename': fname,
+‎                'path':     dest,
+‎                'lang':     self.lang_spin.text,
+‎                'voice':    self.voice_sel,
+‎                'speed':    self.speed_sel,
+‎                'time':     time.strftime('%d %b %Y  %H:%M'),
+‎            })
+‎
+‎            # success popup
+‎            box = BoxLayout(
+‎                orientation='vertical', padding=20, spacing=12)
+‎            box.add_widget(Label(
+‎                text=f'File save ho gayi!\n\n{fname}\n\nLocation:\n{dest_dir}',
+‎                color=(1, 1, 1, 1), font_size='14sp',
+‎            ))
+‎            ok = FlatBtn(
+‎                text='OK', bg=C_GREEN,
+‎                size_hint_y=None, height=55)
+‎            box.add_widget(ok)
+‎            pop = Popup(
+‎                title='Download Complete',
+‎                content=box,
+‎                size_hint=(0.88, 0.50),
+‎                background_color=get_color_from_hex(C_CARD),
+‎            )
+‎            ok.bind(on_press=pop.dismiss)
+‎            pop.open()
+‎
+‎        except Exception as e:
+‎            self.status_lbl.text = f'Download failed: {str(e)[:50]}'
+‎
+‎
+‎# ─────────────────────────────────────────────────────────────────────────────
+‎#  APP
+‎# ─────────────────────────────────────────────────────────────────────────────
+‎
+‎class TitanApp(App):
+‎
+‎    def build(self):
+‎        self.title = 'Titan AI Studio Pro'
+‎
+‎        sm = ScreenManager(transition=FadeTransition())
+‎        sm.add_widget(SplashScreen(name='splash'))
+‎        sm.add_widget(StudioScreen(name='studio'))
+‎        sm.add_widget(HistoryScreen(name='history'))
+‎
+‎        if ANDROID_ENV:
+‎            Clock.schedule_once(self._ask_perms, 1.0)
+‎
+‎        return sm
+‎
+‎    def _ask_perms(self, *_):
+‎        try:
+‎            request_permissions([
+‎                Permission.INTERNET,
+‎                Permission.WRITE_EXTERNAL_STORAGE,
+‎                Permission.READ_EXTERNAL_STORAGE,
+‎            ])
+‎        except Exception:
+‎            pass
+‎
+‎
+‎if __name__ == '__main__':
+‎    TitanApp().run()
