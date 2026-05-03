@@ -17,12 +17,16 @@ jobs:
           sudo rm -rf /opt/ghc
           sudo rm -rf "/usr/local/share/boost"
 
-      - name: Build with Docker (The Forceful Fix)
+      - name: Build with Docker (Bypass Everything)
         run: |
+          # 1. 'yes' command khud 'y' bhej degi agar koi prompt aaya
+          # 2. 'BUILDOZER_WARN_ON_ROOT' environment variable flag set karega
+          # 3. '--warn_on_root=0' direct command line instruction hai
           docker run --rm -v "$(pwd)":/home/user/hostpython \
           --env USER=root \
+          --env BUILDOZER_WARN_ON_ROOT=0 \
           kivy/buildozer:latest \
-          /bin/bash -c "buildozer --warn_on_root=0 android debug"
+          /bin/bash -c "yes | buildozer --warn_on_root=0 android debug"
           
       - name: Upload Titan AI Studio APK
         uses: actions/upload-artifact@v4
