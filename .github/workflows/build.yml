@@ -1,4 +1,4 @@
-name: Titan AI Studio - Docker Power Fix
+name: Titan AI Studio - Direct Docker Fix
 on:
   workflow_dispatch:
   push:
@@ -10,7 +10,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Storage fix abhi bhi zaroori hai
       - name: Maximize Build Space
         uses: easimon/maximize-build-space@master
         with:
@@ -20,14 +19,12 @@ jobs:
           remove-android: 'true'
           remove-haskell: 'true'
 
-      # DOCKER STRATEGY: Hum system par kuch install nahi karenge
-      - name: Build with Buildozer (Docker Container)
-        uses: ArtemSerebrennikov/buildozer-action@v1
-        with:
-          workdir: .
-          buildozer_version: stable
-          # Ye command buildozer ko container ke andar chalayegi
-          command: android debug
+      # Yahan hum direct Kivy ka official Docker image use kar rahe hain
+      - name: Build with Docker Direct
+        run: |
+          docker run --rm -v "$(pwd)":/home/user/hostpython \
+          kivy/buildozer:latest \
+          android debug
           
       - name: Upload Final APK
         uses: actions/upload-artifact@v4
