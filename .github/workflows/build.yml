@@ -1,4 +1,4 @@
-name: Titan AI Studio - Out of the Box Fix
+name: Titan AI Studio - Docker Power Fix
 on:
   workflow_dispatch:
   push:
@@ -6,11 +6,11 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      # Storage fix ko simple rakhte hain
+      # Storage fix abhi bhi zaroori hai
       - name: Maximize Build Space
         uses: easimon/maximize-build-space@master
         with:
@@ -20,26 +20,15 @@ jobs:
           remove-android: 'true'
           remove-haskell: 'true'
 
-      - name: Install System Dependencies (The Smart Way)
-        run: |
-          sudo apt-get update
-          # Sirf wo install karein jo lazmi hain, ziddi libraries (gstreamer) ko chhor dein
-          sudo apt-get install -y build-essential libffi-dev libssl-dev python3-pip python3-setuptools git zip unzip
-          # In cheezon ko force-install karein bina error ke rukay
-          sudo apt-get install -y --no-install-recommends libltdl-dev libncurses5 libstdc++6
-
-      - name: Build with Buildozer
-        run: |
-          pip install --upgrade pip setuptools wheel
-          pip install --upgrade Cython==0.29.33 buildozer
-          export PATH=$PATH:$HOME/.local/bin
-          # Titan AI Studio ki purani cache saaf karein
-          buildozer android clean
-          # Log level 2 taake agar error aye to poori detail milay
-          yes | buildozer -v android debug
-        env:
-          ACCEPT_SDK_LICENSE: "True"
-
+      # DOCKER STRATEGY: Hum system par kuch install nahi karenge
+      - name: Build with Buildozer (Docker Container)
+        uses: ArtemSerebrennikov/buildozer-action@v1
+        with:
+          workdir: .
+          buildozer_version: stable
+          # Ye command buildozer ko container ke andar chalayegi
+          command: android debug
+          
       - name: Upload Final APK
         uses: actions/upload-artifact@v4
         with:
