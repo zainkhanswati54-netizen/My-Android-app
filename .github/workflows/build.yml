@@ -1,4 +1,4 @@
-name: Titan AI Studio - Success
+name: Titan AI Studio - Final Record Fix
 on:
   workflow_dispatch:
   push:
@@ -17,15 +17,14 @@ jobs:
           sudo rm -rf /opt/ghc
           sudo rm -rf "/usr/local/share/boost"
 
-      - name: Build with Docker (Ultimate Force)
+      - name: Build with Docker (Bypass All Prompts)
         run: |
           docker run --rm -v "$(pwd)":/home/user/hostpython \
-          --env USER=root \
-          --env BUILDOZER_WARN_ON_ROOT=0 \
-          kivy/buildozer:latest \
-          /bin/bash -c "yes | buildozer --warn_on_root=0 android debug"
+            -e BUILDOZER_WARN_ON_ROOT=0 \
+            kivy/buildozer:latest \
+            /bin/bash -c "export BUILDOZER_WARN_ON_ROOT=0 && buildozer android debug"
           
-      - name: Upload Titan AI Studio APK
+      - name: Upload Final APK
         uses: actions/upload-artifact@v4
         with:
           name: Titan-AI-Studio-V6
