@@ -1,4 +1,4 @@
-name: Titan AI God-Mode Build
+name: Build APK
 on:
   workflow_dispatch:
   push:
@@ -10,41 +10,33 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Free Disk Space (For Large APKs)
-        run: |
-          sudo rm -rf /usr/local/lib/android
-          sudo rm -rf /usr/share/dotnet
-          sudo apt clean
-
-      - name: Install Build Dependencies
-        run: |
-          sudo apt update
-          sudo apt install -y build-essential git ffmpeg libgstreamer1.0-dev \
-            unzip zlib1g-dev libffi-dev libssl-dev python3-setuptools \
-            libncurses5-dev libsqlite3-dev tk-dev libgdbm-dev \
-            libc6-dev libbz2-dev libreadline-dev autoconf automake libtool \
-            openjdk-17-jdk pkg-config
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
 
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.10"
+          python-version: '3.10'
 
-      - name: Install Buildozer & Cython
+      - name: Install Dependencies
         run: |
-          pip install --user --upgrade buildozer cython==0.29.33
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          sudo apt update
+          sudo apt install -y python3-pip build-essential git python3-dev ffmpeg libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev libportmidi-dev libswscale-dev libavformat-dev libavcodec-dev zlib1g-dev
+          sudo apt install -y libsqlite3-dev sqlite3 bzip2 libbz2-dev zlib1g-dev libssl-dev gcc g++ unzip
+          pip3 install --user --upgrade Cython==0.29.33 buildozer
 
-      - name: Build Titan APK (The Auto-Solver)
-        env:
-          BUILDOZER_WARN_ON_ROOT: 0
+      - name: Build with Buildozer
         run: |
-          # 'yes |' saare prompts ko khud hi 'y' kar dega
-          export BUILDOZER_WARN_ON_ROOT=0
+          export PATH=$PATH:$HOME/.local/bin
           yes | buildozer -v android debug
+        env:
+          ACCEPT_SDK_LICENSE: "True"
 
-      - name: Upload Titan AI Studio V6 APK
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Titan-AI-Studio-V6
+          name: my-apk
           path: bin/*.apk
