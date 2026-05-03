@@ -10,77 +10,59 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-      # ── 1. Code checkout ──────────────────────────────────────────────────
-      - uses: actions/checkout@v4
 
-      # ── 2. Java 17 ────────────────────────────────────────────────────────
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
 
-      # ── 3. Python 3.10 ────────────────────────────────────────────────────
-      - name: Setup Python
+      - name: Set up Python 3.10
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
 
-      # ── 4. System dependencies ────────────────────────────────────────────
-      - name: Install System Dependencies
+      - name: Install system packages
         run: |
-          sudo apt update
-          sudo apt install -y \
-            python3-pip build-essential git python3-dev \
-            ffmpeg libsdl2-dev libsdl2-image-dev \
-            libsdl2-mixer-dev libsdl2-ttf-dev \
-            libportmidi-dev libswscale-dev \
-            libavformat-dev libavcodec-dev \
-            zlib1g-dev libsqlite3-dev sqlite3 \
-            bzip2 libbz2-dev libssl-dev \
-            gcc g++ unzip autoconf libtool
+          sudo apt-get update -qq
+          sudo apt-get install -y python3-pip build-essential git python3-dev libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev libportmidi-dev libswscale-dev libavformat-dev libavcodec-dev zlib1g-dev libssl-dev libbz2-dev libsqlite3-dev gcc g++ unzip autoconf libtool ffmpeg
 
-      # ── 5. Python tools ───────────────────────────────────────────────────
-      - name: Install Buildozer & Cython
+      - name: Install Cython and Buildozer
         run: |
-          pip3 install --user --upgrade Cython==0.29.33 buildozer virtualenv
+          pip3 install --user --upgrade pip
+          pip3 install --user Cython==0.29.33 buildozer
 
-      # ── 6. Cache — SDK/NDK/buildozer global ──────────────────────────────
-      # Yeh cache build time 30-40 min kam karta hai
-      - name: Cache Buildozer Global Directory
+      - name: Cache Buildozer global dir
         uses: actions/cache@v3
         with:
           path: ~/.buildozer
-          key: buildozer-global-${{ hashFiles('buildozer.spec') }}
-          restore-keys: |
-            buildozer-global-
+          key: buildozer-${{ hashFiles('buildozer.spec') }}
+          restore-keys: buildozer-
 
-      # Android SDK cache
       - name: Cache Android SDK
         uses: actions/cache@v3
         with:
           path: ~/.android
           key: android-sdk-${{ hashFiles('buildozer.spec') }}
-          restore-keys: |
-            android-sdk-
+          restore-keys: android-sdk-
 
-      # ── 7. Build APK ──────────────────────────────────────────────────────
-      - name: Build APK with Buildozer
+      - name: Build APK
         run: |
           export PATH=$PATH:$HOME/.local/bin
           yes | buildozer -v android debug 2>&1 | tee build.log
         env:
           ACCEPT_SDK_LICENSE: "True"
 
-      # ── 8. Upload build log (sirf failure par) ────────────────────────────
-      - name: Upload Build Log on Failure
+      - name: Upload build log on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: build-log
           path: build.log
 
-      # ── 9. Upload APK ─────────────────────────────────────────────────────
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
