@@ -1,32 +1,48 @@
-name: Titan AI Studio - Success
+name: Build APK (Titan AI Studio)
+
 on:
-  workflow_dispatch:
   push:
-    branches: [ main ]
+    branches:
+      - main
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
+      # Step 1: Checkout repo
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - name: Free Up Disk Space
+      # Step 2: Setup Python
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.10
+
+      # Step 3: Install system dependencies
+      - name: Install dependencies
         run: |
-          sudo rm -rf /usr/share/dotnet
-          sudo rm -rf /usr/local/lib/android
-          sudo rm -rf "/usr/local/share/boost"
+          sudo apt update
+          sudo apt install -y python3-pip build-essential git zip unzip openjdk-17-jdk
 
-      - name: Build Titan AI Studio (Bypass Expert Mode)
+      # Step 4: Install Python packages
+      - name: Install Python packages
         run: |
-          # Is command se hum Docker ke andar Buildozer ko batate hain ke 'yes' 
-          # har sawal ka jawab hai aur environment variable '0' hai.
-          docker run --rm -v "$(pwd)":/home/user/hostpython \
-            -e BUILDOZER_WARN_ON_ROOT=0 \
-            kivy/buildozer:latest \
-            /bin/bash -c "echo 'y' | buildozer --warn_on_root=0 android debug"
+          pip install --upgrade pip
+          pip install buildozer cython
 
-      - name: Upload Titan AI Studio APK
+      # Step 5: Build APK (FIX INCLUDED)
+      - name: Build APK
+        env:
+          BUILDOZER_WARN_ON_ROOT: 0
+        run: |
+          yes | buildozer android debug
+
+      # Step 6: Upload APK
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Titan-AI-Studio-V6
+          name: titan-ai-apk
           path: bin/*.apk
