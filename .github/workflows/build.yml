@@ -1,4 +1,4 @@
-name: Titan AI Studio - Final Record Fix
+name: Titan AI Studio - Success
 on:
   workflow_dispatch:
   push:
@@ -14,17 +14,18 @@ jobs:
         run: |
           sudo rm -rf /usr/share/dotnet
           sudo rm -rf /usr/local/lib/android
-          sudo rm -rf /opt/ghc
           sudo rm -rf "/usr/local/share/boost"
 
-      - name: Build with Docker (Bypass All Prompts)
+      - name: Build Titan AI Studio (Bypass Expert Mode)
         run: |
+          # Is command se hum Docker ke andar Buildozer ko batate hain ke 'yes' 
+          # har sawal ka jawab hai aur environment variable '0' hai.
           docker run --rm -v "$(pwd)":/home/user/hostpython \
             -e BUILDOZER_WARN_ON_ROOT=0 \
             kivy/buildozer:latest \
-            /bin/bash -c "export BUILDOZER_WARN_ON_ROOT=0 && buildozer android debug"
-          
-      - name: Upload Final APK
+            /bin/bash -c "echo 'y' | buildozer --warn_on_root=0 android debug"
+
+      - name: Upload Titan AI Studio APK
         uses: actions/upload-artifact@v4
         with:
           name: Titan-AI-Studio-V6
