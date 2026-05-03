@@ -1,4 +1,4 @@
-name: Titan AI Studio - Final Success
+name: Titan AI Studio - Out of the Box Fix
 on:
   workflow_dispatch:
   push:
@@ -10,6 +10,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Storage fix ko simple rakhte hain
       - name: Maximize Build Space
         uses: easimon/maximize-build-space@master
         with:
@@ -19,26 +20,27 @@ jobs:
           remove-android: 'true'
           remove-haskell: 'true'
 
-      - name: Install System Dependencies
+      - name: Install System Dependencies (The Smart Way)
         run: |
           sudo apt-get update
-          # Exit Code 100 ko khatam karne ke liye force-fix aur manual install
-          sudo apt-get install -y -f
-          sudo apt-get install -y build-essential libffi-dev libssl-dev python3-pip python3-setuptools git
-          # Alag se install karein taake agar aik fail ho to pata chale
-          sudo apt-get install -y libltdl-dev libunwind-dev
+          # Sirf wo install karein jo lazmi hain, ziddi libraries (gstreamer) ko chhor dein
+          sudo apt-get install -y build-essential libffi-dev libssl-dev python3-pip python3-setuptools git zip unzip
+          # In cheezon ko force-install karein bina error ke rukay
+          sudo apt-get install -y --no-install-recommends libltdl-dev libncurses5 libstdc++6
 
       - name: Build with Buildozer
         run: |
           pip install --upgrade pip setuptools wheel
           pip install --upgrade Cython==0.29.33 buildozer
           export PATH=$PATH:$HOME/.local/bin
+          # Titan AI Studio ki purani cache saaf karein
           buildozer android clean
-          yes | buildozer android debug
+          # Log level 2 taake agar error aye to poori detail milay
+          yes | buildozer -v android debug
         env:
           ACCEPT_SDK_LICENSE: "True"
 
-      - name: Upload APK
+      - name: Upload Final APK
         uses: actions/upload-artifact@v4
         with:
           name: Titan-AI-Studio-V6
