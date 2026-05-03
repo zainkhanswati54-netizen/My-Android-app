@@ -1,4 +1,4 @@
-name: Titan AI Studio - Master Build
+name: Titan AI Studio - Mega Storage Fix
 on:
   workflow_dispatch:
   push:
@@ -6,40 +6,38 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      # STEP 1: GitHub Runner ki safayi (Crucial for Storage)
-      - name: Extreme Disk Cleanup
-        run: |
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc "/usr/local/share/boost" "$AGENT_TOOLSDIRECTORY"
-          docker image prune --all --force
-          df -h
+      # DUNIYA KA BEST STORAGE SOLUTION: Ye aapko 30GB+ khali jagah dega
+      - name: Maximize Build Space
+        uses: easimon/maximize-build-space@master
+        with:
+          root-reserve-mb: 5120
+          swap-size-mb: 1024
+          remove-dotnet: 'true'
+          remove-android: 'true'
+          remove-haskell: 'true'
 
-      # STEP 2: Dependencies jo aksar log bhool jate hain
       - name: Install System Dependencies
         run: |
           sudo apt update
-          sudo apt install -y build-essential libffi-dev libssl-dev python3-pip python3-setuptools libltdl-dev libunwind-dev
-          # libunwind-dev "Exit code 100" ko rokne ke liye zaroori hai
+          sudo apt install -y build-essential libffi-dev libssl-dev python3-pip python3-setuptools libltdl-dev libunwind-dev git
 
-      - name: Setup Python and Build Tools
+      - name: Build with Buildozer
         run: |
           pip install --upgrade pip setuptools wheel
           pip install --upgrade Cython==0.29.33 buildozer
-
-      # STEP 3: Clean state se build shuru karna
-      - name: Build with Buildozer
-        run: |
           export PATH=$PATH:$HOME/.local/bin
+          # Clean build to ensure no corrupted files from previous runs
           buildozer android clean
           yes | buildozer android debug
         env:
           ACCEPT_SDK_LICENSE: "True"
 
-      - name: Upload Final APK
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Titan-AI-Studio-V6
+          name: Titan-AI-Final-Success
           path: bin/*.apk
