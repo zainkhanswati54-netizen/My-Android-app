@@ -1,24 +1,22 @@
-name: Build APK (Titan AI Studio)
-
+name: Titan AI God-Mode Build
 on:
+  workflow_dispatch:
   push:
     branches: [ main ]
-  workflow_dispatch:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
-
+    runs-on: ubuntu-22.04
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.10"
+      - name: Free Disk Space (For Large APKs)
+        run: |
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /usr/share/dotnet
+          sudo apt clean
 
-      - name: Install System Dependencies
+      - name: Install Build Dependencies
         run: |
           sudo apt update
           sudo apt install -y build-essential git ffmpeg libgstreamer1.0-dev \
@@ -27,22 +25,26 @@ jobs:
             libc6-dev libbz2-dev libreadline-dev autoconf automake libtool \
             openjdk-17-jdk pkg-config
 
-      - name: Install Python Packages
-        run: |
-          pip install --upgrade pip
-          pip install buildozer cython==0.29.33
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
 
-      - name: Build APK (The Fixed Way)
+      - name: Install Buildozer & Cython
+        run: |
+          pip install --user --upgrade buildozer cython==0.29.33
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Build Titan APK (The Auto-Solver)
         env:
-          # Root warning ko ignore karne ka sabse paka tarika
           BUILDOZER_WARN_ON_ROOT: 0
         run: |
-          # 'yes' command automates all 'y/n' prompts
+          # 'yes |' saare prompts ko khud hi 'y' kar dega
+          export BUILDOZER_WARN_ON_ROOT=0
           yes | buildozer -v android debug
 
-      - name: Upload APK
-        if: always() # Build fail bhi ho to logs upload honge
+      - name: Upload Titan AI Studio V6 APK
         uses: actions/upload-artifact@v4
         with:
-          name: titan-ai-apk
+          name: Titan-AI-Studio-V6
           path: bin/*.apk
