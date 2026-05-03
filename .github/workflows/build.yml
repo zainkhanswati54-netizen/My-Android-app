@@ -1,4 +1,4 @@
-name: Titan AI Studio - Direct Docker Fix
+name: Titan AI Studio - Docker Success
 on:
   workflow_dispatch:
   push:
@@ -19,12 +19,14 @@ jobs:
           remove-android: 'true'
           remove-haskell: 'true'
 
-      # Yahan hum direct Kivy ka official Docker image use kar rahe hain
-      - name: Build with Docker Direct
+      - name: Build with Docker (Auto-Confirm)
         run: |
+          # 'yes' command khud hi 'y' type kar degi jab Buildozer sawal poochega
+          # USER=root variable root ki warning ko bypass karne mein madad karega
           docker run --rm -v "$(pwd)":/home/user/hostpython \
+          --env USER=root \
           kivy/buildozer:latest \
-          android debug
+          /bin/bash -c "yes | buildozer android debug"
           
       - name: Upload Final APK
         uses: actions/upload-artifact@v4
