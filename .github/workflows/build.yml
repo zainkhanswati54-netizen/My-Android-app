@@ -1,4 +1,4 @@
-name: Titan AI Studio - Final Success Fix
+name: Titan AI Studio - Final Power Fix
 on:
   workflow_dispatch:
   push:
@@ -10,24 +10,24 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Naya Step: Faltu cheezein delete karke jagah banayein
-      - name: Free Disk Space
+      # Sabse pehle jagah banayein taake Docker na phanse
+      - name: Free Up Disk Space
         run: |
           sudo rm -rf /usr/share/dotnet
           sudo rm -rf /usr/local/lib/android
           sudo rm -rf /opt/ghc
           sudo rm -rf "/usr/local/share/boost"
-          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
 
-      - name: Build with Docker Direct
+      - name: Build with Docker (Bypass Root Warning)
         run: |
-          # Is baar hum Docker ko bata rahe hain ke 'yes' confirm kar de
+          # 'yes' command khud hi 'y' type karegi
+          # USER=root root warning ko bypass karne ke liye hai
           docker run --rm -v "$(pwd)":/home/user/hostpython \
           --env USER=root \
           kivy/buildozer:latest \
           /bin/bash -c "yes | buildozer android debug"
           
-      - name: Upload Final APK
+      - name: Upload Titan AI Studio APK
         uses: actions/upload-artifact@v4
         with:
           name: Titan-AI-Studio-V6
