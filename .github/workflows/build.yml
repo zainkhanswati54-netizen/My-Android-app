@@ -36,14 +36,14 @@ jobs:
           pip3 install --user Cython==0.29.33 buildozer
 
       - name: Cache Buildozer global dir
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.buildozer
           key: buildozer-${{ hashFiles('buildozer.spec') }}
           restore-keys: buildozer-
 
       - name: Cache Android SDK
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.android
           key: android-sdk-${{ hashFiles('buildozer.spec') }}
@@ -53,11 +53,15 @@ jobs:
         run: |
           export PATH=$PATH:$HOME/.local/bin
           yes | buildozer -v android debug 2>&1 | tee build.log
+          if [ ! -f bin/*.apk ]; then
+            echo "APK nahi bani! Log dekho."
+            exit 1
+          fi
         env:
           ACCEPT_SDK_LICENSE: "True"
 
-      - name: Upload build log on failure
-        if: failure()
+      - name: Upload build log always
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: build-log
