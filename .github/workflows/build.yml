@@ -24,16 +24,37 @@ jobs:
       - name: Install Dependencies
         run: |
           sudo apt update
-          sudo apt install -y python3-pip build-essential git python3-dev ffmpeg libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev libportmidi-dev libswscale-dev libavformat-dev libavcodec-dev zlib1g-dev
-          sudo apt install -y libsqlite3-dev sqlite3 bzip2 libbz2-dev zlib1g-dev libssl-dev gcc g++ unzip
-          pip3 install --user --upgrade Cython==0.29.33 buildozer
+          sudo apt install -y python3-pip build-essential git python3-dev \
+            ffmpeg libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev \
+            libsdl2-ttf-dev libportmidi-dev libswscale-dev \
+            libavformat-dev libavcodec-dev zlib1g-dev \
+            libsqlite3-dev sqlite3 bzip2 libbz2-dev \
+            libssl-dev gcc g++ unzip autoconf libtool
+          pip3 install --user --upgrade Cython==0.29.33 buildozer virtualenv
+
+      # FIX: Buildozer cache karo taake har baar naya download na ho
+      - name: Cache Buildozer Global Directory
+        uses: actions/cache@v3
+        with:
+          path: ~/.buildozer
+          key: buildozer-${{ hashFiles('buildozer.spec') }}
+          restore-keys: |
+            buildozer-
 
       - name: Build with Buildozer
         run: |
           export PATH=$PATH:$HOME/.local/bin
-          yes | buildozer -v android debug
+          yes | buildozer -v android debug 2>&1 | tee build.log
         env:
           ACCEPT_SDK_LICENSE: "True"
+
+      # FIX: Build fail ho toh log upload karo diagnose karne ke liye
+      - name: Upload Build Log (on failure)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: build.log
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
