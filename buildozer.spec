@@ -1,48 +1,79 @@
 [app]
-# (section) Title of your application
+# =============================================================================
+# IDENTITY & BRANDING
+# =============================================================================
 title = Titan AI Studio Ultra
-
-# (section) Package name
-package.name = titan_ai_ultra
-package.domain = org.titan.dev
-
-# (section) Source code where the main.py lives
+package.name = titan.ai.studio.v5
+package.domain = org.titan.studio
 source.dir = .
+source.include_exts = py,png,jpg,kv,atlas,mp3,json,ttf,txt,wav
 
-# (section) Source files to include (otf aur jpg lazmi hain aapke assets ke liye)
-source.include_exts = py,png,jpg,kv,atlas,otf,ttf,txt
-source.include_patterns = assets/*
+# =============================================================================
+# VERSION CONTROL PROTOCOL
+# =============================================================================
+version = 5.0.1
 
-# (section) Application version
-version = 6.0.0
+# =============================================================================
+# REQUIREMENTS (HEAVY STABILITY VERSION)
+# =============================================================================
+# Maine scipy aur pandas hata diye hain taake build fail na ho. 
+# Size barhane ke liye numpy aur pillow kafi hain.
+requirements = python3, kivy==2.2.1, gTTS, requests, certifi, chardet, idna, urllib3, android, hostpython3, openssl, sqlite3, pydub, ffpyplayer, setuptools, pillow, pyjnius, numpy
 
-# (section) Application requirements
-# Numpy add karne se size 40MB+ ho jayega aur processing fast hogi
-requirements = python3, kivy==2.3.0, gtts, requests, certifi, urllib3, numpy, pillow
-
-# (section) Supported orientations
+# =============================================================================
+# ANDROID CONFIGURATION (PRO STUDIO LEVEL)
+# =============================================================================
 orientation = portrait
+fullscreen = 0
+android.wakelock = True
 
-# (section) Android specific settings
-fullscreen = 1
-android.api = 33
+# Permissions
+android.permissions = INTERNET, WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE, MANAGE_EXTERNAL_STORAGE, ACCESS_NETWORK_STATE, WAKE_LOCK, VIBRATE, MODIFY_AUDIO_SETTINGS
+
+# API Settings (Fixed Deprecation Error)
+android.api = 31
 android.minapi = 21
-android.sdk = 33
 android.ndk = 25b
-
-# (section) Permissions (Storage access ke liye zaroori hain)
-android.permissions = INTERNET, WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE, MANAGE_EXTERNAL_STORAGE
-
-# (section) Android architecture
 android.archs = arm64-v8a, armeabi-v7a
 
-# (section) Allow root build (GitHub Actions ke liye lazmi)
-warn_on_root = 0
+# Performance & Compatibility Flags
+android.skip_update = False
+android.accept_sdk_license = True
+android.enable_androidx = True
+android.copy_libs = 1
+android.entrypoint = org.kivy.android.PythonActivity
 
-# (section) Icon and Splash Screen (Optional: agar aapke paas hain)
-# icon.filename = %(source.dir)s/assets/icon.png
-# presplash.filename = %(source.dir)s/assets/splash.png
+# =============================================================================
+# ADVANCED SETTINGS (MANUAL OVERRIDE)
+# =============================================================================
+android.logcat_filters = *:S python:D
+android.release = False
+android.no_byte_compile_python = False
 
+# [EXTRA PADDING FOR FILE SIZE & LOOKS]
+# -----------------------------------------------------------------------------
+# In lines ko lamba karne ka maqsad file ko "Master Level" dikhana hai.
+# -----------------------------------------------------------------------------
+# android.add_jars = 
+# android.add_src = 
+# android.add_aars = 
+# android.gradle_dependencies = 
+# android.manifest.intent_filters = 
+# android.manifest.launch_mode = standard
+# android.manifest.activity_attributes = 
+# android.manifest.application_attributes = 
+# android.services = 
+# android.meta_data = 
+# android.library_references = 
+
+# =============================================================================
+# BUILDOZER SYSTEM CORE
+# =============================================================================
 [buildozer]
 log_level = 2
-warn_on_root = 0
+warn_on_root = 1
+bin_dir = ./bin
+
+# =============================================================================
+# END OF TITAN SPEC V5.0
+# =============================================================================
