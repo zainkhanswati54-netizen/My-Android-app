@@ -1,4 +1,4 @@
-name: Titan High-Quality Build
+name: Titan AI Studio - Master Build
 on:
   workflow_dispatch:
   push:
@@ -10,38 +10,36 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Maximize Build Space
+      # STEP 1: GitHub Runner ki safayi (Crucial for Storage)
+      - name: Extreme Disk Cleanup
         run: |
-          # Faltu tools aur SDKs delete kar rahe hain taake space banayie ja sakay
-          sudo rm -rf /usr/share/dotnet
-          sudo rm -rf /usr/local/lib/android
-          sudo rm -rf /opt/ghc
-          sudo rm -rf "/usr/local/share/boost"
-          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc "/usr/local/share/boost" "$AGENT_TOOLSDIRECTORY"
           docker image prune --all --force
-          df -h # Ye command aapko logs mein dikhayegi ke kitni space bachi hai
+          df -h
 
+      # STEP 2: Dependencies jo aksar log bhool jate hain
       - name: Install System Dependencies
         run: |
           sudo apt update
-          sudo apt install -y build-essential libffi-dev libssl-dev python3-pip python3-setuptools
+          sudo apt install -y build-essential libffi-dev libssl-dev python3-pip python3-setuptools libltdl-dev libunwind-dev
+          # libunwind-dev "Exit code 100" ko rokne ke liye zaroori hai
 
-      - name: Install Build Tools
+      - name: Setup Python and Build Tools
         run: |
           pip install --upgrade pip setuptools wheel
           pip install --upgrade Cython==0.29.33 buildozer
 
-      - name: High Quality Build
+      # STEP 3: Clean state se build shuru karna
+      - name: Build with Buildozer
         run: |
           export PATH=$PATH:$HOME/.local/bin
-          # Purana kachra saaf kar ke naye siray se build
           buildozer android clean
           yes | buildozer android debug
         env:
           ACCEPT_SDK_LICENSE: "True"
 
-      - name: Upload High-Quality APK
+      - name: Upload Final APK
         uses: actions/upload-artifact@v4
         with:
-          name: Titan-AI-Studio-HQ
+          name: Titan-AI-Studio-V6
           path: bin/*.apk
