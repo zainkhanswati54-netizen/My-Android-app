@@ -1,4 +1,4 @@
-name: Titan AI Studio God Mode
+name: Titan High-Quality Build
 on:
   workflow_dispatch:
   push:
@@ -10,28 +10,38 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup System
+      - name: Maximize Build Space
+        run: |
+          # Faltu tools aur SDKs delete kar rahe hain taake space banayie ja sakay
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf "/usr/local/share/boost"
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+          docker image prune --all --force
+          df -h # Ye command aapko logs mein dikhayegi ke kitni space bachi hai
+
+      - name: Install System Dependencies
         run: |
           sudo apt update
-          sudo apt install -y build-essential libffi-dev libssl-dev python3-pip python3-setuptools libltdl-dev
-          # Cleaning up to avoid "Exit code 100"
-          sudo apt autoremove -y
+          sudo apt install -y build-essential libffi-dev libssl-dev python3-pip python3-setuptools
 
       - name: Install Build Tools
         run: |
           pip install --upgrade pip setuptools wheel
           pip install --upgrade Cython==0.29.33 buildozer
 
-      - name: Build with Buildozer
+      - name: High Quality Build
         run: |
           export PATH=$PATH:$HOME/.local/bin
-          # Single architecture build for faster and safer success
+          # Purana kachra saaf kar ke naye siray se build
+          buildozer android clean
           yes | buildozer android debug
         env:
           ACCEPT_SDK_LICENSE: "True"
 
-      - name: Upload APK
+      - name: Upload High-Quality APK
         uses: actions/upload-artifact@v4
         with:
-          name: Titan-AI-Pro-v6
+          name: Titan-AI-Studio-HQ
           path: bin/*.apk
