@@ -61,4 +61,4 @@ android.enable_androidx = True
 log_level = 2
 
 # (int) Warn on root (True because we build as root on GitHub)
-warn_on_root = 1
+warn_on_root = 0
