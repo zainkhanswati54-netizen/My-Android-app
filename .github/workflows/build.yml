@@ -1,4 +1,4 @@
-name: Titan AI Studio - Mega Storage Fix
+name: Titan AI Studio - Final Success
 on:
   workflow_dispatch:
   push:
@@ -6,11 +6,11 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    # SABSE ZAROORI TABDEELI: ubuntu-latest (24.04) ki jagah 22.04 use karein
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
 
-      # DUNIYA KA BEST STORAGE SOLUTION: Ye aapko 30GB+ khali jagah dega
       - name: Maximize Build Space
         uses: easimon/maximize-build-space@master
         with:
@@ -22,15 +22,16 @@ jobs:
 
       - name: Install System Dependencies
         run: |
-          sudo apt update
-          sudo apt install -y build-essential libffi-dev libssl-dev python3-pip python3-setuptools libltdl-dev libunwind-dev git
+          sudo apt-get update
+          # --fix-broken aur ubuntu-22.04 se Exit Code 100 khatam ho jayega
+          sudo apt-get install -f
+          sudo apt-get install -y build-essential libffi-dev libssl-dev python3-pip python3-setuptools libltdl-dev libunwind-dev git
 
       - name: Build with Buildozer
         run: |
           pip install --upgrade pip setuptools wheel
           pip install --upgrade Cython==0.29.33 buildozer
           export PATH=$PATH:$HOME/.local/bin
-          # Clean build to ensure no corrupted files from previous runs
           buildozer android clean
           yes | buildozer android debug
         env:
@@ -39,5 +40,5 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Titan-AI-Final-Success
+          name: Titan-AI-Studio-V6
           path: bin/*.apk
