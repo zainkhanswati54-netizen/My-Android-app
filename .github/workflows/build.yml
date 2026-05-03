@@ -6,7 +6,6 @@ on:
 
 jobs:
   build:
-    # SABSE ZAROORI TABDEELI: ubuntu-latest (24.04) ki jagah 22.04 use karein
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -23,9 +22,11 @@ jobs:
       - name: Install System Dependencies
         run: |
           sudo apt-get update
-          # --fix-broken aur ubuntu-22.04 se Exit Code 100 khatam ho jayega
-          sudo apt-get install -f
-          sudo apt-get install -y build-essential libffi-dev libssl-dev python3-pip python3-setuptools libltdl-dev libunwind-dev git
+          # Exit Code 100 ko khatam karne ke liye force-fix aur manual install
+          sudo apt-get install -y -f
+          sudo apt-get install -y build-essential libffi-dev libssl-dev python3-pip python3-setuptools git
+          # Alag se install karein taake agar aik fail ho to pata chale
+          sudo apt-get install -y libltdl-dev libunwind-dev
 
       - name: Build with Buildozer
         run: |
