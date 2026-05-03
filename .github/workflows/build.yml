@@ -1,4 +1,4 @@
-name: Titan Final Success Build
+name: Titan AI Studio God Mode
 on:
   workflow_dispatch:
   push:
@@ -10,23 +10,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Fix Apt and Install Dependencies
+      - name: Setup System
         run: |
-          sudo apt-get clean
-          sudo apt-get update --fix-missing
-          # Forcefully fixing broken dependencies
-          sudo apt-get install -y -f
-          sudo apt-get install -y build-essential libffi-dev libssl-dev python3-pip python3-setuptools
+          sudo apt update
+          sudo apt install -y build-essential libffi-dev libssl-dev python3-pip python3-setuptools libltdl-dev
+          # Cleaning up to avoid "Exit code 100"
+          sudo apt autoremove -y
 
       - name: Install Build Tools
         run: |
-          pip install --upgrade pip
-          pip install --upgrade Cython==0.29.33 virtualenv buildozer
+          pip install --upgrade pip setuptools wheel
+          pip install --upgrade Cython==0.29.33 buildozer
 
       - name: Build with Buildozer
         run: |
-          # Adding path to ensure buildozer is found
           export PATH=$PATH:$HOME/.local/bin
+          # Single architecture build for faster and safer success
           yes | buildozer android debug
         env:
           ACCEPT_SDK_LICENSE: "True"
@@ -34,5 +33,5 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Titan-AI-Studio-Pro
+          name: Titan-AI-Pro-v6
           path: bin/*.apk
