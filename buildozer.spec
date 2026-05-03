@@ -1,64 +1,48 @@
 [app]
-# (str) Title of your application
-title = Titan AI Studio
+# (section) Title of your application
+title = Titan AI Studio Ultra
 
-# (str) Package name
-package.name = titan_ai_studio
+# (section) Package name
+package.name = titan_ai_ultra
+package.domain = org.titan.dev
 
-# (str) Package domain (needed for android packaging)
-package.domain = org.titan
-
-# (str) Source code where the main.py live
+# (section) Source code where the main.py lives
 source.dir = .
 
-# (list) Source files to include (let's include everything needed for HQ)
-source.include_exts = py,png,jpg,kv,atlas,json,txt
+# (section) Source files to include (otf aur jpg lazmi hain aapke assets ke liye)
+source.include_exts = py,png,jpg,kv,atlas,otf,ttf,txt
+source.include_patterns = assets/*
 
-# (str) Application versioning
-version = 1.0.6
+# (section) Application version
+version = 6.0.0
 
-# (list) Application requirements
-# Research says: Precise versions prevent dependency hell
-requirements = python3, kivy==2.2.1, gTTS, requests, certifi, chardet, idna, urllib3, pillow
+# (section) Application requirements
+# Numpy add karne se size 40MB+ ho jayega aur processing fast hogi
+requirements = python3, kivy==2.3.0, gtts, requests, certifi, urllib3, numpy, pillow
 
-# (str) Supported orientation
+# (section) Supported orientations
 orientation = portrait
 
-# (bool) Fullscreen mode
-fullscreen = 0
-
-# --- Android Specific Settings ---
-
-# (list) Permissions
-android.permissions = INTERNET, WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE
-
-# (int) Target Android API (31 is the sweet spot for modern phones)
-android.api = 31
-
-# (int) Minimum API your APK will support
+# (section) Android specific settings
+fullscreen = 1
+android.api = 33
 android.minapi = 21
-
-# (str) Android NDK version
+android.sdk = 33
 android.ndk = 25b
 
-# (bool) Use the private storage for your app (Recommended)
-android.private_storage = True
+# (section) Permissions (Storage access ke liye zaroori hain)
+android.permissions = INTERNET, WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE, MANAGE_EXTERNAL_STORAGE
 
-# (str) Android architectures to build for
-# Fix: Sirf arm64-v8a use karein GitHub Actions ki storage bachane ke liye
-android.archs = arm64-v8a
+# (section) Android architecture
+android.archs = arm64-v8a, armeabi-v7a
 
-# (bool) Allow the app to accept SDK licenses automatically
-android.accept_sdk_license = True
+# (section) Allow root build (GitHub Actions ke liye lazmi)
+warn_on_root = 0
 
-# (bool) Enable AndroidX (Mandatory for modern Kivy)
-android.enable_androidx = True
-
-# --- Buildozer Config ---
+# (section) Icon and Splash Screen (Optional: agar aapke paas hain)
+# icon.filename = %(source.dir)s/assets/icon.png
+# presplash.filename = %(source.dir)s/assets/splash.png
 
 [buildozer]
-# (int) Log level (2 = Error/Debug for detailed troubleshooting)
 log_level = 2
-
-# (int) Warn on root (True because we build as root on GitHub)
 warn_on_root = 0
