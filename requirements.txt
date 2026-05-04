@@ -1,1 +1,9 @@
-
+# requirements.txt - for local testing
+kivy==2.2.1
+gTTS==2.3.2
+requests==2.31.0
+certifi==2023.11.17
+urllib3==2.1.0
+pillow==10.1.0
+pyjnius==1.5.0
+setuptools==68.2.2
