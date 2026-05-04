@@ -4,15 +4,16 @@ package.name = titanai.studio
 package.domain = org.titan.studio
 source.dir = .
 source.include_exts = py,png,jpg,kv,atlas,mp3,json,ttf,txt,wav
-version = 5.2.0
+version = 5.3.0
 
-requirements = python3, kivy==2.2.1, gTTS, requests, certifi, chardet, idna, urllib3, pillow, pyjnius, setuptools
+requirements = python3,kivy==2.2.1,gTTS,requests,certifi,chardet,idna,urllib3,pillow,pyjnius,setuptools
 
 orientation = portrait
 fullscreen = 0
 android.wakelock = True
 
-android.permissions = INTERNET, WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE, ACCESS_NETWORK_STATE, WAKE_LOCK
+# Enhanced permissions
+android.permissions = INTERNET, WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE, ACCESS_NETWORK_STATE, WAKE_LOCK, MANAGE_EXTERNAL_STORAGE
 
 android.api = 33
 android.minapi = 21
