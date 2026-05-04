@@ -1,18 +1,22 @@
-name: Build Titan AI APK
+name: Build Titan AI APK - Enhanced
 
 on:
-  workflow_dispatch:
+  workflow_dispatch:  # Manual trigger
   push:
-    branches: [ main ]
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
 
 jobs:
   build:
     runs-on: ubuntu-22.04
+    timeout-minutes: 60
 
     steps:
-
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -25,50 +29,204 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Install system packages
+      - name: Install system dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y python3-pip build-essential git python3-dev libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev libportmidi-dev libswscale-dev libavformat-dev libavcodec-dev zlib1g-dev libssl-dev libbz2-dev libsqlite3-dev gcc g++ unzip autoconf libtool ffmpeg
+          sudo apt-get install -y \
+            python3-pip \
+            build-essential \
+            git \
+            python3-dev \
+            libsdl2-dev \
+            libsdl2-image-dev \
+            libsdl2-mixer-dev \
+            libsdl2-ttf-dev \
+            libportmidi-dev \
+            libswscale-dev \
+            libavformat-dev \
+            libavcodec-dev \
+            zlib1g-dev \
+            libssl-dev \
+            libbz2-dev \
+            libsqlite3-dev \
+            libffi-dev \
+            liblzma-dev \
+            gcc \
+            g++ \
+            unzip \
+            autoconf \
+            libtool \
+            ffmpeg \
+            pandoc
 
-      - name: Install Cython and Buildozer
+      - name: Upgrade pip and install Cython/Buildozer
         run: |
-          pip3 install --user --upgrade pip
-          pip3 install --user Cython==0.29.33 buildozer
+          python3 -m pip install --upgrade pip setuptools wheel
+          python3 -m pip install --upgrade Cython==0.29.33
+          python3 -m pip install --upgrade buildozer
 
-      - name: Cache Buildozer global dir
+      - name: Cache Buildozer global directory
         uses: actions/cache@v4
         with:
           path: ~/.buildozer
-          key: buildozer-${{ hashFiles('buildozer.spec') }}
-          restore-keys: buildozer-
+          key: buildozer-global-v2-${{ hashFiles('buildozer.spec') }}
+          restore-keys: |
+            buildozer-global-v2-
+            buildozer-global-
 
       - name: Cache Android SDK
         uses: actions/cache@v4
         with:
           path: ~/.android
-          key: android-sdk-${{ hashFiles('buildozer.spec') }}
-          restore-keys: android-sdk-
+          key: android-sdk-v2-${{ hashFiles('buildozer.spec') }}
+          restore-keys: |
+            android-sdk-v2-
+            android-sdk-
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: ~/.gradle
+          key: gradle-${{ runner.os }}-${{ hashFiles('buildozer.spec') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
+            gradle-
+
+      - name: Create necessary directories
+        run: |
+          mkdir -p ~/.buildozer/android/platform
+          mkdir -p bin
+
+      - name: Verify buildozer.spec exists
+        run: |
+          if [ ! -f "buildozer.spec" ]; then
+            echo "❌ buildozer.spec not found!"
+            exit 1
+          fi
+          echo "✅ buildozer.spec found"
+
+      - name: Display buildozer.spec content
+        run: |
+          echo "📋 buildozer.spec content:"
+          cat buildozer.spec
 
       - name: Build APK
         run: |
           export PATH=$PATH:$HOME/.local/bin
-          yes | buildozer -v android debug 2>&1 | tee build.log
-          if [ ! -f bin/*.apk ]; then
-            echo "APK nahi bani! Log dekho."
+          export ANDROID_HOME=$HOME/.buildozer/android/platform/android-sdk
+          
+          echo "🛠️ Starting APK build..."
+          echo "This may take 20-30 minutes..."
+          
+          # Build with verbose logging
+          buildozer -v android debug 2>&1 | tee build.log
+          
+          # Check if APK was created
+          if ls bin/*.apk 1> /dev/null 2>&1; then
+            echo "✅ APK built successfully!"
+            ls -la bin/
+          else
+            echo "❌ APK build failed - no APK found"
+            echo "Last 50 lines of build.log:"
+            tail -50 build.log
             exit 1
           fi
         env:
           ACCEPT_SDK_LICENSE: "True"
 
-      - name: Upload build log always
+      - name: Build release APK (optional)
+        if: success()
+        run: |
+          export PATH=$PATH:$HOME/.local/bin
+          echo "🛠️ Building release APK..."
+          buildozer -v android release 2>&1 | tee -a build.log
+        continue-on-error: true
+        env:
+          ACCEPT_SDK_LICENSE: "True"
+
+      - name: Rename APK for easy identification
+        if: success()
+        run: |
+          cd bin
+          # Rename debug APK
+          if [ -f "*.apk" ]; then
+            for apk in *.apk; do
+              if [[ $apk == *"debug"* ]]; then
+                mv "$apk" "TitanAI_Studio_Pro_v5.3.0_$(date +'%Y%m%d').apk"
+              elif [[ $apk == *"release"* ]]; then
+                mv "$apk" "TitanAI_Studio_Pro_Release_v5.3.0_$(date +'%Y%m%d').apk"
+              fi
+            done
+          fi
+          ls -la
+
+      - name: Upload build.log (always)
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: build-log
           path: build.log
+          retention-days: 7
 
-      - name: Upload APK
+      - name: Upload debug APK
+        if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: TitanAI-APK
-          path: bin/*.apk
+          name: TitanAI-Debug-APK
+          path: bin/*TitanAI*.apk
+          retention-days: 30
+          compression-level: 0
+
+      - name: Upload release APK (if exists)
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: TitanAI-Release-APK
+          path: bin/*Release*.apk
+          retention-days: 30
+          compression-level: 0
+
+      - name: List all generated files
+        if: always()
+        run: |
+          echo "🔍 Listing all files in bin directory:"
+          ls -la bin/ || echo "bin directory not found"
+          echo ""
+          echo "🔍 Disk space left:"
+          df -h
+
+      - name: Create GitHub Release (optional)
+        if: success() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v5.3.0-${{ github.run_number }}
+          name: "Titan AI Studio Pro v5.3.0"
+          body: |
+            ## 🎉 Titan AI Studio Pro v5.3.0
+            
+            ### ✨ New Features:
+            - ✅ Fixed double loading issue - single smooth loading screen
+            - ✅ Voice gender fixed - proper Male/Female voices now working
+            - ✅ Import TXT file feature added with file picker
+            - ✅ Manual storage selection (Internal/SD Card)
+            - ✅ Character names displayed for each voice
+            - ✅ Better error handling and status messages
+            
+            ### 🐛 Bug Fixes:
+            - Removed double loading
+            - Fixed voice gender switching
+            - Improved file save permissions
+            - Better internet connection handling
+            
+            ### 📦 How to Install:
+            1. Download the APK from artifacts below
+            2. Enable "Install from unknown sources" in settings
+            3. Install and enjoy!
+            
+            **Note:** Internet connection required for voice generation.
+          files: |
+            bin/*.apk
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
