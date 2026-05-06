@@ -3,14 +3,10 @@ import threading
 import time
 import shutil
 import json
-import re
-from datetime import datetime
 
-# Android permissions
 try:
-    from android.permissions import request_permissions, Permission, check_permission
-    from android.storage import primary_external_storage_path, secondary_external_storage_path
-    from jnius import autoclass, cast
+    from android.permissions import request_permissions, Permission
+    from android.storage import primary_external_storage_path
     ANDROID_ENV = True
 except Exception:
     ANDROID_ENV = False
@@ -23,9 +19,11 @@ Config.set('graphics', 'resizable', '0')
 from kivy.app import App
 from kivy.clock import Clock
 from kivy.core.audio import SoundLoader
+from kivy.core.window import Window
 from kivy.graphics import Color, Rectangle, RoundedRectangle
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.button import Button
+from kivy.uix.filechooser import FileChooserListView
 from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.gridlayout import GridLayout
 from kivy.uix.label import Label
@@ -33,26 +31,25 @@ from kivy.uix.popup import Popup
 from kivy.uix.progressbar import ProgressBar
 from kivy.uix.screenmanager import ScreenManager, Screen, FadeTransition
 from kivy.uix.scrollview import ScrollView
+from kivy.uix.slider import Slider
 from kivy.uix.spinner import Spinner
 from kivy.uix.textinput import TextInput
-from kivy.uix.filechooser import FileChooserIconView
 from kivy.utils import get_color_from_hex
 
-# Colors - Premium Theme
-C_BG     = '#0A0F1E'
-C_CARD   = '#0F172A'
-C_ACCENT = '#38BDF8'
-C_GREEN  = '#22C55E'
-C_RED    = '#EF4444'
-C_PURPLE = '#7C3AED'
-C_BLUE   = '#2563EB'
-C_CYAN   = '#0EA5E9'
-C_GRAY   = '#475569'
-C_INDIGO = '#6366F1'
-C_AMBER  = '#F59E0B'
-C_GOLD   = '#FBBF24'
+C_BG      = '#020817'
+C_CARD    = '#0F172A'
+C_CARD2   = '#1E293B'
+C_BLUE    = '#2563EB'
+C_BLUE2   = '#3B82F6'
+C_ACCENT  = '#38BDF8'
+C_GREEN   = '#22C55E'
+C_RED     = '#EF4444'
+C_PURPLE  = '#7C3AED'
+C_CYAN    = '#0EA5E9'
+C_GRAY    = '#475569'
+C_WHITE   = '#F1F5F9'
+C_MUTED   = '#64748B'
 
-# Languages - Expanded
 LANGUAGES = {
     'English':  'en',
     'Urdu':     'ur',
@@ -66,28 +63,32 @@ LANGUAGES = {
     'Chinese':  'zh',
     'Japanese': 'ja',
     'Korean':   'ko',
-    'Italian':  'it',
-    'Portuguese': 'pt',
 }
 
-# Voice Profiles - FIXED: Sirf Male aur Female
 VOICE_PROFILES = {
-    '👨 Male':    {'tld': 'com',    'slow': False, 'name': 'John (US English)'},
-    '👩 Female':  {'tld': 'com.au', 'slow': False, 'name': 'Emma (Australian English)'},
+    'Male':   {'tld': 'com',    'slow': False},
+    'Female': {'tld': 'com.au', 'slow': False},
 }
 
-# Storage paths
-def get_storage_path():
-    """User ke selected storage path ko return karega"""
-    app = App.get_running_app()
-    if hasattr(app, 'user_storage_path') and app.user_storage_path:
-        return app.user_storage_path
-    return os.path.join('/sdcard', 'TitanAI_Audio')
+SPEED_MAP = {
+    10:  True,
+    20:  True,
+    30:  True,
+    40:  True,
+    50:  False,
+    60:  False,
+    70:  False,
+    80:  False,
+    90:  False,
+    100: False,
+}
+
 
 def history_path():
     app = App.get_running_app()
     d = app.user_data_dir if app else '.'
     return os.path.join(d, 'history.json')
+
 
 def history_load():
     try:
@@ -96,20 +97,74 @@ def history_load():
     except Exception:
         return []
 
+
 def history_save(entry):
     data = history_load()
     data.insert(0, entry)
     try:
         with open(history_path(), 'w', encoding='utf-8') as f:
-            json.dump(data[:50], f, ensure_ascii=False, indent=2)
+            json.dump(data[:100], f, ensure_ascii=False, indent=2)
     except Exception:
         pass
 
+
+def read_txt(path):
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            return f.read()
+    except Exception:
+        try:
+            with open(path, 'r', encoding='latin-1') as f:
+                return f.read()
+        except Exception:
+            return ''
+
+
+def read_pdf(path):
+    try:
+        import zipfile
+        if zipfile.is_zipfile(path):
+            return ''
+    except Exception:
+        pass
+    try:
+        text = []
+        with open(path, 'rb') as f:
+            content = f.read().decode('latin-1', errors='ignore')
+        import re
+        parts = re.findall(r'BT(.*?)ET', content, re.DOTALL)
+        for part in parts:
+            matches = re.findall(r'\((.*?)\)', part)
+            for m in matches:
+                text.append(m)
+        result = ' '.join(text)
+        result = result.replace('\\n', '\n').replace('\\r', '')
+        if len(result.strip()) > 10:
+            return result.strip()
+        return ''
+    except Exception:
+        return ''
+
+
+def read_docx(path):
+    try:
+        import zipfile
+        import re
+        with zipfile.ZipFile(path, 'r') as z:
+            if 'word/document.xml' in z.namelist():
+                xml = z.read('word/document.xml').decode('utf-8', errors='ignore')
+                text = re.sub(r'<[^>]+>', ' ', xml)
+                text = ' '.join(text.split())
+                return text
+        return ''
+    except Exception:
+        return ''
+
+
 class FlatBtn(Button):
-    def __init__(self, bg=C_BLUE, radius=12, **kw):
+    def __init__(self, bg=C_BLUE, **kw):
         super().__init__(**kw)
         self.bg = bg
-        self.radius = radius
         self.background_normal = ''
         self.background_down = ''
         self.background_color = (0, 0, 0, 0)
@@ -124,7 +179,8 @@ class FlatBtn(Button):
         self.canvas.before.clear()
         with self.canvas.before:
             Color(*get_color_from_hex(self.bg))
-            RoundedRectangle(pos=self.pos, size=self.size, radius=[self.radius])
+            RoundedRectangle(pos=self.pos, size=self.size, radius=[14])
+
 
 class DarkPanel(FloatLayout):
     def __init__(self, **kw):
@@ -138,232 +194,93 @@ class DarkPanel(FloatLayout):
         self._rect.pos = self.pos
         self._rect.size = self.size
 
-def sec_label(txt):
+
+def card_bg(widget, color=C_CARD, radius=12):
+    with widget.canvas.before:
+        Color(*get_color_from_hex(color))
+        rr = RoundedRectangle(pos=widget.pos, size=widget.size, radius=[radius])
+
+    def upd(w, *a, r=rr):
+        r.pos = w.pos
+        r.size = w.size
+
+    widget.bind(pos=upd, size=upd)
+
+
+def lbl(txt, size=13, color=C_MUTED, bold=False, h=32):
     return Label(
         text=txt,
-        font_size='13sp',
-        bold=True,
-        color=get_color_from_hex('#64748B'),
+        font_size=str(size) + 'sp',
+        bold=bold,
+        color=get_color_from_hex(color),
         size_hint_y=None,
-        height=30,
+        height=h,
         halign='left',
         valign='middle',
     )
-# ==================== FIXED SPLASH SCREEN (No double loading) ====================
-class SplashScreen(Screen):
+
+
+class LoadingScreen(Screen):
     def __init__(self, **kw):
         super().__init__(**kw)
         root = DarkPanel()
-        
-        # Logo image - aapka logo yahan aayega
-        from kivy.uix.image import Image
-        try:
-            logo = Image(
-                source='logo.png',
-                size_hint=(None, None),
-                size=(200, 200),
-                pos_hint={'center_x': 0.5, 'center_y': 0.65}
-            )
-            root.add_widget(logo)
-        except:
-            # Agar logo nahi mila to text dikhega
-            root.add_widget(Label(
-                text='🎙️ TITAN AI',
-                font_size='52sp',
-                bold=True,
-                color=get_color_from_hex(C_ACCENT),
-                pos_hint={'center_x': 0.5, 'center_y': 0.62},
-            ))
-            root.add_widget(Label(
-                text='Studio Pro',
-                font_size='20sp',
-                color=get_color_from_hex('#64748B'),
-                pos_hint={'center_x': 0.5, 'center_y': 0.54},
-            ))
-        
-        self.info = Label(
-            text='Initializing...',
-            font_size='15sp',
-            color=get_color_from_hex('#94A3B8'),
-            pos_hint={'center_x': 0.5, 'center_y': 0.44},
+
+        logo_box = BoxLayout(
+            orientation='vertical',
+            size_hint=(None, None),
+            size=(200, 200),
+            pos_hint={'center_x': 0.5, 'center_y': 0.55},
         )
-        root.add_widget(self.info)
-        
-        self.pb = ProgressBar(
-            max=100, value=0,
-            size_hint=(0.7, None), height=18,
-            pos_hint={'center_x': 0.5, 'center_y': 0.37},
+
+        logo_lbl = Label(
+            text='SS',
+            font_size='72sp',
+            bold=True,
+            color=get_color_from_hex(C_BLUE2),
         )
-        root.add_widget(self.pb)
+        logo_box.add_widget(logo_lbl)
+        root.add_widget(logo_box)
+
+        root.add_widget(Label(
+            text='Titan AI Studio Pro',
+            font_size='22sp',
+            bold=True,
+            color=get_color_from_hex(C_WHITE),
+            pos_hint={'center_x': 0.5, 'center_y': 0.32},
+        ))
+
+        root.add_widget(Label(
+            text='Your Personal Narrator, Always Free.',
+            font_size='14sp',
+            color=get_color_from_hex(C_MUTED),
+            pos_hint={'center_x': 0.5, 'center_y': 0.26},
+        ))
+
+        self.dot_lbl = Label(
+            text='Loading...',
+            font_size='13sp',
+            color=get_color_from_hex(C_BLUE2),
+            pos_hint={'center_x': 0.5, 'center_y': 0.18},
+        )
+        root.add_widget(self.dot_lbl)
+
         self.add_widget(root)
+        self._dots = 0
 
     def on_enter(self, *a):
-        self.pb.value = 0
-        # Single loading - direct jump to studio after loading
-        Clock.schedule_once(lambda dt: self._load_resources(), 0.1)
+        self._ev = Clock.schedule_interval(self._tick, 0.5)
+        Clock.schedule_once(lambda dt: setattr(
+            self.manager, 'current', 'studio'), 3.0)
 
-    def _load_resources(self):
-        stages = [
-            (20, 'Loading audio engine...'),
-            (40, 'Preparing voice profiles...'),
-            (60, 'Checking permissions...'),
-            (80, 'Almost ready...'),
-            (100, 'Welcome to Titan AI!'),
-        ]
-        
-        def update_stage(idx=0):
-            if idx < len(stages):
-                val, msg = stages[idx]
-                self.pb.value = val
-                self.info.text = msg
-                Clock.schedule_once(lambda dt: update_stage(idx + 1), 0.3)
-            else:
-                Clock.schedule_once(lambda dt: setattr(self.manager, 'current', 'studio'), 0.2)
-        
-        update_stage()
+    def on_leave(self, *a):
+        if hasattr(self, '_ev'):
+            self._ev.cancel()
 
-# ==================== STORAGE SELECTION POPUP ====================
-class StorageSelectorPopup(Popup):
-    def __init__(self, callback, **kw):
-        super().__init__(**kw)
-        self.callback = callback
-        self.title = 'Select Save Location'
-        self.size_hint = (0.9, 0.7)
-        self.background_color = get_color_from_hex(C_CARD)
-        
-        layout = BoxLayout(orientation='vertical', spacing=15, padding=20)
-        
-        layout.add_widget(Label(
-            text='Where do you want to save audio files?',
-            font_size='16sp',
-            color=(1,1,1,1),
-            size_hint_y=None,
-            height=50
-        ))
-        
-        # Internal Storage button
-        internal_btn = FlatBtn(
-            text='📱 Internal Storage\n(/storage/emulated/0/TitanAI)',
-            bg=C_BLUE,
-            font_size='14sp',
-            size_hint_y=None,
-            height=80
-        )
-        internal_btn.bind(on_press=lambda x: self._select_path('/storage/emulated/0/TitanAI'))
-        layout.add_widget(internal_btn)
-        
-        # SD Card button (agar available ho)
-        if ANDROID_ENV:
-            try:
-                sd_path = secondary_external_storage_path()
-                if sd_path:
-                    sd_btn = FlatBtn(
-                        text=f'💾 SD Card\n({sd_path}/TitanAI)',
-                        bg=C_PURPLE,
-                        font_size='14sp',
-                        size_hint_y=None,
-                        height=80
-                    )
-                    sd_btn.bind(on_press=lambda x: self._select_path(f'{sd_path}/TitanAI'))
-                    layout.add_widget(sd_btn)
-            except:
-                pass
-        
-        # Custom folder button
-        custom_btn = FlatBtn(
-            text='📁 Choose Custom Folder',
-            bg=C_GRAY,
-            font_size='14sp',
-            size_hint_y=None,
-            height=60
-        )
-        custom_btn.bind(on_press=self._show_filechooser)
-        layout.add_widget(custom_btn)
-        
-        self.content = layout
-    
-    def _select_path(self, path):
-        try:
-            os.makedirs(path, exist_ok=True)
-            self.callback(path)
-            self.dismiss()
-        except Exception as e:
-            self.callback(None, str(e))
-    
-    def _show_filechooser(self, *a):
-        # File chooser for custom folder
-        layout = BoxLayout(orientation='vertical', padding=10, spacing=10)
-        fc = FileChooserIconView(
-            path='/storage/emulated/0',
-            dirselect=True,
-            size_hint=(1, 0.9)
-        )
-        
-        def select_folder(*args):
-            if fc.selection:
-                self._select_path(fc.selection[0])
-                popup.dismiss()
-        
-        btn_layout = BoxLayout(size_hint_y=None, height=50, spacing=10)
-        ok_btn = FlatBtn(text='Select Folder', bg=C_GREEN, font_size='14sp')
-        ok_btn.bind(on_press=select_folder)
-        cancel_btn = FlatBtn(text='Cancel', bg=C_RED, font_size='14sp')
-        cancel_btn.bind(on_press=lambda x: popup.dismiss())
-        btn_layout.add_widget(ok_btn)
-        btn_layout.add_widget(cancel_btn)
-        
-        layout.add_widget(fc)
-        layout.add_widget(btn_layout)
-        
-        popup = Popup(
-            title='Choose Folder',
-            content=layout,
-            size_hint=(0.95, 0.85),
-            background_color=get_color_from_hex(C_CARD)
-        )
-        popup.open()
-# ==================== IMPORT TXT FILE POPUP ====================
-class ImportFilePopup(Popup):
-    def __init__(self, callback, **kw):
-        super().__init__(**kw)
-        self.callback = callback
-        self.title = 'Import Text File'
-        self.size_hint = (0.95, 0.8)
-        self.background_color = get_color_from_hex(C_CARD)
-        
-        layout = BoxLayout(orientation='vertical', padding=10, spacing=10)
-        
-        self.file_chooser = FileChooserIconView(
-            path='/storage/emulated/0',
-            filters=['*.txt'],
-            size_hint=(1, 0.85)
-        )
-        layout.add_widget(self.file_chooser)
-        
-        btn_layout = BoxLayout(size_hint_y=None, height=50, spacing=10)
-        import_btn = FlatBtn(text='Import & Scan', bg=C_GREEN, font_size='14sp')
-        import_btn.bind(on_press=self._import_file)
-        cancel_btn = FlatBtn(text='Cancel', bg=C_RED, font_size='14sp')
-        cancel_btn.bind(on_press=lambda x: self.dismiss())
-        btn_layout.add_widget(import_btn)
-        btn_layout.add_widget(cancel_btn)
-        layout.add_widget(btn_layout)
-        
-        self.content = layout
-    
-    def _import_file(self, *a):
-        if self.file_chooser.selection:
-            file_path = self.file_chooser.selection[0]
-            try:
-                with open(file_path, 'r', encoding='utf-8') as f:
-                    content = f.read()
-                self.callback(content)
-                self.dismiss()
-            except Exception as e:
-                self.callback(None, str(e))
-                self.dismiss()
+    def _tick(self, dt):
+        self._dots = (self._dots + 1) % 4
+        self.dot_lbl.text = 'Loading' + '.' * (self._dots + 1)
 
-# ==================== HISTORY SCREEN ====================
+
 class HistoryScreen(Screen):
     def __init__(self, **kw):
         super().__init__(**kw)
@@ -372,17 +289,16 @@ class HistoryScreen(Screen):
 
     def _build(self):
         root = DarkPanel()
-        outer = BoxLayout(orientation='vertical', padding=15, spacing=10)
+        outer = BoxLayout(orientation='vertical', padding=16, spacing=12)
 
-        hdr = BoxLayout(size_hint_y=None, height=60, spacing=10)
-        back = FlatBtn(
-            text='← Back', bg=C_GRAY,
-            size_hint_x=None, width=100, font_size='15sp')
+        hdr = BoxLayout(size_hint_y=None, height=58, spacing=10)
+        back = FlatBtn(text='Back', bg=C_GRAY,
+                       size_hint_x=None, width=90, font_size='14sp')
         back.bind(on_press=lambda *a: setattr(
             self.manager, 'current', 'studio'))
         hdr.add_widget(back)
         hdr.add_widget(Label(
-            text='📜 Download History',
+            text='Download History',
             font_size='20sp', bold=True,
             color=get_color_from_hex(C_ACCENT),
         ))
@@ -391,15 +307,13 @@ class HistoryScreen(Screen):
         sv = ScrollView(size_hint=(1, 1))
         self.list_box = BoxLayout(
             orientation='vertical',
-            size_hint_y=None, spacing=8, padding=[0, 5])
-        self.list_box.bind(
-            minimum_height=self.list_box.setter('height'))
+            size_hint_y=None, spacing=8, padding=[0, 4])
+        self.list_box.bind(minimum_height=self.list_box.setter('height'))
         sv.add_widget(self.list_box)
         outer.add_widget(sv)
 
-        clr = FlatBtn(
-            text='🗑️ Clear All History', bg='#7F1D1D',
-            size_hint_y=None, height=55, font_size='15sp')
+        clr = FlatBtn(text='Clear All History', bg='#7F1D1D',
+                      size_hint_y=None, height=52, font_size='14sp')
         clr.bind(on_press=self._clear)
         outer.add_widget(clr)
 
@@ -414,48 +328,39 @@ class HistoryScreen(Screen):
         data = history_load()
         if not data:
             self.list_box.add_widget(Label(
-                text='No downloads yet.\nGenerate and save audio to see history.',
-                color=get_color_from_hex('#64748B'),
-                size_hint_y=None, height=80,
+                text='No downloads yet.',
+                color=get_color_from_hex(C_MUTED),
+                size_hint_y=None, height=60,
             ))
             return
         for entry in data:
-            row = BoxLayout(
-                size_hint_y=None, height=80,
-                spacing=8, padding=[10, 4])
-            with row.canvas.before:
-                Color(*get_color_from_hex(C_CARD))
-                rr = RoundedRectangle(
-                    pos=row.pos, size=row.size, radius=[10])
+            row = BoxLayout(size_hint_y=None, height=78,
+                            spacing=8, padding=[12, 4])
+            card_bg(row, C_CARD2, 10)
 
-            def upd(w, *a, r=rr):
-                r.pos = w.pos
-                r.size = w.size
-            row.bind(pos=upd, size=upd)
-
-            info = BoxLayout(orientation='vertical', size_hint_x=0.75)
+            info = BoxLayout(orientation='vertical', size_hint_x=0.78)
             info.add_widget(Label(
                 text=entry.get('filename', 'unknown'),
-                font_size='12sp', bold=True,
-                color=(0.9, 0.9, 0.9, 1),
+                font_size='13sp', bold=True,
+                color=get_color_from_hex(C_WHITE),
                 halign='left', valign='middle',
-                size_hint_y=None, height=36,
-                text_size=(None, 36)
+                size_hint_y=None, height=34,
             ))
             info.add_widget(Label(
-                text=f"{entry.get('lang', '')}  |  {entry.get('voice', '')}  |  {entry.get('time', '')}",
-                font_size='10sp',
-                color=(0.4, 0.8, 0.4, 1),
+                text=entry.get('lang', '') + '   ' +
+                     entry.get('voice', '') + '   ' +
+                     entry.get('time', ''),
+                font_size='11sp',
+                color=get_color_from_hex(C_GREEN),
                 halign='left', valign='middle',
-                size_hint_y=None, height=28,
+                size_hint_y=None, height=26,
             ))
             row.add_widget(info)
 
             fp = entry.get('path', '')
             if os.path.exists(fp):
-                pb = FlatBtn(
-                    text='▶ PLAY', bg=C_GREEN,
-                    size_hint_x=None, width=68, font_size='11sp')
+                pb = FlatBtn(text='PLAY', bg=C_GREEN,
+                             size_hint_x=None, width=65, font_size='12sp')
                 pb.bind(on_press=lambda *a, p=fp: self._play(p))
                 row.add_widget(pb)
 
@@ -474,320 +379,352 @@ class HistoryScreen(Screen):
         except Exception:
             pass
         self._refresh()
-# ==================== MAIN STUDIO SCREEN (All fixes applied) ====================
+
+
 class StudioScreen(Screen):
     def __init__(self, **kw):
         super().__init__(**kw)
         self._audio = None
         self.out_file = None
-        self.voice_sel = '👨 Male'
-        self.speed_sel = 'Normal'
+        self.voice_sel = 'Male'
+        self.save_dir = ''
         self._build()
 
     def _build(self):
         root = DarkPanel()
+
+        outer = BoxLayout(orientation='vertical')
+
+        header = BoxLayout(
+            size_hint_y=None, height=70,
+            padding=[16, 8], spacing=12)
+        card_bg(header, C_CARD, 0)
+
+        logo_lbl = Label(
+            text='SS',
+            font_size='28sp', bold=True,
+            color=get_color_from_hex(C_BLUE2),
+            size_hint_x=None, width=50,
+        )
+        header.add_widget(logo_lbl)
+
+        title_box = BoxLayout(orientation='vertical')
+        title_box.add_widget(Label(
+            text='Titan AI Studio Pro',
+            font_size='18sp', bold=True,
+            color=get_color_from_hex(C_WHITE),
+            halign='left', valign='middle',
+        ))
+        title_box.add_widget(Label(
+            text='Your Personal Narrator, Always Free.',
+            font_size='11sp',
+            color=get_color_from_hex(C_MUTED),
+            halign='left', valign='middle',
+        ))
+        header.add_widget(title_box)
+        outer.add_widget(header)
+
         scroll = ScrollView(size_hint=(1, 1))
         content = BoxLayout(
             orientation='vertical',
             size_hint_y=None,
-            padding=24, spacing=14)
+            padding=[16, 12], spacing=14)
         content.bind(minimum_height=content.setter('height'))
 
-        # Header
-        content.add_widget(Label(
-            text='🎙️ TITAN AI STUDIO PRO',
-            font_size='26sp', bold=True,
-            color=get_color_from_hex(C_ACCENT),
-            size_hint_y=None, height=70,
-        ))
-
-        # Language selection
-        content.add_widget(sec_label('🌐 LANGUAGE'))
+        content.add_widget(lbl('Voice Language', 13, C_WHITE, True, 30))
         self.lang_spin = Spinner(
             text='English',
             values=list(LANGUAGES.keys()),
-            size_hint_y=None, height=55,
-            font_size='16sp',
+            size_hint_y=None, height=52,
+            font_size='15sp',
             color=(1, 1, 1, 1),
-            background_color=get_color_from_hex('#1E3A5F'),
+            background_color=get_color_from_hex(C_BLUE),
         )
         content.add_widget(self.lang_spin)
 
-        # Voice selection - FIXED: Sirf Male/Female, proper names
-        content.add_widget(sec_label('🎤 VOICE CHARACTER'))
-        vgrid = GridLayout(
-            cols=2, rows=1,
-            size_hint_y=None, height=80, spacing=15)
+        content.add_widget(lbl('Gender', 13, C_WHITE, True, 30))
+        gender_row = BoxLayout(size_hint_y=None, height=52, spacing=12)
         self._vbtns = {}
         for name in VOICE_PROFILES:
-            profile = VOICE_PROFILES[name]
-            btn_text = f"{name}\n{profile['name']}"
-            b = FlatBtn(text=btn_text, bg='#1E3A5F', font_size='13sp', radius=10)
+            b = FlatBtn(text=name, bg=C_BLUE, font_size='15sp', bold=True)
             b.bind(on_press=lambda *a, n=name: self._pick_voice(n))
-            vgrid.add_widget(b)
+            gender_row.add_widget(b)
             self._vbtns[name] = b
-        content.add_widget(vgrid)
-        self._pick_voice('👨 Male')
+        content.add_widget(gender_row)
+        self._pick_voice('Male')
 
-        # Character name display
-        self.char_name_lbl = Label(
-            text='Selected: John (US English)',
-            font_size='12sp',
-            color=get_color_from_hex(C_GOLD),
-            size_hint_y=None,
-            height=25,
+        content.add_widget(lbl('Speed', 13, C_WHITE, True, 30))
+        speed_row = BoxLayout(size_hint_y=None, height=40, spacing=8)
+        speed_row.add_widget(lbl('Slow', 12, C_MUTED, False, 40))
+        self.speed_slider = Slider(
+            min=10, max=100, value=50, step=10,
+            size_hint_x=1,
         )
-        content.add_widget(self.char_name_lbl)
+        self.speed_val_lbl = lbl('50%', 12, C_ACCENT, False, 40)
+        self.speed_slider.bind(value=self._on_speed)
+        speed_row.add_widget(self.speed_slider)
+        speed_row.add_widget(lbl('Fast', 12, C_MUTED, False, 40))
+        content.add_widget(speed_row)
+        content.add_widget(self.speed_val_lbl)
 
-        # Import File button
-        import_layout = BoxLayout(size_hint_y=None, height=50, spacing=10)
-        import_btn = FlatBtn(
-            text='📂 IMPORT TXT FILE', bg=C_PURPLE,
-            font_size='14sp', radius=10)
-        import_btn.bind(on_press=self._import_file)
-        import_layout.add_widget(import_btn)
-        
-        clear_import_btn = FlatBtn(
-            text='🗑️ CLEAR', bg=C_GRAY,
-            font_size='14sp', radius=10,
-            size_hint_x=0.3)
-        clear_import_btn.bind(on_press=lambda x: setattr(self.txt, 'text', ''))
-        import_layout.add_widget(clear_import_btn)
-        content.add_widget(import_layout)
+        char_row = BoxLayout(size_hint_y=None, height=36, spacing=10)
+        self.char_lbl = lbl('Input Text: 0 characters (0 lines)', 12, C_MUTED, False, 36)
+        char_row.add_widget(self.char_lbl)
+        imp_btn = FlatBtn(text='Import File', bg=C_BLUE2,
+                          size_hint_x=None, width=110, font_size='13sp')
+        imp_btn.bind(on_press=self._import_file)
+        char_row.add_widget(imp_btn)
+        content.add_widget(char_row)
 
-        # Text input
-        content.add_widget(sec_label('📝 SCRIPT'))
         self.txt = TextInput(
-            hint_text='✏️ Yahan apna text likho ya import karo...\n\nExample: Hello! How are you today?',
+            hint_text='Enter text to synthesize........',
             multiline=True,
-            size_hint_y=None, height=200,
-            background_color=get_color_from_hex(C_CARD),
-            foreground_color=(1, 1, 1, 1),
-            hint_text_color=(0.4, 0.4, 0.4, 1),
+            size_hint_y=None, height=220,
+            background_color=get_color_from_hex(C_CARD2),
+            foreground_color=get_color_from_hex(C_WHITE),
+            hint_text_color=get_color_from_hex(C_MUTED),
             cursor_color=get_color_from_hex(C_ACCENT),
             font_size='16sp',
-            padding=[16, 16],
+            padding=[14, 14],
         )
         self.txt.bind(text=self._count)
         content.add_widget(self.txt)
 
-        self.count_lbl = Label(
-            text='📊 Words: 0   Characters: 0',
-            font_size='12sp',
-            color=get_color_from_hex('#475569'),
-            size_hint_y=None, height=28,
-        )
-        content.add_widget(self.count_lbl)
-        # Speed selection
-        content.add_widget(sec_label('⚡ SPEED'))
-        self.speed_lbl = Label(
-            text='Selected: Normal',
-            font_size='13sp',
-            color=get_color_from_hex(C_GREEN),
-            size_hint_y=None, height=30,
-        )
-        content.add_widget(self.speed_lbl)
-        srow = BoxLayout(size_hint_y=None, height=58, spacing=10)
-        self._sbtns = {}
-        for spd, col in [('🐢 Slow', C_INDIGO), ('⚡ Normal', C_GREEN), ('🚀 Fast', C_AMBER)]:
-            b = FlatBtn(text=spd, bg=col, font_size='14sp', radius=8)
-            b.bind(on_press=lambda *a, s=spd: self._pick_speed(s))
-            srow.add_widget(b)
-            self._sbtns[spd] = b
-        content.add_widget(srow)
-        self._pick_speed('⚡ Normal')
-
-        # Status and progress
-        self.status_lbl = Label(
-            text='✅ Ready',
-            font_size='13sp',
-            color=get_color_from_hex('#64748B'),
-            size_hint_y=None, height=38,
-        )
+        self.status_lbl = lbl('Ready', 13, C_MUTED, False, 34)
         content.add_widget(self.status_lbl)
 
-        self.prog = ProgressBar(
-            max=100, value=0,
-            size_hint_y=None, height=12)
+        self.prog = ProgressBar(max=100, value=0, size_hint_y=None, height=12)
         content.add_widget(self.prog)
 
-        # Generate button
+        preview_dl_row = BoxLayout(size_hint_y=None, height=62, spacing=12)
+        self.play_btn = FlatBtn(
+            text='Preview Audio', bg=C_RED,
+            font_size='14sp', disabled=True)
+        self.play_btn.bind(on_press=self._play)
+        self.dl_btn = FlatBtn(
+            text='Download Voice', bg=C_GREEN,
+            font_size='14sp', disabled=True)
+        self.dl_btn.bind(on_press=self._download)
+        preview_dl_row.add_widget(self.play_btn)
+        preview_dl_row.add_widget(self.dl_btn)
+        content.add_widget(preview_dl_row)
+
         self.gen_btn = FlatBtn(
-            text='🔊 GENERATE SPEECH', bg=C_BLUE,
-            size_hint_y=None, height=75,
-            font_size='18sp', bold=True, radius=15)
+            text='Generate Audio',
+            bg=C_CARD2,
+            size_hint_y=None, height=62,
+            font_size='16sp', bold=True)
         self.gen_btn.bind(on_press=self._generate)
         content.add_widget(self.gen_btn)
 
-        # Play/Stop controls
-        ps = BoxLayout(size_hint_y=None, height=65, spacing=12)
-        self.play_btn = FlatBtn(
-            text='▶ PLAY', bg=C_GREEN,
-            font_size='16sp', radius=10, disabled=True)
-        self.stop_btn = FlatBtn(
-            text='⏹️ STOP', bg=C_RED,
-            font_size='16sp', radius=10, disabled=True)
-        self.play_btn.bind(on_press=self._play)
-        self.stop_btn.bind(on_press=self._stop)
-        ps.add_widget(self.play_btn)
-        ps.add_widget(self.stop_btn)
-        content.add_widget(ps)
-
-        # Download and History buttons
-        self.dl_btn = FlatBtn(
-            text='💾 DOWNLOAD AUDIO', bg=C_CYAN,
-            size_hint_y=None, height=65,
-            font_size='16sp', radius=10, disabled=True)
-        self.dl_btn.bind(on_press=self._download)
-        content.add_widget(self.dl_btn)
-
-        hbtn = FlatBtn(
-            text='📜 DOWNLOAD HISTORY', bg=C_PURPLE,
-            size_hint_y=None, height=55, font_size='15sp', radius=10)
-        hbtn.bind(on_press=lambda *a: setattr(
+        hist_btn = FlatBtn(
+            text='Download History', bg=C_PURPLE,
+            size_hint_y=None, height=54, font_size='14sp')
+        hist_btn.bind(on_press=lambda *a: setattr(
             self.manager, 'current', 'history'))
-        content.add_widget(hbtn)
+        content.add_widget(hist_btn)
 
-        # Storage location button
-        storage_btn = FlatBtn(
-            text='📁 Change Save Location', bg=C_GRAY,
-            size_hint_y=None, height=50, font_size='14sp', radius=8)
-        storage_btn.bind(on_press=self._change_storage)
-        content.add_widget(storage_btn)
+        usage_box = BoxLayout(
+            orientation='vertical',
+            size_hint_y=None, height=200,
+            padding=[12, 10])
+        card_bg(usage_box, C_CARD2, 12)
+        usage_box.add_widget(lbl('Usage steps:', 13, C_WHITE, True, 28))
+        steps = [
+            '1. Select Voice Language from dropdown',
+            '2. Choose Gender: Male or Female',
+            '3. Adjust Speed using the slider',
+            '4. Type or Import your text file',
+            '5. Tap Generate Audio button',
+            '6. Preview then Download your voice',
+        ]
+        for s in steps:
+            usage_box.add_widget(lbl(s, 12, C_MUTED, False, 24))
+        content.add_widget(usage_box)
 
         content.add_widget(Label(size_hint_y=None, height=20))
 
         scroll.add_widget(content)
-        root.add_widget(scroll)
+        outer.add_widget(scroll)
+        root.add_widget(outer)
         self.add_widget(root)
-        
-        # Initial storage setup
-        Clock.schedule_once(lambda dt: self._init_storage(), 0.5)
-
-    def _init_storage(self):
-        """Initialize storage on first run"""
-        app = App.get_running_app()
-        if not hasattr(app, 'user_storage_path') or not app.user_storage_path:
-            default_path = os.path.join('/sdcard', 'TitanAI_Audio')
-            try:
-                os.makedirs(default_path, exist_ok=True)
-                app.user_storage_path = default_path
-            except:
-                app.user_storage_path = app.user_data_dir
-            self.status_lbl.text = f'💾 Saving to: {os.path.basename(app.user_storage_path)}'
-
-    def _change_storage(self, *a):
-        """Change storage location manually"""
-        popup = StorageSelectorPopup(callback=self._on_storage_selected)
-        popup.open()
-
-    def _on_storage_selected(self, path, error=None):
-        if error:
-            self.status_lbl.text = f'❌ Error: {error}'
-        elif path:
-            app = App.get_running_app()
-            app.user_storage_path = path
-            self.status_lbl.text = f'✅ Save location changed to: {os.path.basename(path)}'
-
-    def _import_file(self, *a):
-        """Import TXT file content"""
-        popup = ImportFilePopup(callback=self._on_file_imported)
-        popup.open()
-
-    def _on_file_imported(self, content, error=None):
-        if error:
-            self.status_lbl.text = f'❌ Import failed: {error}'
-        elif content:
-            self.txt.text = content
-            self.status_lbl.text = f'✅ Imported {len(content)} characters from file'
-            self._count(None, content)
 
     def _pick_voice(self, name):
         self.voice_sel = name
         for n, b in self._vbtns.items():
-            b.set_bg(C_GREEN if n == name else '#1E3A5F')
-        # Update character name display
-        profile = VOICE_PROFILES.get(name, VOICE_PROFILES['👨 Male'])
-        self.char_name_lbl.text = f'🎙️ Selected: {profile["name"]}'
+            b.set_bg(C_BLUE if n == name else C_CARD2)
 
-    def _pick_speed(self, spd):
-        self.speed_sel = spd
-        display_speed = spd.replace('🐢 ', '').replace('⚡ ', '').replace('🚀 ', '')
-        self.speed_lbl.text = 'Selected: ' + display_speed
-        colors = {'🐢 Slow': C_INDIGO, '⚡ Normal': C_GREEN, '🚀 Fast': C_AMBER}
-        for n, b in self._sbtns.items():
-            b.set_bg(C_ACCENT if n == spd else colors[n])
+    def _on_speed(self, inst, val):
+        self.speed_val_lbl.text = 'Speed: ' + str(int(val)) + '%'
 
     def _count(self, inst, val):
-        words = len(val.split()) if val.strip() else 0
+        lines = len(val.splitlines()) if val.strip() else 0
         chars = len(val)
-        self.count_lbl.text = f'📊 Words: {words}   Characters: {chars}'
+        self.char_lbl.text = 'Input Text: ' + str(chars) + ' characters (' + str(lines) + ' lines)'
+
+    def _import_file(self, *a):
+        box = BoxLayout(orientation='vertical', padding=10, spacing=8)
+        box.add_widget(lbl('Select file type to import:', 14, C_WHITE, True, 34))
+
+        btn_row = BoxLayout(size_hint_y=None, height=52, spacing=10)
+        pop = [None]
+
+        for ftype in ['TXT', 'PDF', 'DOCX']:
+            b = FlatBtn(text=ftype, bg=C_BLUE, font_size='14sp')
+            b.bind(on_press=lambda x, t=ftype, p=pop: self._open_chooser(t, p[0]))
+            btn_row.add_widget(b)
+
+        box.add_widget(btn_row)
+        cancel = FlatBtn(text='Cancel', bg=C_GRAY, size_hint_y=None, height=46)
+        box.add_widget(cancel)
+
+        p = Popup(
+            title='Import File',
+            content=box,
+            size_hint=(0.9, 0.35),
+            background_color=get_color_from_hex(C_CARD),
+        )
+        pop[0] = p
+        cancel.bind(on_press=p.dismiss)
+        p.open()
+
+    def _open_chooser(self, ftype, prev_popup):
+        if prev_popup:
+            prev_popup.dismiss()
+
+        filters_map = {
+            'TXT':  ['*.txt'],
+            'PDF':  ['*.pdf'],
+            'DOCX': ['*.docx'],
+        }
+
+        start_path = '/'
+        if ANDROID_ENV:
+            try:
+                start_path = primary_external_storage_path()
+            except Exception:
+                start_path = '/sdcard'
+
+        fc = FileChooserListView(
+            path=start_path,
+            filters=filters_map.get(ftype, ['*.*']),
+            size_hint=(1, 1),
+        )
+
+        box = BoxLayout(orientation='vertical', padding=8, spacing=8)
+        box.add_widget(fc)
+
+        btn_row = BoxLayout(size_hint_y=None, height=52, spacing=10)
+        sel_btn = FlatBtn(text='Select', bg=C_GREEN, font_size='14sp')
+        can_btn = FlatBtn(text='Cancel', bg=C_GRAY, font_size='14sp')
+        btn_row.add_widget(sel_btn)
+        btn_row.add_widget(can_btn)
+        box.add_widget(btn_row)
+
+        p = Popup(
+            title='Choose ' + ftype + ' file',
+            content=box,
+            size_hint=(0.95, 0.88),
+            background_color=get_color_from_hex(C_CARD),
+        )
+
+        def do_select(*a):
+            if fc.selection:
+                path = fc.selection[0]
+                p.dismiss()
+                self._read_file(path, ftype)
+
+        sel_btn.bind(on_press=do_select)
+        can_btn.bind(on_press=p.dismiss)
+        p.open()
+
+    def _read_file(self, path, ftype):
+        self.status_lbl.text = 'Reading file...'
+        self.prog.value = 20
+
+        def worker():
+            text = ''
+            try:
+                if ftype == 'TXT':
+                    text = read_txt(path)
+                elif ftype == 'PDF':
+                    text = read_pdf(path)
+                elif ftype == 'DOCX':
+                    text = read_docx(path)
+            except Exception as e:
+                text = ''
+                Clock.schedule_once(lambda dt: setattr(
+                    self.status_lbl, 'text',
+                    'File read error: ' + str(e)[:40]))
+
+            def apply(dt):
+                if text.strip():
+                    self.txt.text = text
+                    self.status_lbl.text = 'File imported! Text ready.'
+                    self.prog.value = 100
+                else:
+                    self.status_lbl.text = 'Could not read file. Try TXT format.'
+                    self.prog.value = 0
+
+            Clock.schedule_once(apply)
+
+        threading.Thread(target=worker, daemon=True).start()
 
     def _set_ready(self, audio_ok=True):
         self.gen_btn.disabled = False
         self.play_btn.disabled = not audio_ok
-        self.stop_btn.disabled = not audio_ok
         self.dl_btn.disabled = not audio_ok
 
     def _set_busy(self):
         self.gen_btn.disabled = True
         self.play_btn.disabled = True
-        self.stop_btn.disabled = True
         self.dl_btn.disabled = True
 
-    def _upd_status(self, val, msg):
+    def _upd(self, val, msg):
         self.prog.value = val
         self.status_lbl.text = msg
 
     def _generate(self, *a):
         text = self.txt.text.strip()
         if not text:
-            self.status_lbl.text = '❌ Error: Text is empty! Please enter some text.'
+            self.status_lbl.text = 'Please enter text first!'
             return
-        if len(text) > 5000:
-            self.status_lbl.text = '❌ Error: Text too long (max 5000 characters)'
-            return
-        
         self._set_busy()
-        self._upd_status(0, '🎬 Starting...')
+        self._upd(0, 'Starting generation...')
         threading.Thread(target=self._worker, daemon=True).start()
 
     def _worker(self):
         try:
             from gtts import gTTS
-            
-            Clock.schedule_once(lambda dt: self._upd_status(15, '🌐 Connecting to server...'))
-            
-            lang_code = LANGUAGES.get(self.lang_spin.text, 'en')
-            voice_name = self.voice_sel
-            profile = VOICE_PROFILES.get(voice_name, VOICE_PROFILES['👨 Male'])
-            
-            # Speed handling
-            speed_mode = self.speed_sel.replace('🐢 ', '').replace('⚡ ', '').replace('🚀 ', '')
-            slow = (speed_mode == 'Slow')
-            
-            Clock.schedule_once(lambda dt: self._upd_status(40, f'🎙️ Generating with {voice_name} voice...'))
-            
+
+            Clock.schedule_once(lambda dt: self._upd(20, 'Connecting to server...'))
+
+            lang = LANGUAGES.get(self.lang_spin.text, 'en')
+            prof = VOICE_PROFILES.get(self.voice_sel, VOICE_PROFILES['Male'])
+            speed_val = int(self.speed_slider.value)
+            use_slow = speed_val <= 40
+
+            Clock.schedule_once(lambda dt: self._upd(50, 'Generating voice...'))
+
             tts = gTTS(
                 text=self.txt.text,
-                lang=lang_code,
-                tld=profile['tld'],
-                slow=slow,
+                lang=lang,
+                tld=prof['tld'],
+                slow=use_slow,
             )
-            
+
             out = os.path.join(
                 App.get_running_app().user_data_dir,
-                f'tts_temp_{int(time.time())}.mp3'
-            )
-            
-            Clock.schedule_once(lambda dt: self._upd_status(70, '💾 Saving audio...'))
+                'tts_output.mp3')
+
+            Clock.schedule_once(lambda dt: self._upd(80, 'Saving audio...'))
             tts.save(out)
             self.out_file = out
-            
+
             Clock.schedule_once(lambda dt: self._on_done())
-            
+
         except Exception as exc:
-            msg = str(exc).lower()
+            msg = str(exc)
             Clock.schedule_once(lambda dt, m=msg: self._on_err(m))
 
     def _on_done(self):
@@ -798,19 +735,20 @@ class StudioScreen(Screen):
             except Exception:
                 pass
             self._audio = None
-        
+
         self._audio = SoundLoader.load(self.out_file)
-        self._upd_status(100, '✅ Audio generated successfully! Click PLAY to listen.')
+        self._upd(100, 'Audio ready! Preview or Download.')
         self._set_ready(audio_ok=True)
 
     def _on_err(self, msg):
-        if any(k in msg for k in ['network', 'connection', 'gaierror', 'timeout', 'internet']):
-            txt = '❌ No internet connection! Please check your network.'
-        elif 'lang' in msg:
-            txt = '❌ Language not supported for this voice.'
+        m = msg.lower()
+        if any(k in m for k in ['network', 'connection', 'gaierror', 'timeout']):
+            txt = 'No internet! gTTS needs internet.'
+        elif 'lang' in m:
+            txt = 'This language+voice combo not supported.'
         else:
-            txt = f'❌ Error: {msg[:80]}'
-        self._upd_status(0, txt)
+            txt = 'Error: ' + msg[:50]
+        self._upd(0, txt)
         self._set_ready(audio_ok=False)
 
     def _play(self, *a):
@@ -818,135 +756,141 @@ class StudioScreen(Screen):
             return
         if self._audio.state == 'play':
             self._audio.stop()
-            self.play_btn.text = '▶ PLAY'
+            self.play_btn.text = 'Preview Audio'
         else:
             self._audio.play()
-            self.play_btn.text = '⏸ PAUSE’
-    def _stop(self, *a):
-        if self._audio:
-            self._audio.stop()
-        self.play_btn.text = '▶ PLAY'
+            self.play_btn.text = 'Stop Preview'
 
     def _download(self, *a):
         if not self.out_file or not os.path.exists(self.out_file):
-            self.status_lbl.text = '❌ Generate speech first!'
+            self.status_lbl.text = 'Generate audio first!'
             return
-        
-        # Get user's selected storage path
-        app = App.get_running_app()
-        dest_dir = getattr(app, 'user_storage_path', '/sdcard/TitanAI_Audio')
-        
-        # Create filename with timestamp
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        fname = f"TitanAI_{self.lang_spin.text}_{self.voice_sel.replace(' ', '_')}_{timestamp}.mp3"
+        self._show_save_dialog()
+
+    def _show_save_dialog(self):
+        box = BoxLayout(orientation='vertical', padding=10, spacing=10)
+        box.add_widget(lbl('Where to save?', 14, C_WHITE, True, 32))
+
+        options = []
+        if ANDROID_ENV:
+            options = [
+                ('Internal Storage', '/sdcard'),
+                ('Downloads Folder', '/sdcard/Download'),
+                ('Music Folder', '/sdcard/Music'),
+                ('Documents Folder', '/sdcard/Documents'),
+            ]
+            try:
+                ext = primary_external_storage_path()
+                if ext and ext != '/sdcard':
+                    options.append(('SD Card', ext))
+                    options.append(('SD Card Downloads', os.path.join(ext, 'Download')))
+            except Exception:
+                pass
+        else:
+            home = os.path.expanduser('~')
+            options = [
+                ('Home Folder', home),
+                ('Downloads', os.path.join(home, 'Downloads')),
+                ('Desktop', os.path.join(home, 'Desktop')),
+            ]
+
+        sv = ScrollView(size_hint=(1, 1))
+        btn_box = BoxLayout(
+            orientation='vertical',
+            size_hint_y=None, spacing=8)
+        btn_box.bind(minimum_height=btn_box.setter('height'))
+
+        pop = [None]
+
+        for label_txt, path in options:
+            b = FlatBtn(
+                text=label_txt + '\n' + path,
+                bg=C_CARD2,
+                size_hint_y=None, height=62,
+                font_size='12sp',
+            )
+            b.bind(on_press=lambda x, p=path, pp=pop: self._do_save(p, pp[0]))
+            btn_box.add_widget(b)
+
+        sv.add_widget(btn_box)
+        box.add_widget(sv)
+
+        cancel = FlatBtn(text='Cancel', bg=C_GRAY, size_hint_y=None, height=48)
+        box.add_widget(cancel)
+
+        p = Popup(
+            title='Save Audio File',
+            content=box,
+            size_hint=(0.92, 0.72),
+            background_color=get_color_from_hex(C_CARD),
+        )
+        pop[0] = p
+        cancel.bind(on_press=p.dismiss)
+        p.open()
+
+    def _do_save(self, dest_dir, popup):
+        if popup:
+            popup.dismiss()
+
+        fname = 'Titan_' + self.lang_spin.text + '_' + str(int(time.time())) + '.mp3'
         dest = os.path.join(dest_dir, fname)
-        
+
         try:
             os.makedirs(dest_dir, exist_ok=True)
             shutil.copyfile(self.out_file, dest)
-            self.status_lbl.text = f'✅ Saved: {fname}'
-            
-            # Save to history
+            self.save_dir = dest_dir
+            self.status_lbl.text = 'Saved: ' + fname
+
             history_save({
                 'filename': fname,
                 'path': dest,
                 'lang': self.lang_spin.text,
                 'voice': self.voice_sel,
-                'speed': self.speed_sel,
-                'time': datetime.now().strftime('%d %b %Y  %H:%M'),
+                'time': time.strftime('%d %b %Y  %H:%M'),
             })
-            
-            # Show success popup
-            box = BoxLayout(orientation='vertical', padding=20, spacing=12)
+
+            box = BoxLayout(orientation='vertical', padding=16, spacing=12)
             box.add_widget(Label(
-                text=f'✨ Audio saved successfully!\n\n📄 {fname}\n\n📁 Location:\n{dest_dir}',
-                color=(1, 1, 1, 1), font_size='13sp',
+                text='File saved!\n\n' + fname + '\n\nLocation:\n' + dest_dir,
+                color=get_color_from_hex(C_WHITE),
+                font_size='13sp',
             ))
-            ok = FlatBtn(text='OK', bg=C_GREEN, size_hint_y=None, height=55, radius=10)
+            ok = FlatBtn(text='OK', bg=C_GREEN, size_hint_y=None, height=52)
             box.add_widget(ok)
-            pop = Popup(
-                title='✅ Download Complete',
+            p = Popup(
+                title='Download Complete',
                 content=box,
-                size_hint=(0.9, 0.55),
+                size_hint=(0.88, 0.48),
                 background_color=get_color_from_hex(C_CARD),
             )
-            ok.bind(on_press=pop.dismiss)
-            pop.open()
-            
-        except Exception as e:
-            self.status_lbl.text = f'❌ Download failed: {str(e)[:60]}'
+            ok.bind(on_press=p.dismiss)
+            p.open()
 
-# ==================== APP CLASS ====================
+        except Exception as e:
+            self.status_lbl.text = 'Save failed: ' + str(e)[:45]
+
+
 class TitanApp(App):
-    user_storage_path = None
-    
     def build(self):
         self.title = 'Titan AI Studio Pro'
         sm = ScreenManager(transition=FadeTransition())
-        sm.add_widget(SplashScreen(name='splash'))
+        sm.add_widget(LoadingScreen(name='loading'))
         sm.add_widget(StudioScreen(name='studio'))
         sm.add_widget(HistoryScreen(name='history'))
-        
         if ANDROID_ENV:
             Clock.schedule_once(self._ask_perms, 0.5)
-        
         return sm
-    
+
     def _ask_perms(self, *a):
         try:
-            permissions = [
+            request_permissions([
                 Permission.INTERNET,
                 Permission.WRITE_EXTERNAL_STORAGE,
                 Permission.READ_EXTERNAL_STORAGE,
-            ]
-            # Check if MANAGE_EXTERNAL_STORAGE is available
-            try:
-                if hasattr(Permission, 'MANAGE_EXTERNAL_STORAGE'):
-                    permissions.append(Permission.MANAGE_EXTERNAL_STORAGE)
-            except:
-                pass
-            
-            request_permissions(permissions)
-        except Exception as e:
-            print(f"Permission error: {e}")
+            ])
+        except Exception:
+            pass
+
 
 if __name__ == '__main__':
     TitanApp().run()
-```
-
-📦 Ab buildozer.spec update karo:
-
-```ini
-[app]
-title = Titan AI Studio Pro
-package.name = titanai.studio
-package.domain = org.titan.studio
-source.dir = .
-source.include_exts = py,png,jpg,kv,atlas,mp3,json,ttf,txt,wav
-version = 5.3.0
-
-requirements = python3,kivy==2.2.1,gTTS,requests,certifi,chardet,idna,urllib3,pillow,pyjnius,setuptools
-
-orientation = portrait
-fullscreen = 0
-android.wakelock = True
-
-# Enhanced permissions
-android.permissions = INTERNET, WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE, ACCESS_NETWORK_STATE, WAKE_LOCK, MANAGE_EXTERNAL_STORAGE
-
-android.api = 33
-android.minapi = 21
-android.ndk = 25b
-android.archs = arm64-v8a
-
-android.skip_update = False
-android.accept_sdk_license = True
-android.enable_androidx = True
-android.copy_libs = 1
-android.entrypoint = org.kivy.android.PythonActivity
-android.logcat_filters = *:S python:D
-
-[buildozer]
-log_level = 2
-warn_on_root = 1
-bin_dir = ./bin
