@@ -28,12 +28,33 @@ jobs:
       - name: Install system packages
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y python3-pip build-essential git python3-dev libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev libportmidi-dev libswscale-dev libavformat-dev libavcodec-dev zlib1g-dev libssl-dev libbz2-dev libsqlite3-dev gcc g++ unzip autoconf libtool ffmpeg
+          sudo apt-get install -y \
+            python3-pip build-essential git python3-dev \
+            libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev \
+            libportmidi-dev libswscale-dev libavformat-dev libavcodec-dev \
+            zlib1g-dev libssl-dev libbz2-dev libsqlite3-dev \
+            gcc g++ unzip autoconf libtool ffmpeg imagemagick
 
       - name: Install Cython and Buildozer
         run: |
           pip3 install --user --upgrade pip
           pip3 install --user Cython==0.29.33 buildozer
+
+      - name: Prepare assets folder
+        run: |
+          mkdir -p assets
+          if [ ! -f assets/icon.png ]; then
+            convert -size 512x512 xc:'#020817' \
+              -fill '#3B82F6' -font DejaVu-Sans-Bold -pointsize 220 \
+              -gravity Center -annotate 0 'SS' \
+              assets/icon.png || true
+          fi
+          if [ ! -f assets/presplash.png ]; then
+            convert -size 1080x1920 xc:'#020817' \
+              -fill '#3B82F6' -font DejaVu-Sans-Bold -pointsize 280 \
+              -gravity Center -annotate 0 'SS' \
+              assets/presplash.png || true
+          fi
 
       - name: Cache Buildozer global dir
         uses: actions/cache@v4
