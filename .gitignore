@@ -45,11 +45,16 @@ ENV/
 .project
 .classpath
 
+# ── App assets (NEVER ignore these!) ─────────────────────────
+!AI.png
+!*.png
+!*.jpg
+!*.jpeg
+
 # ── macOS ─────────────────────────────────────────────────────
 .DS_Store
 .AppleDouble
 .LSOverride
-Icon?
 ._*
 .Spotlight-V100
 .Trashes
