@@ -1,14 +1,22 @@
 # =============================================================
-#  Titan AI Studio Pro — requirements.txt
-#  Local Development Dependencies
-#  Install with: pip install -r requirements.txt
+#  Titan AI Studio Pro — requirements.txt  v7.0.0
+#  Voice Cloning (Coqui TTS) Edition
+#  Install: pip install -r requirements.txt
 # =============================================================
 
 # ── Core UI ───────────────────────────────────────────────────
 kivy==2.2.1
 
-# ── Text-to-Speech ────────────────────────────────────────────
+# ── Voice Cloning — Coqui TTS (100% free, offline) ───────────
+# First run auto-downloads the model (~200MB for XTTS v2)
+TTS>=0.22.0
+
+# ── TTS fallback (if Coqui not available) ────────────────────
 gTTS==2.5.1
+
+# ── File import ───────────────────────────────────────────────
+PyPDF2==3.0.1
+python-docx==1.1.0
 
 # ── HTTP / Network ────────────────────────────────────────────
 requests==2.31.0
@@ -20,5 +28,27 @@ urllib3==2.2.1
 # ── Image processing ──────────────────────────────────────────
 Pillow==10.2.0
 
+# ── Audio processing (Coqui dependency) ──────────────────────
+soundfile>=0.12.1
+librosa>=0.10.0
+numpy>=1.24.0
+
+# ── Admin web dashboard (optional Flask server) ───────────────
+flask>=3.0.0
+
 # ── Build tools ───────────────────────────────────────────────
 setuptools>=68.0.0
+
+# =============================================================
+#  COQUI TTS MODELS — auto-downloaded on first run
+#
+#  Standard (fast, ~100MB):
+#    tts_models/en/ljspeech/tacotron2-DDC
+#    tts_models/en/ljspeech/glow-tts
+#
+#  HD Voice Cloning (~1.8GB, needs reference WAV):
+#    tts_models/multilingual/multi-dataset/xtts_v2
+#
+#  To manually download a model:
+#    python -c "from TTS.api import TTS; TTS('tts_models/en/ljspeech/tacotron2-DDC')"
+# =============================================================
