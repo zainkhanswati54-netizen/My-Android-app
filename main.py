@@ -1120,7 +1120,7 @@ class EmotionPicker(BoxLayout):
         self._build()
 
     def _build(self):
-        self.add_widget(lbl('🎭 Emotion & Mood', 14, C_ACCENT, True, 28))
+        self.add_widget(lbl('Emotion & Mood', 14, C_ACCENT, True, 28))
 
         # Row 1
         row1 = BoxLayout(size_hint_y=None, height=dp(60), spacing=dp(8))
@@ -1186,7 +1186,7 @@ class PresetPicker(BoxLayout):
 
     def _build(self):
         hdr = BoxLayout(size_hint_y=None, height=dp(28), spacing=dp(8))
-        hdr.add_widget(lbl('🎚 Voice Presets', 14, C_ACCENT, True, 28))
+        hdr.add_widget(lbl('Voice Presets', 14, C_ACCENT, True, 28))
         self.add_widget(hdr)
 
         sv = ScrollView(size_hint=(1, None), height=dp(120))
@@ -1252,7 +1252,7 @@ class PitchSliderCard(BoxLayout):
         self._build()
 
     def _build(self):
-        self.add_widget(lbl('🎵 Pitch & Tone Shift', 14, C_ACCENT, True, 28))
+        self.add_widget(lbl('Pitch & Tone Shift', 14, C_ACCENT, True, 28))
         row = BoxLayout(size_hint_y=None, height=dp(44), spacing=dp(10))
         row.add_widget(lbl('Low', 12, C_MUTED, False, 44))
         self.pitch_slider = Slider(min=-10, max=10, value=0, step=1)
@@ -1281,14 +1281,14 @@ class AdvancedOptionsCard(BoxLayout):
         super().__init__(**kw)
         self.orientation = 'vertical'
         self.size_hint_y = None
-        self.height      = dp(280)
+        self.height      = dp(320)   # FIX: was dp(280), content was overflowing
         self.padding     = [dp(16), dp(12)]
         self.spacing     = dp(10)
         card_bg(self, C_CARD2, 16)
         self._build()
 
     def _build(self):
-        self.add_widget(lbl('⚙ Advanced Options', 14, C_ACCENT, True, 30))
+        self.add_widget(lbl('Advanced Options', 14, C_ACCENT, True, 30))
 
         # Breath simulation toggle
         row1 = BoxLayout(size_hint_y=None, height=dp(44), spacing=dp(12))
@@ -1454,30 +1454,71 @@ class BatchQueueScreen(Screen):
         threading.Thread(target=self._worker_all, daemon=True).start()
 
     def _worker_all(self):
-        from gtts import gTTS
+        """FIX: Use edge-tts instead of gTTS for real gender/speed support"""
         results = []
         for i, item in enumerate(self._queue):
             try:
+                import asyncio
+                import edge_tts
+
                 text  = item.get('text', '')
-                lang  = LANGUAGES.get(item.get('lang', 'English'), 'en')
-                tld   = VOICE_TLD.get(item.get('voice', 'Male'), 'com')
-                slow  = item.get('slow', False)
-                tts   = gTTS(text=text, lang=lang, tld=tld, slow=slow)
+                lang  = item.get('lang', 'English')
+                gender = item.get('voice', 'Male')
+
+                # Pick edge-tts voice
+                EDGE_VOICES = {
+                    'English': ('en-US-GuyNeural', 'en-US-JennyNeural'),
+                    'Urdu':    ('ur-PK-AsadNeural', 'ur-PK-UzmaNeural'),
+                    'Hindi':   ('hi-IN-MadhurNeural', 'hi-IN-SwaraNeural'),
+                    'Arabic':  ('ar-SA-HamedNeural', 'ar-SA-ZariyahNeural'),
+                }
+                default = ('en-US-GuyNeural', 'en-US-JennyNeural')
+                voices = EDGE_VOICES.get(lang, default)
+                voice = voices[0] if gender == 'Male' else voices[1]
+
+                speed_pct = item.get('speed', 50)
+                rate_offset = int((speed_pct - 50) * 1.5)
+                rate_str = ('+' if rate_offset >= 0 else '') + str(rate_offset) + '%'
+
                 fname = 'Queue_' + str(i + 1) + '_' + str(int(time.time())) + '.mp3'
                 dest  = os.path.join(get_audio_folder(), fname)
                 os.makedirs(get_audio_folder(), exist_ok=True)
-                tts.save(dest)
+
+                async def _run(t=text, v=voice, r=rate_str, d=dest):
+                    comm = edge_tts.Communicate(text=t, voice=v, rate=r)
+                    await comm.save(d)
+
+                asyncio.run(_run())
                 item['status'] = 'done'
                 item['output'] = dest
                 history_save({
-                    'filename': fname,
-                    'path':     dest,
-                    'lang':     item.get('lang', ''),
-                    'voice':    item.get('voice', ''),
-                    'time':     time.strftime('%d %b %Y  %H:%M'),
-                    'emotion':  item.get('emotion', 'Normal'),
-                    'source':   'batch',
+                    'filename': fname, 'path': dest, 'lang': lang,
+                    'voice': gender, 'time': time.strftime('%d %b %Y  %H:%M'),
+                    'emotion': item.get('emotion', 'Normal'), 'source': 'batch',
                 })
+            except ImportError:
+                # Fallback to gTTS
+                try:
+                    from gtts import gTTS
+                    text  = item.get('text', '')
+                    lang  = LANGUAGES.get(item.get('lang', 'English'), 'en')
+                    tld   = VOICE_TLD.get(item.get('voice', 'Male'), 'com')
+                    slow  = item.get('slow', False)
+                    tts   = gTTS(text=text, lang=lang, tld=tld, slow=slow)
+                    fname = 'Queue_' + str(i + 1) + '_' + str(int(time.time())) + '.mp3'
+                    dest  = os.path.join(get_audio_folder(), fname)
+                    os.makedirs(get_audio_folder(), exist_ok=True)
+                    tts.save(dest)
+                    item['status'] = 'done'
+                    item['output'] = dest
+                    history_save({
+                        'filename': fname, 'path': dest,
+                        'lang': item.get('lang', ''), 'voice': item.get('voice', ''),
+                        'time': time.strftime('%d %b %Y  %H:%M'),
+                        'emotion': item.get('emotion', 'Normal'), 'source': 'batch',
+                    })
+                except Exception as e:
+                    item['status'] = 'error'
             except Exception as e:
                 item['status'] = 'error'
             results.append(item)
@@ -1787,10 +1828,10 @@ class SettingsScreen(Screen):
             hint_text='sk-... (Get free key from elevenlabs.io)',
             multiline=False,
             size_hint_y=None, height=dp(52),
-            background_color=hex_c(C_SURFACE),
-            foreground_color=hex_c(C_WHITE),
-            hint_text_color=hex_c(C_MUTED),
-            cursor_color=hex_c(C_ACCENT),
+            background_color=(0.08, 0.12, 0.20, 1),
+            foreground_color=(1, 1, 1, 1),           # FIX: explicit tuple
+            hint_text_color=(0.39, 0.46, 0.54, 1),
+            cursor_color=(0.23, 0.74, 0.97, 1),
             font_size=sp(14),
             password=True,
         )
@@ -1896,8 +1937,9 @@ class StudioScreen(Screen):
         tb.add_widget(t2)
         hdr.add_widget(tb)
 
-        # Settings icon button
-        settings_btn = IconBtn(icon='⚙', size_dp=44, bg=C_CARD2)
+        # Settings icon button (FIX: emoji replace with plain text for Kivy)
+        settings_btn = IconBtn(icon='SET', size_dp=44, bg=C_CARD2)
+        settings_btn.font_size = sp(11)
         settings_btn.bind(on_press=lambda *a: self._go_settings())
         hdr.add_widget(settings_btn)
 
@@ -1921,7 +1963,7 @@ class StudioScreen(Screen):
 
         lang_card = BoxLayout(orientation='vertical', padding=[dp(14), dp(10)], spacing=dp(8))
         card_bg(lang_card, C_CARD2, 16)
-        lang_card.add_widget(lbl('🌍 Language', 13, C_ACCENT, True, 26))
+        lang_card.add_widget(lbl('Language', 13, C_ACCENT, True, 26))
         self.lang_spin = Spinner(
             text='English',
             values=list(LANGUAGES.keys()),
@@ -1938,7 +1980,7 @@ class StudioScreen(Screen):
         gender_card = BoxLayout(orientation='vertical', padding=[dp(14), dp(10)],
                                 spacing=dp(8), size_hint_x=0.5)
         card_bg(gender_card, C_CARD2, 16)
-        gender_card.add_widget(lbl('🎙 Gender', 13, C_ACCENT, True, 26))
+        gender_card.add_widget(lbl('Gender', 13, C_ACCENT, True, 26))
         gr = BoxLayout(size_hint_y=None, height=dp(58), spacing=dp(10))
         self._vbtns = {}
         for name, icon in [('Male', '♂'), ('Female', '♀')]:
@@ -1968,16 +2010,16 @@ class StudioScreen(Screen):
 
         speed_card = BoxLayout(orientation='vertical', padding=[dp(14), dp(10)], spacing=dp(6))
         card_bg(speed_card, C_CARD2, 16)
-        speed_card.add_widget(lbl('⏩ Speed', 13, C_ACCENT, True, 26))
+        speed_card.add_widget(lbl('Speed', 13, C_ACCENT, True, 26))
         sr = BoxLayout(size_hint_y=None, height=dp(44), spacing=dp(8))
-        sr.add_widget(lbl('🐢', 14, C_MUTED, False, 44))
+        sr.add_widget(lbl('Slow', 12, C_MUTED, False, 44))
         self.speed_slider = Slider(min=10, max=100, value=50, step=5)
         self.speed_lbl = lbl('50%', 13, C_CYAN, False, 44)
         self.speed_slider.bind(
             value=lambda i, v: setattr(self.speed_lbl, 'text', str(int(v)) + '%')
         )
         sr.add_widget(self.speed_slider)
-        sr.add_widget(lbl('🐇', 14, C_MUTED, False, 44))
+        sr.add_widget(lbl('Fast', 12, C_MUTED, False, 44))
         speed_card.add_widget(sr)
         speed_card.add_widget(self.speed_lbl)
         sp_row.add_widget(speed_card)
@@ -2000,12 +2042,12 @@ class StudioScreen(Screen):
         self.char_lbl = lbl('0 chars · 0 lines · 0 words', 12, C_MUTED, False, 38)
         top_row.add_widget(self.char_lbl)
 
-        imp = FlatBtn(text='📂 Import', bg=C_BLUE2, size_hint_x=None, width=dp(110),
+        imp = FlatBtn(text='Import File', bg=C_BLUE2, size_hint_x=None, width=dp(110),
                       font_size=sp(13))
         imp.bind(on_press=self._import_file)
         top_row.add_widget(imp)
 
-        clr_txt = IconBtn(icon='✕', size_dp=38, bg=C_CARD3)
+        clr_txt = IconBtn(icon='X', size_dp=38, bg=C_CARD3)
         clr_txt.bind(on_press=lambda *a: setattr(self.txt, 'text', ''))
         top_row.add_widget(clr_txt)
         text_card.add_widget(top_row)
@@ -2015,14 +2057,15 @@ class StudioScreen(Screen):
         text_card.add_widget(self.rtl_lbl)
 
         # FIX: Urdu/Arabic input — use_bidi=True helps with RTL display
+        # FIX: foreground_color=(1,1,1,1) explicitly — hex_c() sometimes doesn't work in all Kivy versions
         self.txt = TextInput(
             hint_text='Enter text here... (Urdu, Arabic, English, any language)',
             multiline=True,
             size_hint=(1, 1),
-            background_color=hex_c(C_SURFACE),
-            foreground_color=hex_c(C_WHITE),
-            hint_text_color=hex_c(C_MUTED),
-            cursor_color=hex_c(C_ACCENT),
+            background_color=(0.08, 0.12, 0.20, 1),   # FIX: solid dark color instead of hex_c
+            foreground_color=(1, 1, 1, 1),             # FIX: pure white tuple — always visible
+            hint_text_color=(0.39, 0.46, 0.54, 1),
+            cursor_color=(0.23, 0.74, 0.97, 1),
             font_size=sp(17),
             padding=[dp(14), dp(12)],
             # RTL text fix
@@ -2042,7 +2085,7 @@ class StudioScreen(Screen):
         # ── SSML Preview ─────────────────────────────
         ssml_row = BoxLayout(size_hint_y=None, height=dp(44), spacing=dp(10))
         self.ssml_prev_btn = FlatBtn(
-            text='📝 Preview SSML', bg=C_GRAY,
+            text='Preview SSML', bg=C_GRAY,
             size_hint_x=None, width=dp(160), font_size=sp(13)
         )
         self.ssml_prev_btn.bind(on_press=self._preview_ssml)
@@ -2058,7 +2101,7 @@ class StudioScreen(Screen):
                                 padding=[dp(14), dp(10)], spacing=dp(8))
         card_bg(status_card, C_CARD2, 14)
 
-        self.status_lbl = lbl('Ready to generate voice ✨', 14, C_MUTED, False, 32)
+        self.status_lbl = lbl('Ready to generate voice', 14, C_MUTED, False, 32)
         status_card.add_widget(self.status_lbl)
 
         self.prog = ProgressBar(max=100, value=0, size_hint_y=None, height=dp(8))
@@ -2074,7 +2117,7 @@ class StudioScreen(Screen):
 
         # ── Generate Button ───────────────────────────
         self.gen_btn = FlatBtn(
-            text='⚡  Generate Voice',
+            text='Generate Voice',
             bg=C_BLUE,
             size_hint_y=None, height=dp(70),
             font_size=sp(20), bold=True,
@@ -2084,8 +2127,8 @@ class StudioScreen(Screen):
 
         # ── Preview + Download Row ────────────────────
         pd_row = BoxLayout(size_hint_y=None, height=dp(62), spacing=dp(14))
-        self.play_btn = FlatBtn(text='▶ Preview', bg=C_RED, font_size=sp(15), disabled=True)
-        self.dl_btn   = FlatBtn(text='⬇ Save Voice', bg=C_GREEN, font_size=sp(15), disabled=True)
+        self.play_btn = FlatBtn(text='Play Preview', bg=C_RED, font_size=sp(15), disabled=True)
+        self.dl_btn   = FlatBtn(text='Save Voice', bg=C_GREEN, font_size=sp(15), disabled=True)
         self.play_btn.bind(on_press=self._play)
         self.dl_btn.bind(on_press=self._download)
         pd_row.add_widget(self.play_btn)
@@ -2094,9 +2137,9 @@ class StudioScreen(Screen):
 
         # ── Navigation Row ────────────────────────────
         nav_row = BoxLayout(size_hint_y=None, height=dp(58), spacing=dp(10))
-        hist_btn = FlatBtn(text='📋 History', bg=C_PURPLE, font_size=sp(14))
+        hist_btn = FlatBtn(text='History', bg=C_PURPLE, font_size=sp(14))
         hist_btn.bind(on_press=lambda *a: self._go_hist())
-        batch_btn = FlatBtn(text='📦 Batch Queue', bg=C_GRAY, font_size=sp(14))
+        batch_btn = FlatBtn(text='Batch Queue', bg=C_GRAY, font_size=sp(14))
         batch_btn.bind(on_press=lambda *a: self._go_batch())
         nav_row.add_widget(hist_btn)
         nav_row.add_widget(batch_btn)
@@ -2433,40 +2476,139 @@ class StudioScreen(Screen):
 
     # ── TTS worker thread ─────────────────────────────────
     def _worker(self):
+        """
+        FIX: gTTS se gender/emotion/pitch/speed properly support nahi hote.
+        Replaced with edge-tts (Microsoft Edge Neural TTS) — 100% FREE.
+        Real male/female voices, speed, pitch, volume all supported.
+        """
         try:
-            from gtts import gTTS
-            Clock.schedule_once(lambda dt: self._upd(20, '🌐 Connecting to TTS service...'))
+            import asyncio
+            import edge_tts
 
-            lang     = LANGUAGES.get(self.lang_spin.text, 'en')
+            Clock.schedule_once(lambda dt: self._upd(20, 'Connecting to TTS service...'))
+
+            lang_name = self.lang_spin.text
+            voice_gender = self.voice_sel   # 'Male' or 'Female'
             emotion  = self.emotion_picker.selected
-            em_data  = EMOTION_TAGS.get(emotion, EMOTION_TAGS['Normal'])
+            speed_pct = int(self.speed_slider.value)
+            pitch_val = self.pitch_card.value
 
-            # TLD: emotion can override voice TLD
-            tld = em_data.get('tld_override') or VOICE_TLD.get(self.voice_sel, 'com')
+            # Pick the right edge-tts voice for language + gender
+            voice = self._pick_edge_voice(lang_name, voice_gender)
 
-            slow = int(self.speed_slider.value) <= 30
+            # edge-tts rate: "+50%" means 50% faster, "-20%" means slower
+            # speed_pct 50 = normal, <50 = slow, >50 = fast
+            rate_offset = int((speed_pct - 50) * 1.5)
+            if rate_offset >= 0:
+                rate_str = '+' + str(rate_offset) + '%'
+            else:
+                rate_str = str(rate_offset) + '%'
 
-            label = (
-                LANG_FLAGS.get(self.lang_spin.text, '') + ' '
-                + self.lang_spin.text + ' · '
-                + self.voice_sel + ' · '
-                + emotion
-            )
-            Clock.schedule_once(
-                lambda dt: self._upd(45, '🎙 Generating ' + label + '...')
-            )
+            # Pitch: edge-tts uses Hz offset like "+5Hz" or "-10Hz"
+            pitch_str = ('+' if pitch_val >= 0 else '') + str(pitch_val * 10) + 'Hz'
+
+            # Volume: based on emotion
+            volume_map = {
+                'Whisper': '-60%', 'Shout': '+30%', 'Normal': '+0%',
+                'Happy': '+10%', 'Sad': '-20%', 'Excited': '+20%',
+                'Calm': '-10%', 'Serious': '+0%', 'Sarcasm': '+0%', 'Fearful': '-10%',
+            }
+            volume_str = volume_map.get(emotion, '+0%')
 
             text = self.txt.text
-            tts  = gTTS(text=text, lang=lang, tld=tld, slow=slow)
+
+            label = lang_name + ' · ' + voice_gender + ' · ' + emotion
+            Clock.schedule_once(
+                lambda dt: self._upd(45, 'Generating ' + label + '...')
+            )
 
             out = os.path.join(
                 App.get_running_app().user_data_dir, 'tts_preview.mp3'
             )
-            Clock.schedule_once(lambda dt: self._upd(78, '💾 Processing audio...'))
-            tts.save(out)
+
+            # Run async edge-tts in a new event loop (worker thread)
+            async def _run():
+                communicate = edge_tts.Communicate(
+                    text=text,
+                    voice=voice,
+                    rate=rate_str,
+                    volume=volume_str,
+                    pitch=pitch_str,
+                )
+                await communicate.save(out)
+
+            Clock.schedule_once(lambda dt: self._upd(78, 'Processing audio...'))
+            asyncio.run(_run())
+
             self.out_file = out
             Clock.schedule_once(lambda dt: self._on_done())
 
+        except ImportError:
+            # edge-tts not installed — fallback to gTTS
+            self._worker_gtts_fallback()
+        except Exception as e:
+            msg = str(e)
+            Clock.schedule_once(lambda dt, m=msg: self._on_err(m))
+
+    def _pick_edge_voice(self, lang_name, gender):
+        """
+        Returns best edge-tts voice name for given language + gender.
+        These are Microsoft Neural voices — real quality, 100% free.
+        """
+        # Voice map: lang_name -> (male_voice, female_voice)
+        EDGE_VOICES = {
+            'English':    ('en-US-GuyNeural',       'en-US-JennyNeural'),
+            'Urdu':       ('ur-PK-AsadNeural',       'ur-PK-UzmaNeural'),
+            'Hindi':      ('hi-IN-MadhurNeural',     'hi-IN-SwaraNeural'),
+            'Arabic':     ('ar-SA-HamedNeural',      'ar-SA-ZariyahNeural'),
+            'French':     ('fr-FR-HenriNeural',      'fr-FR-DeniseNeural'),
+            'Spanish':    ('es-ES-AlvaroNeural',     'es-ES-ElviraNeural'),
+            'German':     ('de-DE-ConradNeural',     'de-DE-KatjaNeural'),
+            'Turkish':    ('tr-TR-AhmetNeural',      'tr-TR-EmelNeural'),
+            'Russian':    ('ru-RU-DmitryNeural',     'ru-RU-SvetlanaNeural'),
+            'Chinese':    ('zh-CN-YunxiNeural',      'zh-CN-XiaoxiaoNeural'),
+            'Japanese':   ('ja-JP-KeitaNeural',      'ja-JP-NanamiNeural'),
+            'Korean':     ('ko-KR-InJoonNeural',     'ko-KR-SunHiNeural'),
+            'Portuguese': ('pt-BR-AntonioNeural',    'pt-BR-FranciscaNeural'),
+            'Italian':    ('it-IT-DiegoNeural',      'it-IT-ElsaNeural'),
+            'Dutch':      ('nl-NL-MaartenNeural',    'nl-NL-ColetteNeural'),
+            'Polish':     ('pl-PL-MarekNeural',      'pl-PL-ZofiaNeural'),
+            'Swedish':    ('sv-SE-MattiasNeural',    'sv-SE-SofieNeural'),
+            'Danish':     ('da-DK-JeppeNeural',      'da-DK-ChristelNeural'),
+            'Norwegian':  ('nb-NO-FinnNeural',       'nb-NO-PernilleNeural'),
+            'Finnish':    ('fi-FI-HarriNeural',      'fi-FI-NooraNeural'),
+            'Greek':      ('el-GR-NestorasNeural',   'el-GR-AthinaNeural'),
+            'Romanian':   ('ro-RO-EmilNeural',       'ro-RO-AlinaNeural'),
+            'Czech':      ('cs-CZ-AntoninNeural',    'cs-CZ-VlastaNeural'),
+            'Hungarian':  ('hu-HU-TamasNeural',      'hu-HU-NoemiNeural'),
+            'Vietnamese': ('vi-VN-NamMinhNeural',    'vi-VN-HoaiMyNeural'),
+            'Thai':       ('th-TH-NiwatNeural',      'th-TH-PremwadeeNeural'),
+            'Indonesian': ('id-ID-ArdiNeural',       'id-ID-GadisNeural'),
+            'Malay':      ('ms-MY-OsmanNeural',      'ms-MY-YasminNeural'),
+            'Bengali':    ('bn-BD-PradeepNeural',    'bn-BD-NabanitaNeural'),
+            'Tamil':      ('ta-IN-ValluvarNeural',   'ta-IN-PallaviNeural'),
+            'Telugu':     ('te-IN-MohanNeural',      'te-IN-ShrutiNeural'),
+            'Ukrainian':  ('uk-UA-OstapNeural',      'uk-UA-PolinaNeural'),
+            'Swahili':    ('sw-KE-RafikiNeural',     'sw-KE-ZuriNeural'),
+        }
+        voices = EDGE_VOICES.get(lang_name, ('en-US-GuyNeural', 'en-US-JennyNeural'))
+        return voices[0] if gender == 'Male' else voices[1]
+
+    def _worker_gtts_fallback(self):
+        """Fallback to gTTS if edge-tts is not installed"""
+        try:
+            from gtts import gTTS
+            Clock.schedule_once(lambda dt: self._upd(30, 'Using gTTS (install edge-tts for better quality)...'))
+            lang = LANGUAGES.get(self.lang_spin.text, 'en')
+            tld  = VOICE_TLD.get(self.voice_sel, 'com')
+            slow = int(self.speed_slider.value) <= 30
+            text = self.txt.text
+            tts  = gTTS(text=text, lang=lang, tld=tld, slow=slow)
+            out  = os.path.join(App.get_running_app().user_data_dir, 'tts_preview.mp3')
+            Clock.schedule_once(lambda dt: self._upd(75, 'Saving audio...'))
+            tts.save(out)
+            self.out_file = out
+            Clock.schedule_once(lambda dt: self._on_done())
         except Exception as e:
             msg = str(e)
             Clock.schedule_once(lambda dt, m=msg: self._on_err(m))
@@ -2507,11 +2649,11 @@ class StudioScreen(Screen):
             return
         if self._audio.state == 'play':
             self._audio.stop()
-            self.play_btn.text = '▶ Preview'
+            self.play_btn.text = 'Play Preview'
             self.play_btn.set_bg(C_RED)
         else:
             self._audio.play()
-            self.play_btn.text = '⏹ Stop'
+            self.play_btn.text = 'Stop'
             self.play_btn.set_bg(C_AMBER)
 
     # ── Download / Save (Auto-saves to Titan AI Studio folder) ──
