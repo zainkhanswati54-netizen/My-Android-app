@@ -1,122 +1,114 @@
-# Titan AI Studio Pro — v10.1.0
+# Titan Studio PRO — v12.0.0
 
 **Professional Voice Studio · Always Free · 30+ Languages**
 
 ---
 
-## Files List (repo mein yeh sab hone chahiye)
+## v12.0.0 Mein Kya Fix Hua
 
-```
-repo/
-├── main.py               ← Main app (Kivy)
-├── buildozer.spec        ← Android build config
-├── requirements.txt      ← Python dependencies
-├── AI.png                ← App logo/icon (512x512 recommended)
-├── build.yml             ← GitHub Actions CI/CD (Actions folder mein)
-├── .gitignore
-├── README.md
-└── p4a_recipes/          ← Custom Android recipes
-    ├── edge_tts/
-    │   └── __init__.py
-    └── aiohttp/
-        └── __init__.py
-```
-
-> **Note:** `build.yml` ko `.github/workflows/` folder mein rakhna hai:
-> `.github/workflows/build.yml`
+| # | Problem | Fix |
+|---|---------|-----|
+| 1 | "No Internet" error generate karte waqt | 3x retry logic, 60s timeout, better error message |
+| 2 | Broken boxes `⊠` buttons pe | Saare emoji hataye, clean text labels |
+| 3 | Urdu/Hindi keyboard change nahi hota | RTL mode + hint text + instructions |
+| 4 | Voice generate nahi hoti | Improved async handling + gTTS fallback |
+| 5 | Settings button broken icon | Clean "SET" text button |
 
 ---
 
-## Setup (Local PC pe test karna ho to)
+## Files Structure
+
+```
+TitanStudioPRO/
+├── main.py                          ← Main app (FIXED v12)
+├── buildozer.spec                   ← Android build config
+├── requirements.txt                 ← Python dependencies
+├── AI.png                           ← App logo/icon
+├── .gitignore
+├── README.md
+├── p4a_recipes/
+│   ├── edge_tts/
+│   │   └── __init__.py              ← edge-tts Android recipe
+│   └── aiohttp/
+│       └── __init__.py              ← aiohttp Android recipe
+└── .github/
+    └── workflows/
+        └── build.yml                ← GitHub Actions CI/CD
+```
+
+---
+
+## PC Pe Test Karna
 
 ```bash
 # 1. Install dependencies
 pip install -r requirements.txt
 
-# 2. Run app on PC (test mode)
+# 2. Run app
 python main.py
 ```
 
 ---
 
-## Android APK Build (GitHub Actions se — EASY)
+## Android APK Build (GitHub Actions)
 
 ### Step 1: GitHub repo banao
 ```
-GitHub.com → New Repository → Public ya Private (koi bhi)
+GitHub.com → New Repository → Public
 ```
 
-### Step 2: Yeh files upload karo repo root mein
+### Step 2: Yeh SAARI files upload karo (exact structure ke saath)
 ```
 main.py
 buildozer.spec
 requirements.txt
+requirements.txt
 AI.png
 .gitignore
-p4a_recipes/   (pura folder)
+p4a_recipes/edge_tts/__init__.py
+p4a_recipes/aiohttp/__init__.py
+.github/workflows/build.yml
 ```
 
-### Step 3: build.yml sahi jagah rakhna
+### Step 3: Build chalao
 ```
-.github/
-  workflows/
-    build.yml       ← yahan
+GitHub → Actions tab → "Build Titan Studio PRO APK" → Run workflow
 ```
 
-### Step 4: Build chalao
+### Step 4: APK download karo
 ```
-GitHub → Actions tab → "Build Titan AI APK" → Run workflow
-```
-
-### Step 5: APK download karo
-```
-Actions → Latest run → Artifacts → TitanAI-Studio-Pro-v10.1-APK
+Actions → Latest run → Artifacts → TitanStudio-PRO-v12-APK
 ```
 
 Build time: **30-60 minutes** (first time), **10-15 minutes** (cached)
 
 ---
 
-## TTS Engine — edge-tts (Microsoft Neural)
+## Urdu Keyboard Kaise Use Karein
 
-App ab **edge-tts** use karta hai jo gTTS se behtar hai:
+App khud keyboard nahi badal sakta — yeh Android ki limitation hai.
 
-| Feature | gTTS (purana) | edge-tts (naya) |
-|---------|--------------|-----------------|
-| Male voice | Fake (TLD trick) | Real neural voice |
-| Female voice | Fake (TLD trick) | Real neural voice |
-| Speed control | Sirf slow/fast | % control |
-| Pitch control | Nahi | Hz control |
-| Emotion | Nahi | Volume se |
-| Urdu quality | Basic | Neural (AsadNeural) |
+**Solution:**
+1. Phone Settings → Language & Input → Virtual Keyboard
+2. Manage Keyboards → **Urdu** ON karein
+3. App mein Urdu language select karein
+4. Text box tap karein
+5. Keyboard ke neeche **globe icon** press karein → Urdu keyboard aajayega
+
+---
+
+## TTS Engine (edge-tts)
+
+| Feature | gTTS | edge-tts |
+|---------|------|----------|
+| Male voice | Fake | Real Neural |
+| Female voice | Fake | Real Neural |
+| Urdu quality | Basic | Neural |
+| Speed control | Limited | Full % |
+| Pitch control | No | Yes |
 | Internet | Zaruri | Zaruri |
 | Cost | Free | Free |
 
-### Urdu Voices
-- **Male:** `ur-PK-AsadNeural`
-- **Female:** `ur-PK-UzmaNeural`
-
----
-
-## Bugs Fixed in v10.1.0
-
-1. **Text TextInput mein nahi dikhta** — `foreground_color=(1,1,1,1)` explicit tuple
-2. **Adaptive Pacing + Enter Text overlap** — AdvancedOptionsCard height `dp(280)` → `dp(320)`
-3. **Broken boxes (□) on buttons** — Saare emoji replace with plain text
-4. **Gender/Speed/Pitch kaam nahi karta** — gTTS → edge-tts neural TTS
-5. **Settings button broken icon** — `⚙` → `SET`
-
----
-
-## Permissions (Android)
-
-App ko yeh permissions chahiye:
-- `INTERNET` — TTS ke liye
-- `WRITE_EXTERNAL_STORAGE` — audio save karne ke liye
-- `READ_EXTERNAL_STORAGE` — file import ke liye
-
----
-
-## Support
-
-App always free rahega. Koi subscription nahi, koi ads nahi.
+**Urdu Voices:**
+- Male: `ur-PK-AsadNeural`
+- Female: `ur-PK-UzmaNeural`
