@@ -20,7 +20,7 @@
 title           = Titan AI Studio Pro
 package.name    = titanai.studio.pro
 package.domain  = org.titan.studio
-version         = 10.0.0
+version         = 10.1.0
 
 # ── Source ────────────────────────────────────────────────────
 source.dir      = .
@@ -39,6 +39,14 @@ source.exclude_patterns = *.pyc,*.pyo,*.pyd,.DS_Store,Thumbs.db,*.spec.bak
 requirements =
     python3==3.11.0,
     kivy==2.2.1,
+    edge-tts,
+    aiohttp,
+    aiosignal,
+    frozenlist,
+    async-timeout,
+    attrs,
+    multidict,
+    yarl,
     gTTS==2.5.1,
     requests==2.31.0,
     certifi==2024.2.2,
@@ -112,8 +120,8 @@ android.min_sdk_version      = 24
 # ── App metadata for Play Store ───────────────────────────────
 # These appear in Google Play Store listing:
 android.manifest.app_label    = Titan AI Studio Pro
-android.manifest.version_name = 10.0.0
-android.manifest.version_code = 100
+android.manifest.version_name = 10.1.0
+android.manifest.version_code = 101
 
 # ── Network Security (required for HTTP in newer Android) ──────
 # Allows gTTS to connect (it uses HTTPS, so this is fine):
@@ -153,8 +161,8 @@ p4a.bootstrap = sdl2
 # ── P4A source (optional, use if you need latest p4a fixes) ───
 # p4a.source_dir = /path/to/python-for-android
 
-# ── Local recipes (optional) ──────────────────────────────────
-# p4a.local_recipes = ./p4a_recipes
+# ── Local recipes (edge-tts + aiohttp ke liye) ────────────────
+p4a.local_recipes = ./p4a_recipes
 
 # ── iOS (not configured — Android only) ───────────────────────
 # ios.kivy_ios_url = https://github.com/kivy/kivy-ios
