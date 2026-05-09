@@ -1,137 +1,122 @@
-# 🎙️ Titan AI Studio Pro
+# Titan AI Studio Pro — v10.1.0
 
-<div align="center">
-
-![Titan AI Studio Pro](AI.png)
-
-**Your Personal Narrator, Always Free.**
-
-[![Build APK](https://github.com/YOUR_USERNAME/titan-ai-studio/actions/workflows/build.yml/badge.svg)](https://github.com/YOUR_USERNAME/titan-ai-studio/actions/workflows/build.yml)
-![Version](https://img.shields.io/badge/version-6.0.0-blue)
-![Platform](https://img.shields.io/badge/platform-Android-green)
-![Python](https://img.shields.io/badge/python-3.10-yellow)
-![License](https://img.shields.io/badge/license-MIT-purple)
-
-</div>
+**Professional Voice Studio · Always Free · 30+ Languages**
 
 ---
 
-## 📱 What is Titan AI Studio Pro?
+## Files List (repo mein yeh sab hone chahiye)
 
-Titan AI Studio Pro is a **free, offline-capable** Android app that converts text into natural-sounding speech using Google's Text-to-Speech engine (gTTS). Supports **12 languages**, male/female voices, adjustable speed, file import, and local MP3 download.
+```
+repo/
+├── main.py               ← Main app (Kivy)
+├── buildozer.spec        ← Android build config
+├── requirements.txt      ← Python dependencies
+├── AI.png                ← App logo/icon (512x512 recommended)
+├── build.yml             ← GitHub Actions CI/CD (Actions folder mein)
+├── .gitignore
+├── README.md
+└── p4a_recipes/          ← Custom Android recipes
+    ├── edge_tts/
+    │   └── __init__.py
+    └── aiohttp/
+        └── __init__.py
+```
 
----
-
-## ✨ Features
-
-| Feature | Details |
-|---|---|
-| 🌐 Languages | English, Urdu, Hindi, Arabic, French, Spanish, German, Turkish, Russian, Chinese, Japanese, Korean |
-| 🎤 Voices | Male & Female per language |
-| ⚡ Speed control | Slow / Normal / Fast slider |
-| 📂 File import | TXT, PDF, DOCX supported |
-| 💾 Save audio | Internal storage, Downloads, Music, Documents |
-| 📋 History | Full download history with playback |
-| 🚫 No ads | 100% free, no hidden costs |
-
----
-
-## 📸 Screenshots
-
-| Splash | Main Screen | Language Select | History |
-|--------|-------------|-----------------|---------|
-| *(splash)* | *(main)* | *(lang)* | *(history)* |
+> **Note:** `build.yml` ko `.github/workflows/` folder mein rakhna hai:
+> `.github/workflows/build.yml`
 
 ---
 
-## 🚀 How to Build
-
-### Option A — GitHub Actions (Recommended)
-
-1. Fork this repository
-2. Go to **Actions** tab → **Build Titan AI APK** → **Run workflow**
-3. Download the APK from the **Artifacts** section
-
-### Option B — Local build (Linux/macOS)
+## Setup (Local PC pe test karna ho to)
 
 ```bash
 # 1. Install dependencies
-pip install buildozer Cython==0.29.33
+pip install -r requirements.txt
 
-# 2. Install system packages (Ubuntu/Debian)
-sudo apt-get install python3-dev build-essential git \
-  libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev
-
-# 3. Build
-buildozer android debug
-
-# APK will be in ./bin/
+# 2. Run app on PC (test mode)
+python main.py
 ```
 
 ---
 
-## 📁 Project Structure
+## Android APK Build (GitHub Actions se — EASY)
 
+### Step 1: GitHub repo banao
 ```
-titan-ai-studio/
-├── main.py                  # Main application (Kivy + gTTS)
-├── buildozer.spec           # Android build configuration
-├── AI.png                   # App icon & splash screen
-├── .github/
-│   └── workflows/
-│       └── build.yml        # CI/CD pipeline
-├── .gitignore               # Git ignore rules
-├── README.md                # This file
-└── bin/                     # Built APKs (generated, gitignored)
+GitHub.com → New Repository → Public ya Private (koi bhi)
 ```
 
----
-
-## 🔧 Requirements
-
-- Python 3.10+
-- Kivy 2.2.1
-- gTTS 2.5.1
-- Android API 33 (Android 13+), minimum API 24 (Android 7+)
-- Internet connection (for TTS generation)
-
----
-
-## 📖 How to Use the App
-
-1. **Select Voice Language** from the dropdown
-2. **Choose Gender**: Male or Female
-3. **Adjust Speed** using the slider
-4. **Type text** or **Import a file** (TXT / PDF / DOCX)
-5. Tap **⚡ Generate Audio**
-6. **Preview** then **Download** your voice
-
----
-
-## 🛠️ Tech Stack
-
-- **Frontend**: [Kivy](https://kivy.org/) (Python UI framework)
-- **TTS Engine**: [gTTS](https://gtts.readthedocs.io/) (Google Text-to-Speech)
-- **Build System**: [Buildozer](https://buildozer.readthedocs.io/)
-- **CI/CD**: GitHub Actions
-- **Target**: Android ARM64
-
----
-
-## 📄 License
-
+### Step 2: Yeh files upload karo repo root mein
 ```
-MIT License — Free to use, modify, and distribute.
+main.py
+buildozer.spec
+requirements.txt
+AI.png
+.gitignore
+p4a_recipes/   (pura folder)
 ```
 
+### Step 3: build.yml sahi jagah rakhna
+```
+.github/
+  workflows/
+    build.yml       ← yahan
+```
+
+### Step 4: Build chalao
+```
+GitHub → Actions tab → "Build Titan AI APK" → Run workflow
+```
+
+### Step 5: APK download karo
+```
+Actions → Latest run → Artifacts → TitanAI-Studio-Pro-v10.1-APK
+```
+
+Build time: **30-60 minutes** (first time), **10-15 minutes** (cached)
+
 ---
 
-## 👨‍💻 Author
+## TTS Engine — edge-tts (Microsoft Neural)
 
-**Titan AI Studio** — Built with ❤️ using Python & Kivy
+App ab **edge-tts** use karta hai jo gTTS se behtar hai:
+
+| Feature | gTTS (purana) | edge-tts (naya) |
+|---------|--------------|-----------------|
+| Male voice | Fake (TLD trick) | Real neural voice |
+| Female voice | Fake (TLD trick) | Real neural voice |
+| Speed control | Sirf slow/fast | % control |
+| Pitch control | Nahi | Hz control |
+| Emotion | Nahi | Volume se |
+| Urdu quality | Basic | Neural (AsadNeural) |
+| Internet | Zaruri | Zaruri |
+| Cost | Free | Free |
+
+### Urdu Voices
+- **Male:** `ur-PK-AsadNeural`
+- **Female:** `ur-PK-UzmaNeural`
 
 ---
 
-<div align="center">
-⭐ Star this repo if you found it useful!
-</div>
+## Bugs Fixed in v10.1.0
+
+1. **Text TextInput mein nahi dikhta** — `foreground_color=(1,1,1,1)` explicit tuple
+2. **Adaptive Pacing + Enter Text overlap** — AdvancedOptionsCard height `dp(280)` → `dp(320)`
+3. **Broken boxes (□) on buttons** — Saare emoji replace with plain text
+4. **Gender/Speed/Pitch kaam nahi karta** — gTTS → edge-tts neural TTS
+5. **Settings button broken icon** — `⚙` → `SET`
+
+---
+
+## Permissions (Android)
+
+App ko yeh permissions chahiye:
+- `INTERNET` — TTS ke liye
+- `WRITE_EXTERNAL_STORAGE` — audio save karne ke liye
+- `READ_EXTERNAL_STORAGE` — file import ke liye
+
+---
+
+## Support
+
+App always free rahega. Koi subscription nahi, koi ads nahi.
