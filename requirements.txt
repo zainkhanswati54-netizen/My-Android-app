@@ -1,12 +1,16 @@
 # =============================================================
-#  Titan AI Studio Pro — requirements.txt  v10.0
+#  Titan AI Studio Pro — requirements.txt  v10.1
 #  Install: pip install -r requirements.txt
 # =============================================================
 
 # ── Core UI ───────────────────────────────────────────────────
 kivy==2.2.1
 
-# ── Text-to-Speech (Primary) ──────────────────────────────────
+# ── Text-to-Speech (PRIMARY - Microsoft Neural TTS, 100% FREE) ─
+edge-tts>=6.1.9        # Real male/female voices, speed, pitch, volume
+aiohttp>=3.9.0         # Required by edge-tts (async HTTP)
+
+# ── Text-to-Speech (FALLBACK - basic, no gender/pitch support) ─
 gTTS==2.5.1
 
 # ── HTTP / Network ────────────────────────────────────────────
