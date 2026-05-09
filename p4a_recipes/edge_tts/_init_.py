@@ -1,35 +1,25 @@
 """
-Python-for-Android recipe for aiohttp
-Async HTTP library — required by edge-tts
+Python-for-Android recipe for edge-tts
+Microsoft Neural TTS — required for voice generation
 """
 from pythonforandroid.recipe import PythonRecipe
 
 
-class AiohttpRecipe(PythonRecipe):
-    version = '3.9.3'
-    url = 'https://pypi.python.org/packages/source/a/aiohttp/aiohttp-{version}.tar.gz'
+class EdgeTtsRecipe(PythonRecipe):
+    version = '6.1.9'
+    url = 'https://pypi.python.org/packages/source/e/edge-tts/edge_tts-{version}.tar.gz'
 
-    name = 'aiohttp'
+    name = 'edge-tts'
 
     depends = [
         'python3',
         'setuptools',
-        'aiosignal',
-        'frozenlist',
-        'async-timeout',
-        'attrs',
-        'multidict',
-        'yarl',
+        'aiohttp',
+        'websockets',
     ]
 
     call_hostpython_via_targetpython = False
     install_in_hostpython = False
 
-    def get_recipe_env(self, arch):
-        env = super().get_recipe_env(arch)
-        # Disable C extensions for Android compatibility
-        env['AIOHTTP_NO_EXTENSIONS'] = '1'
-        return env
 
-
-recipe = AiohttpRecipe()
+recipe = EdgeTtsRecipe()
