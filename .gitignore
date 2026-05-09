@@ -1,82 +1,54 @@
 # =============================================================
 #  Titan AI Studio Pro — .gitignore
-#  Industry-Standard Git Ignore Rules
 # =============================================================
 
-# ── Python ────────────────────────────────────────────────────
-__pycache__/
-*.py[cod]
-*$py.class
-*.pyo
-*.pyd
-*.so
-*.egg
-*.egg-info/
-dist/
-build/
-.eggs/
-
-# ── Buildozer ─────────────────────────────────────────────────
+# ── Buildozer build output ───────────────────────────────────
 .buildozer/
 bin/
-*.apk
-*.aab
-*.spec.bak
+build.log
 
-# ── Android ───────────────────────────────────────────────────
-.android/
-*.keystore
-*.jks
-local.properties
+# ── Python cache ─────────────────────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pycache
 
-# ── Virtual environments ──────────────────────────────────────
-.venv/
+# ── Virtual environments ─────────────────────────────────────
 venv/
 env/
-ENV/
-.env
+.venv/
+.env/
 
-# ── IDEs ──────────────────────────────────────────────────────
-.idea/
+# ── Android / Java ───────────────────────────────────────────
+*.apk
+*.aab
+*.keystore
+*.jks
+*.class
+
+# ── App data / user files ────────────────────────────────────
+*.json
+!package.json
+*.db
+*.sqlite
+
+# ── OS files ─────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Editor ───────────────────────────────────────────────────
 .vscode/
+.idea/
 *.swp
 *.swo
 *~
-.project
-.classpath
 
-# ── App assets (NEVER ignore these!) ─────────────────────────
-!AI.png
-!*.png
-!*.jpg
-!*.jpeg
-
-# ── macOS ─────────────────────────────────────────────────────
-.DS_Store
-.AppleDouble
-.LSOverride
-._*
-.Spotlight-V100
-.Trashes
-
-# ── Windows ───────────────────────────────────────────────────
-Thumbs.db
-ehthumbs.db
-Desktop.ini
-$RECYCLE.BIN/
-
-# ── Logs ──────────────────────────────────────────────────────
+# ── Logs ─────────────────────────────────────────────────────
 *.log
-build.log
-logcat*.txt
 
-# ── Generated audio (local only) ─────────────────────────────
-tts_out.mp3
-Titan_*.mp3
-history.json
-
-# ── Secrets (never commit these!) ────────────────────────────
-*.pem
-*.key
-secrets.*
-.env.*
+# ── Secrets (NEVER commit these) ─────────────────────────────
+*.env
+secrets.py
+api_keys.py
