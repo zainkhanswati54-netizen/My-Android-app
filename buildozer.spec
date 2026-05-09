@@ -1,6 +1,6 @@
 # =============================================================
 #  Titan Studio PRO — buildozer.spec
-#  Version 11.0.0  |  ULTIMATE EDITION
+#  Version 12.0.0  |  FIXED EDITION
 #  Target: Android ARM64 + ARMv7  |  API 33  |  Python 3.11
 #
 #  BUILD COMMAND:
@@ -13,13 +13,11 @@
 #
 #  NOTE: Run on Linux/Ubuntu. Windows users → use WSL2 or Docker.
 #
-#  ★ EDGE-TTS ANDROID FIX ★
-#  edge-tts kaam karta hai — lekin asyncio.run() Android pe fail hota hai.
-#  SOLUTION: main.py mein edge_tts_generate() function
-#    - New thread banata hai
-#    - asyncio.new_event_loop() create karta hai us thread mein
-#    - loop.run_until_complete() se edge-tts chalata hai
-#  Yeh approach 100% Android compatible hai.
+#  FIXES v12.0.0:
+#    ✅ edge-tts retry logic (3 attempts, 60s timeout)
+#    ✅ Emoji icons removed — clean text labels
+#    ✅ RTL keyboard support (Urdu/Arabic)
+#    ✅ Better error messages
 # =============================================================
 
 [app]
@@ -28,18 +26,16 @@
 title           = Titan Studio PRO
 package.name    = titanstudio.pro
 package.domain  = org.titan.studio
-version         = 11.0.0
+version         = 12.0.0
 
 # ── Source ────────────────────────────────────────────────────
 source.dir      = .
 source.include_exts = py,png,jpg,jpeg,kv,atlas,mp3,json,ttf,txt,wav,xml,md
-source.include_patterns = assets/*,fonts/*,images/*,AI.png,AI.jpg,logo.png
+source.include_patterns = assets/*,fonts/*,images/*,AI.png,AI.jpg,logo.png,p4a_recipes/*
 source.exclude_dirs     = tests,bin,.buildozer,__pycache__,.git,venv,env
 source.exclude_patterns = *.pyc,*.pyo,*.pyd,.DS_Store,Thumbs.db,*.spec.bak
 
 # ── Requirements ──────────────────────────────────────────────
-# edge-tts aur uski dependencies sab include hain.
-# edge-tts Android pe asyncio.new_event_loop() fix se kaam karta hai.
 requirements =
     python3==3.11.0,
     kivy==2.2.1,
@@ -62,6 +58,9 @@ requirements =
     pyjnius,
     android,
     setuptools>=68.0.0
+
+# ── p4a custom recipes ────────────────────────────────────────
+p4a.local_recipes = ./p4a_recipes
 
 # ── App Icon & Splash Screen ──────────────────────────────────
 presplash.filename = %(source.dir)s/AI.png
@@ -90,10 +89,6 @@ android.enable_androidx    = True
 android.copy_libs          = 1
 
 # ── Permissions ───────────────────────────────────────────────
-# WRITE_EXTERNAL_STORAGE: "Titan Studio PRO" folder banana
-# READ_EXTERNAL_STORAGE: file import karna
-# INTERNET: edge-tts ke liye (Microsoft servers)
-# MANAGE_EXTERNAL_STORAGE: Android 11+ ke liye zaruri
 android.permissions =
     INTERNET,
     WRITE_EXTERNAL_STORAGE,
@@ -101,10 +96,11 @@ android.permissions =
     MANAGE_EXTERNAL_STORAGE,
     ACCESS_NETWORK_STATE,
     ACCESS_WIFI_STATE,
+    CHANGE_NETWORK_STATE,
     WAKE_LOCK,
     FOREGROUND_SERVICE
 
-# ── Wakelock (screen on during generation) ────────────────────
+# ── Wakelock ──────────────────────────────────────────────────
 android.wakelock        = True
 android.allow_backup    = True
 
@@ -118,8 +114,8 @@ android.min_sdk_version      = 24
 
 # ── App manifest metadata ─────────────────────────────────────
 android.manifest.app_label    = Titan Studio PRO
-android.manifest.version_name = 11.0.0
-android.manifest.version_code = 110
+android.manifest.version_name = 12.0.0
+android.manifest.version_code = 120
 
 # ── Activity ──────────────────────────────────────────────────
 android.entrypoint  = org.kivy.android.PythonActivity
