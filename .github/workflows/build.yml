@@ -1,12 +1,6 @@
 # =============================================================
 #  Titan AI Studio Pro — .github/workflows/build.yml
-#  Version 10.1.0  |  edge-tts + aiohttp support added
-#
-#  SETUP:
-#    1. Push all files to GitHub repo root:
-#       main.py, buildozer.spec, requirements.txt, AI.png
-#    2. Go to Actions tab → Run workflow
-#    3. Download APK from Artifacts section
+#  Version 10.2.0  |  SDK fix — sdkmanager compatibility
 # =============================================================
 
 name: Build Titan AI APK
@@ -37,39 +31,21 @@ jobs:
       # ── 1. Checkout ──────────────────────────────────────────
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          lfs: false
 
-      # ── 2. Verify required files ─────────────────────────────
-      - name: Verify required files
-        run: |
-          echo "=== Files in repo root ==="
-          ls -la
-          echo ""
-          for f in main.py buildozer.spec AI.png requirements.txt; do
-            if [ ! -f "$f" ]; then
-              echo "MISSING: $f"
-              exit 1
-            else
-              echo "OK: $f ($(du -sh $f | cut -f1))"
-            fi
-          done
-
-      # ── 3. Java 17 ───────────────────────────────────────────
+      # ── 2. Java 17 ───────────────────────────────────────────
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
 
-      # ── 4. Python 3.10 ───────────────────────────────────────
+      # ── 3. Python 3.10 ───────────────────────────────────────
       - name: Set up Python 3.10
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
 
-      # ── 5. System packages ───────────────────────────────────
+      # ── 4. System packages ───────────────────────────────────
       - name: Install system packages
         run: |
           sudo apt-get update -qq
@@ -82,37 +58,61 @@ jobs:
             gcc g++ unzip autoconf libtool ffmpeg \
             libffi-dev libltdl-dev cmake pkg-config
 
-      # ── 6. Python build tools ────────────────────────────────
-      - name: Install Python build tools
+      # ── 5. FIX: Android SDK cmdline-tools ────────────────────
+      - name: Fix Android SDK cmdline-tools
+        run: |
+          ANDROID_SDK=/usr/local/lib/android/sdk
+          CMDLINE_TOOLS=$ANDROID_SDK/cmdline-tools
+
+          if [ -d "$CMDLINE_TOOLS/latest" ]; then
+            echo "cmdline-tools/latest exists"
+          elif [ -d "$CMDLINE_TOOLS" ]; then
+            FIRST=$(ls $CMDLINE_TOOLS | head -1)
+            ln -sf $CMDLINE_TOOLS/$FIRST $CMDLINE_TOOLS/latest
+            echo "Linked $FIRST as latest"
+          else
+            mkdir -p $CMDLINE_TOOLS
+            cd /tmp
+            wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
+            unzip -q commandlinetools-linux-9477386_latest.zip
+            mv cmdline-tools $CMDLINE_TOOLS/latest
+            echo "Fresh install done"
+          fi
+
+          echo "ANDROID_HOME=$ANDROID_SDK" >> $GITHUB_ENV
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK" >> $GITHUB_ENV
+          echo "$CMDLINE_TOOLS/latest/bin" >> $GITHUB_PATH
+          echo "$ANDROID_SDK/platform-tools" >> $GITHUB_PATH
+
+          $CMDLINE_TOOLS/latest/bin/sdkmanager --version || true
+
+      # ── 6. Accept SDK licenses ───────────────────────────────
+      - name: Accept Android SDK licenses
+        run: |
+          yes | sdkmanager --licenses 2>/dev/null || true
+        env:
+          ANDROID_HOME: /usr/local/lib/android/sdk
+
+      # ── 7. Install buildozer (latest, not pinned 1.5.0) ──────
+      - name: Install Cython and Buildozer
         run: |
           pip3 install --upgrade pip setuptools wheel
-          pip3 install Cython==0.29.33 buildozer==1.5.0
+          pip3 install Cython==0.29.33
+          pip3 install buildozer
 
-      # ── 7. Pre-install edge-tts (for build validation) ───────
-      # This verifies edge-tts installs correctly before Android build
-      - name: Verify edge-tts installs correctly
+      # ── 8. Verify edge-tts ───────────────────────────────────
+      - name: Verify edge-tts
         run: |
           pip3 install edge-tts aiohttp
-          python3 -c "import edge_tts; print('edge-tts OK:', edge_tts.__version__)"
-          python3 -c "import aiohttp; print('aiohttp OK:', aiohttp.__version__)"
+          python3 -c "import edge_tts; print('edge-tts OK')"
 
-      # ── 8. Cache: Buildozer global ───────────────────────────
-      - name: Cache Buildozer global dir
+      # ── 9. Cache: Buildozer ──────────────────────────────────
+      - name: Cache Buildozer
         uses: actions/cache@v4
         with:
           path: ~/.buildozer
-          key: buildozer-${{ runner.os }}-${{ hashFiles('buildozer.spec') }}-v2
-          restore-keys: |
-            buildozer-${{ runner.os }}-
-
-      # ── 9. Cache: Android SDK ────────────────────────────────
-      - name: Cache Android SDK
-        uses: actions/cache@v4
-        with:
-          path: ~/.android
-          key: android-sdk-${{ runner.os }}-api33-v2
-          restore-keys: |
-            android-sdk-${{ runner.os }}-
+          key: buildozer-${{ runner.os }}-${{ hashFiles('buildozer.spec') }}-v3
+          restore-keys: buildozer-${{ runner.os }}-
 
       # ── 10. Cache: Gradle ────────────────────────────────────
       - name: Cache Gradle
@@ -121,58 +121,31 @@ jobs:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*') }}
+          key: gradle-${{ runner.os }}-v2
           restore-keys: gradle-${{ runner.os }}-
 
-      # ── 11. Cache: pip packages ──────────────────────────────
-      - name: Cache pip packages
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/pip
-          key: pip-${{ runner.os }}-${{ hashFiles('requirements.txt') }}
-          restore-keys: pip-${{ runner.os }}-
-
-      # ── 12. Build APK ────────────────────────────────────────
-      - name: Build APK with Buildozer
+      # ── 11. Build APK ────────────────────────────────────────
+      - name: Build APK
         run: |
           export PATH=$PATH:$HOME/.local/bin
-          echo "=== buildozer.spec requirements section ==="
-          grep -A 20 "^requirements" buildozer.spec
-          echo ""
-          echo "=== Starting build ==="
+          export ANDROID_HOME=/usr/local/lib/android/sdk
+          export ANDROID_SDK_ROOT=/usr/local/lib/android/sdk
+
+          echo "=== Files in repo ==="
+          ls -la
+
           yes | buildozer -v android debug 2>&1 | tee build.log
-          echo ""
-          echo "=== Checking APK output ==="
+
           if ls bin/*.apk 1>/dev/null 2>&1; then
-            echo "APK built successfully:"
+            echo "SUCCESS - APK built!"
             ls -lh bin/*.apk
           else
-            echo "APK build FAILED — last 50 lines of log:"
-            tail -50 build.log
+            echo "FAILED - last 60 lines:"
+            tail -60 build.log
             exit 1
           fi
-        env:
-          ACCEPT_SDK_LICENSE: "True"
-          BUILDOZER_WARN_ON_ROOT: "0"
-          JAVA_HOME: /opt/hostedtoolcache/Java_Temurin_jdk/17.0.0-0/x64
 
-      # ── 13. Build summary ────────────────────────────────────
-      - name: Build summary
-        if: success()
-        run: |
-          APK=$(ls bin/*.apk | head -1)
-          SIZE=$(du -sh "$APK" | cut -f1)
-          NAME=$(basename "$APK")
-          echo "## Build Successful" >> $GITHUB_STEP_SUMMARY
-          echo "| Field | Value |" >> $GITHUB_STEP_SUMMARY
-          echo "|-------|-------|" >> $GITHUB_STEP_SUMMARY
-          echo "| APK | \`$NAME\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| Size | $SIZE |" >> $GITHUB_STEP_SUMMARY
-          echo "| Version | 10.1.0 |" >> $GITHUB_STEP_SUMMARY
-          echo "| Commit | \`${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| TTS Engine | edge-tts (Microsoft Neural) |" >> $GITHUB_STEP_SUMMARY
-
-      # ── 14. Upload build log (always) ────────────────────────
+      # ── 12. Upload build log (always) ────────────────────────
       - name: Upload build log
         if: always()
         uses: actions/upload-artifact@v4
@@ -181,21 +154,18 @@ jobs:
           path: build.log
           retention-days: 14
 
-      # ── 15. Upload APK (on success) ──────────────────────────
+      # ── 13. Upload APK ───────────────────────────────────────
       - name: Upload APK
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: TitanAI-Studio-Pro-v10.1-APK
+          name: TitanAI-Studio-Pro-APK
           path: bin/*.apk
           retention-days: 30
 
-      # ── 16. Failure report ───────────────────────────────────
-      - name: Report failure details
+      # ── 14. Failure details ───────────────────────────────────
+      - name: Show failure details
         if: failure()
         run: |
-          echo "## Build Failed" >> $GITHUB_STEP_SUMMARY
-          echo "### Last 100 lines of build log:" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          tail -100 build.log >> $GITHUB_STEP_SUMMARY || echo "No build log found"
-          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "=== Last 100 lines ==="
+          tail -100 build.log || echo "No log"
