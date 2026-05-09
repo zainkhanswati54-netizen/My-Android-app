@@ -1,9 +1,9 @@
 # =============================================================
 #  Titan AI Studio Pro — .github/workflows/build.yml
-#  Industry-Standard CI/CD Pipeline  v6.1
+#  CI/CD Pipeline  v1.0.0
 # =============================================================
 
-name: 🚀 Build Titan AI APK
+name: Build Titan AI APK
 
 on:
   workflow_dispatch:
@@ -13,6 +13,7 @@ on:
       - 'main.py'
       - 'buildozer.spec'
       - 'AI.png'
+      - 'requirements.txt'
       - '.github/workflows/build.yml'
 
 concurrency:
@@ -21,48 +22,44 @@ concurrency:
 
 jobs:
   build:
-    name: 🔨 Build Android APK
+    name: Build Android APK
     runs-on: ubuntu-22.04
     timeout-minutes: 90
 
     steps:
 
       # ── 1. Checkout ──────────────────────────────────────────
-      - name: 📥 Checkout repository
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          lfs: false
 
       # ── 2. Verify AI.png exists ──────────────────────────────
-      - name: ✅ Verify AI.png asset
+      - name: Verify AI.png asset
         run: |
-          echo "=== All files in repo root ==="
+          echo "=== Files in repo root ==="
           ls -la
-          echo ""
           if [ ! -f "AI.png" ]; then
-            echo "❌ AI.png not found in repo root!"
+            echo "AI.png not found!"
             exit 1
           fi
-          SIZE=$(du -sh AI.png | cut -f1)
-          echo "✅ AI.png found — Size: $SIZE"
-          file AI.png
+          echo "AI.png found — Size: $(du -sh AI.png | cut -f1)"
 
       # ── 3. Java 17 ───────────────────────────────────────────
-      - name: ☕ Set up JDK 17
+      - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
 
       # ── 4. Python 3.10 ───────────────────────────────────────
-      - name: 🐍 Set up Python 3.10
+      - name: Set up Python 3.10
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
 
       # ── 5. System packages ───────────────────────────────────
-      - name: 📦 Install system packages
+      - name: Install system packages
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y \
@@ -75,13 +72,13 @@ jobs:
             libffi-dev libltdl-dev
 
       # ── 6. Cython & Buildozer ────────────────────────────────
-      - name: 🔧 Install Cython & Buildozer
+      - name: Install Cython and Buildozer
         run: |
           pip3 install --user --upgrade pip setuptools wheel
           pip3 install --user Cython==0.29.33 buildozer==1.5.0
 
       # ── 7. Cache: Buildozer global ───────────────────────────
-      - name: 💾 Cache Buildozer global dir
+      - name: Cache Buildozer global dir
         uses: actions/cache@v4
         with:
           path: ~/.buildozer
@@ -89,7 +86,7 @@ jobs:
           restore-keys: buildozer-${{ runner.os }}-
 
       # ── 8. Cache: Android SDK ────────────────────────────────
-      - name: 💾 Cache Android SDK
+      - name: Cache Android SDK
         uses: actions/cache@v4
         with:
           path: ~/.android
@@ -97,7 +94,7 @@ jobs:
           restore-keys: android-sdk-${{ runner.os }}-
 
       # ── 9. Cache: Gradle ─────────────────────────────────────
-      - name: 💾 Cache Gradle
+      - name: Cache Gradle
         uses: actions/cache@v4
         with:
           path: |
@@ -106,41 +103,39 @@ jobs:
           key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*') }}
           restore-keys: gradle-${{ runner.os }}-
 
-      # ── 10. Build APK ─────────────────────────────────────────
-      - name: 🏗️ Build APK
+      # ── 10. Build APK ────────────────────────────────────────
+      - name: Build APK
         run: |
           export PATH=$PATH:$HOME/.local/bin
-          echo "=== Files before build ==="
-          ls -la
           yes | buildozer -v android debug 2>&1 | tee build.log
-          echo "=== Checking for APK ==="
           if ls bin/*.apk 1>/dev/null 2>&1; then
-            echo "✅ APK built successfully:"
+            echo "APK built successfully:"
             ls -lh bin/*.apk
           else
-            echo "❌ APK build FAILED"
+            echo "APK build FAILED"
             exit 1
           fi
         env:
           ACCEPT_SDK_LICENSE: "True"
           BUILDOZER_WARN_ON_ROOT: "0"
 
-      # ── 11. Build summary ─────────────────────────────────────
-      - name: 📊 Build summary
+      # ── 11. Build summary ────────────────────────────────────
+      - name: Build summary
         if: success()
         run: |
           APK=$(ls bin/*.apk | head -1)
           SIZE=$(du -sh "$APK" | cut -f1)
           NAME=$(basename "$APK")
-          echo "## ✅ Build Successful" >> $GITHUB_STEP_SUMMARY
+          echo "## Build Successful" >> $GITHUB_STEP_SUMMARY
           echo "| Field | Value |" >> $GITHUB_STEP_SUMMARY
           echo "|-------|-------|" >> $GITHUB_STEP_SUMMARY
           echo "| APK | \`$NAME\` |" >> $GITHUB_STEP_SUMMARY
           echo "| Size | $SIZE |" >> $GITHUB_STEP_SUMMARY
+          echo "| Version | 1.0.0 |" >> $GITHUB_STEP_SUMMARY
           echo "| Commit | ${{ github.sha }} |" >> $GITHUB_STEP_SUMMARY
 
-      # ── 12. Upload build log ──────────────────────────────────
-      - name: 📋 Upload build log
+      # ── 12. Upload build log ─────────────────────────────────
+      - name: Upload build log
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -148,18 +143,18 @@ jobs:
           path: build.log
           retention-days: 14
 
-      # ── 13. Upload APK ────────────────────────────────────────
-      - name: 📱 Upload APK
+      # ── 13. Upload APK ───────────────────────────────────────
+      - name: Upload APK artifact
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: TitanAI-Studio-Pro-APK
+          name: TitanAIStudioPro-v1.0.0-APK
           path: bin/*.apk
           retention-days: 30
 
-      # ── 14. Failure report ────────────────────────────────────
-      - name: ❌ Report failure
+      # ── 14. Failure report ───────────────────────────────────
+      - name: Report failure
         if: failure()
         run: |
-          echo "## ❌ Build Failed" >> $GITHUB_STEP_SUMMARY
+          echo "## Build Failed" >> $GITHUB_STEP_SUMMARY
           tail -80 build.log >> $GITHUB_STEP_SUMMARY || true
