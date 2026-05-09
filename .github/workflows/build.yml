@@ -1,9 +1,9 @@
 # =============================================================
-#  Titan AI Studio Pro — .github/workflows/build.yml
-#  Version 10.2.0  |  SDK fix — sdkmanager compatibility
+#  Titan Studio PRO — .github/workflows/build.yml
+#  Version 12.0.0  |  FIXED EDITION
 # =============================================================
 
-name: Build Titan AI APK
+name: Build Titan Studio PRO APK
 
 on:
   workflow_dispatch:
@@ -14,6 +14,7 @@ on:
       - 'buildozer.spec'
       - 'requirements.txt'
       - 'AI.png'
+      - 'p4a_recipes/**'
       - '.github/workflows/build.yml'
 
 concurrency:
@@ -58,7 +59,7 @@ jobs:
             gcc g++ unzip autoconf libtool ffmpeg \
             libffi-dev libltdl-dev cmake pkg-config
 
-      # ── 5. FIX: Android SDK cmdline-tools ────────────────────
+      # ── 5. Fix Android SDK cmdline-tools ─────────────────────
       - name: Fix Android SDK cmdline-tools
         run: |
           ANDROID_SDK=/usr/local/lib/android/sdk
@@ -93,7 +94,7 @@ jobs:
         env:
           ANDROID_HOME: /usr/local/lib/android/sdk
 
-      # ── 7. Install buildozer (latest, not pinned 1.5.0) ──────
+      # ── 7. Install Cython and Buildozer ──────────────────────
       - name: Install Cython and Buildozer
         run: |
           pip3 install --upgrade pip setuptools wheel
@@ -103,7 +104,7 @@ jobs:
       # ── 8. Verify edge-tts ───────────────────────────────────
       - name: Verify edge-tts
         run: |
-          pip3 install edge-tts aiohttp
+          pip3 install edge-tts aiohttp websockets
           python3 -c "import edge_tts; print('edge-tts OK')"
 
       # ── 9. Cache: Buildozer ──────────────────────────────────
@@ -111,7 +112,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.buildozer
-          key: buildozer-${{ runner.os }}-${{ hashFiles('buildozer.spec') }}-v3
+          key: buildozer-${{ runner.os }}-${{ hashFiles('buildozer.spec') }}-v4
           restore-keys: buildozer-${{ runner.os }}-
 
       # ── 10. Cache: Gradle ────────────────────────────────────
@@ -121,7 +122,7 @@ jobs:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-          key: gradle-${{ runner.os }}-v2
+          key: gradle-${{ runner.os }}-v3
           restore-keys: gradle-${{ runner.os }}-
 
       # ── 11. Build APK ────────────────────────────────────────
@@ -159,7 +160,7 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: TitanAI-Studio-Pro-APK
+          name: TitanStudio-PRO-v12-APK
           path: bin/*.apk
           retention-days: 30
 
