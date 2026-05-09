@@ -464,7 +464,8 @@ def get_file_info(path):
 def edge_tts_generate(text, voice, rate_str, volume_str, pitch_str, output_path):
     """
     Runs edge-tts synchronously using a dedicated thread + fresh event loop.
-    This solves the Android asyncio issue 100%.
+    Android asyncio fix: new event loop per thread.
+    Retries up to 3 times on network errors.
     Returns (True, '') on success or (False, error_msg) on failure.
     """
     result = {'ok': False, 'err': ''}
@@ -473,26 +474,55 @@ def edge_tts_generate(text, voice, rate_str, volume_str, pitch_str, output_path)
     def _thread_worker():
         try:
             import edge_tts
+            import ssl
 
-            # Create fresh event loop (key Android fix)
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
+            MAX_RETRIES = 3
+            last_err = ''
 
-            async def _async_gen():
-                communicate = edge_tts.Communicate(
-                    text=text,
-                    voice=voice,
-                    rate=rate_str,
-                    volume=volume_str,
-                    pitch=pitch_str,
-                )
-                await communicate.save(output_path)
+            for attempt in range(MAX_RETRIES):
+                try:
+                    # Create fresh event loop (key Android fix)
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
 
-            try:
-                loop.run_until_complete(_async_gen())
-                result['ok'] = True
-            finally:
-                loop.close()
+                    async def _async_gen():
+                        # Use connector with relaxed SSL for Android compatibility
+                        communicate = edge_tts.Communicate(
+                            text=text,
+                            voice=voice,
+                            rate=rate_str,
+                            volume=volume_str,
+                            pitch=pitch_str,
+                        )
+                        await communicate.save(output_path)
+
+                    try:
+                        loop.run_until_complete(_async_gen())
+                        result['ok'] = True
+                        last_err = ''
+                        break  # success — stop retrying
+                    finally:
+                        try:
+                            loop.close()
+                        except Exception:
+                            pass
+
+                except Exception as e:
+                    last_err = str(e)
+                    err_low = last_err.lower()
+                    # Only retry on network-related errors
+                    is_network = any(k in err_low for k in [
+                        'network', 'connection', 'gaierror', 'timeout',
+                        'errno', 'refused', 'reset', 'ssl', 'socket',
+                        'unreachable', 'broken pipe', 'eof',
+                    ])
+                    if not is_network or attempt == MAX_RETRIES - 1:
+                        break
+                    time.sleep(1.5 * (attempt + 1))  # wait before retry
+
+            if not result['ok']:
+                result['err'] = last_err
+
         except ImportError:
             result['err'] = 'IMPORT_ERROR'
         except Exception as e:
@@ -502,10 +532,10 @@ def edge_tts_generate(text, voice, rate_str, volume_str, pitch_str, output_path)
 
     t = threading.Thread(target=_thread_worker, daemon=True)
     t.start()
-    done_event.wait(timeout=45)  # 45 second timeout
+    done_event.wait(timeout=60)  # increased to 60s for slow connections
 
     if not done_event.is_set():
-        return False, 'Timeout — check internet connection'
+        return False, 'Timeout — server ne jawab nahi diya. Internet check karein.'
     return result['ok'], result['err']
 
 
@@ -806,9 +836,10 @@ class EmotionPicker(BoxLayout):
 
     def _add_btn(self, parent, emotion):
         data = EMOTION_TAGS[emotion]
+        # Use text-only labels (emoji broken on many Android devices)
         b = FlatBtn(
-            text=data['icon'] + '\n' + emotion,
-            bg=C_CARD2, font_size=sp(10), bold=False, radius=12,
+            text=emotion,
+            bg=C_CARD2, font_size=sp(11), bold=True, radius=12,
         )
         b.bind(on_press=lambda x, e=emotion: self._select(e))
         self._btns[emotion] = b
@@ -851,9 +882,21 @@ class PresetPicker(BoxLayout):
         sv = ScrollView(size_hint=(1, None), height=dp(120))
         row = BoxLayout(orientation='horizontal', size_hint=(None, 1), spacing=dp(10), padding=[dp(2), dp(4)])
         row.bind(minimum_width=row.setter('width'))
+        # Map preset to text label (emoji replaced with text for Android compatibility)
+        PRESET_LABELS = {
+            'Narrator':   'NAR',
+            'Newsreader': 'NEWS',
+            'Story Mode': 'STORY',
+            'Meditation': 'MED',
+            'Commercial': 'ADS',
+            'Robot':      'BOT',
+            'Poet':       'POET',
+            'Audiobook':  'BOOK',
+        }
         for preset_name, data in VOICE_PRESETS.items():
             col = BoxLayout(orientation='vertical', size_hint=(None, 1), width=dp(88), spacing=dp(4))
-            b = FlatBtn(text=data['icon'], bg=C_CARD2, size_hint_y=None, height=dp(52), font_size=sp(26), radius=12)
+            short = PRESET_LABELS.get(preset_name, preset_name[:4].upper())
+            b = FlatBtn(text=short, bg=C_CARD2, size_hint_y=None, height=dp(52), font_size=sp(13), bold=True, radius=12)
             b.bind(on_press=lambda x, n=preset_name: self._select(n))
             nl = Label(text=preset_name, font_size=sp(9), color=hex_c(C_MUTED2), size_hint_y=None, height=dp(20), bold=True)
             col.add_widget(b)
@@ -1139,7 +1182,7 @@ class HistoryScreen(Screen):
         back = FlatBtn(text='← Back', bg=C_GRAY, size_hint_x=None, width=dp(110), font_size=sp(15))
         back.bind(on_press=self._go_back)
         hdr.add_widget(back)
-        hdr.add_widget(lbl('📋 Voice History', 22, C_ACCENT, True, 72))
+        hdr.add_widget(lbl('Voice History', 22, C_ACCENT, True, 72))
         outer.add_widget(hdr)
         outer.add_widget(separator())
 
@@ -1159,7 +1202,7 @@ class HistoryScreen(Screen):
         outer.add_widget(sv)
         outer.add_widget(separator())
 
-        clr = FlatBtn(text='🗑  Clear All History', bg=C_DARK_RED, size_hint_y=None, height=dp(58), font_size=sp(16))
+        clr = FlatBtn(text='Clear All History', bg=C_DARK_RED, size_hint_y=None, height=dp(58), font_size=sp(16))
         clr.bind(on_press=self._confirm_clear)
         outer.add_widget(clr)
 
@@ -1296,7 +1339,7 @@ class SettingsScreen(Screen):
         fc = BoxLayout(orientation='vertical', size_hint_y=None, height=dp(130),
                        padding=[dp(16), dp(12)], spacing=dp(8))
         card_bg(fc, C_CARD2, 14)
-        fc.add_widget(lbl('📁 Save Folder: Titan Studio PRO', 14, C_ACCENT, True, 28))
+        fc.add_widget(lbl('Save Folder: Titan Studio PRO', 14, C_ACCENT, True, 28))
         titan_path = get_titan_folder()
         pl = Label(text=titan_path, font_size=sp(12), color=hex_c(C_WHITE2),
                    halign='left', valign='middle', size_hint_y=None, height=dp(40))
@@ -1324,7 +1367,7 @@ class SettingsScreen(Screen):
         api_card = BoxLayout(orientation='vertical', size_hint_y=None, height=dp(180),
                              padding=[dp(16), dp(12)], spacing=dp(10))
         card_bg(api_card, C_CARD2, 14)
-        api_card.add_widget(lbl('🔑 ElevenLabs API (Voice Cloning)', 14, C_ACCENT, True, 28))
+        api_card.add_widget(lbl('ElevenLabs API (Voice Cloning)', 14, C_ACCENT, True, 28))
         api_card.add_widget(lbl('For premium voice cloning features:', 12, C_MUTED2, False, 28))
         settings = settings_load()
         self.api_input = TextInput(
@@ -1336,7 +1379,7 @@ class SettingsScreen(Screen):
             font_size=sp(14), password=True,
         )
         api_card.add_widget(self.api_input)
-        save_key_btn = FlatBtn(text='💾 Save API Key', bg=C_BLUE, size_hint_y=None, height=dp(48), font_size=sp(14))
+        save_key_btn = FlatBtn(text='Save API Key', bg=C_BLUE, size_hint_y=None, height=dp(48), font_size=sp(14))
         save_key_btn.bind(on_press=self._save_api_key)
         api_card.add_widget(save_key_btn)
         content.add_widget(api_card)
@@ -1400,7 +1443,7 @@ class BatchQueueScreen(Screen):
         back = FlatBtn(text='← Back', bg=C_GRAY, size_hint_x=None, width=dp(100), font_size=sp(14))
         back.bind(on_press=lambda *a: self._go_back())
         hdr.add_widget(back)
-        hdr.add_widget(lbl('📋 Batch Processing Queue', 18, C_ACCENT, True, 64))
+        hdr.add_widget(lbl('Batch Processing Queue', 18, C_ACCENT, True, 64))
         outer.add_widget(hdr)
         outer.add_widget(separator())
 
@@ -1418,9 +1461,9 @@ class BatchQueueScreen(Screen):
         outer.add_widget(separator())
 
         ctrl = BoxLayout(size_hint_y=None, height=dp(58), spacing=dp(12))
-        self.proc_btn = FlatBtn(text='▶ Process All', bg=C_GREEN, font_size=sp(15))
+        self.proc_btn = FlatBtn(text='Process All', bg=C_GREEN, font_size=sp(15))
         self.proc_btn.bind(on_press=self._process_all)
-        clr_btn = FlatBtn(text='🗑 Clear Queue', bg=C_DARK_RED, font_size=sp(14))
+        clr_btn = FlatBtn(text='Clear Queue', bg=C_DARK_RED, font_size=sp(14))
         clr_btn.bind(on_press=self._clear_queue)
         ctrl.add_widget(self.proc_btn)
         ctrl.add_widget(clr_btn)
@@ -1590,8 +1633,9 @@ class StudioScreen(Screen):
         tb.add_widget(t2)
         hdr.add_widget(tb)
 
-        settings_btn = IconBtn(icon='⚙', size_dp=44, bg=C_CARD2)
-        settings_btn.font_size = sp(20)
+        settings_btn = FlatBtn(text='SET', bg=C_CARD2, size_hint=(None, None),
+                               font_size=sp(11), bold=True, radius=10)
+        settings_btn.size = (dp(50), dp(44))
         settings_btn.bind(on_press=lambda *a: self._go_settings())
         hdr.add_widget(settings_btn)
 
@@ -1629,7 +1673,7 @@ class StudioScreen(Screen):
         gr = BoxLayout(size_hint_y=None, height=dp(60), spacing=dp(10))
         self._vbtns = {}
         for name, icon, label in [('Male', '♂', 'Male'), ('Female', '♀', 'Female')]:
-            b = FlatBtn(text=icon + '\n' + label, bg=C_CARD2, font_size=sp(13), bold=True, radius=12)
+            b = FlatBtn(text=label, bg=C_CARD2, font_size=sp(13), bold=True, radius=12)
             b.bind(on_press=lambda inst, n=name: self._pick_voice(n))
             gr.add_widget(b)
             self._vbtns[name] = b
@@ -1678,7 +1722,7 @@ class StudioScreen(Screen):
         top_row = BoxLayout(size_hint_y=None, height=dp(38), spacing=dp(8))
         self.char_lbl = lbl('0 chars · 0 lines · 0 words', 12, C_MUTED, False, 38)
         top_row.add_widget(self.char_lbl)
-        imp = FlatBtn(text='📂 Import', bg=C_BLUE2, size_hint_x=None, width=dp(100), font_size=sp(13))
+        imp = FlatBtn(text='Import', bg=C_BLUE2, size_hint_x=None, width=dp(100), font_size=sp(13))
         imp.bind(on_press=self._import_file)
         top_row.add_widget(imp)
         clr_txt = IconBtn(icon='✕', size_dp=38, bg=C_CARD3)
@@ -1727,7 +1771,7 @@ class StudioScreen(Screen):
 
         # ── Generate Button (large, glowing) ──
         self.gen_btn = FlatBtn(
-            text='🎙 Generate Voice',
+            text='Generate Voice',
             bg=C_BLUE, size_hint_y=None, height=dp(72),
             font_size=sp(20), bold=True, radius=18,
         )
@@ -1736,8 +1780,8 @@ class StudioScreen(Screen):
 
         # ── Preview + Save Row ──
         pd_row = BoxLayout(size_hint_y=None, height=dp(62), spacing=dp(14))
-        self.play_btn = FlatBtn(text='▶ Play Preview', bg=C_RED, font_size=sp(15), disabled=True)
-        self.dl_btn = FlatBtn(text='💾 Save Voice', bg=C_GREEN, font_size=sp(15), disabled=True)
+        self.play_btn = FlatBtn(text='Play Preview', bg=C_RED, font_size=sp(15), disabled=True)
+        self.dl_btn = FlatBtn(text='Save Voice', bg=C_GREEN, font_size=sp(15), disabled=True)
         self.play_btn.bind(on_press=self._play)
         self.dl_btn.bind(on_press=self._download)
         pd_row.add_widget(self.play_btn)
@@ -1746,9 +1790,9 @@ class StudioScreen(Screen):
 
         # ── Navigation Row ──
         nav_row = BoxLayout(size_hint_y=None, height=dp(56), spacing=dp(10))
-        hist_btn = FlatBtn(text='📋 History', bg=C_PURPLE, font_size=sp(14))
+        hist_btn = FlatBtn(text='History', bg=C_PURPLE, font_size=sp(14))
         hist_btn.bind(on_press=lambda *a: self._go_hist())
-        batch_btn = FlatBtn(text='📦 Batch Queue', bg=C_GRAY, font_size=sp(14))
+        batch_btn = FlatBtn(text='Batch Queue', bg=C_GRAY, font_size=sp(14))
         batch_btn.bind(on_press=lambda *a: self._go_batch())
         nav_row.add_widget(hist_btn)
         nav_row.add_widget(batch_btn)
@@ -1757,7 +1801,7 @@ class StudioScreen(Screen):
         # ── Save folder banner ──
         folder_banner = BoxLayout(size_hint_y=None, height=dp(60), padding=[dp(14), dp(8)], spacing=dp(8))
         card_bg(folder_banner, C_SURFACE, 12)
-        folder_banner.add_widget(Label(text='📁', font_size=sp(22), size_hint_x=None, width=dp(36)))
+        folder_banner.add_widget(Label(text='[Folder]', font_size=sp(22), size_hint_x=None, width=dp(36)))
         titan_p = get_titan_folder()
         fl = Label(text='Auto-saves to: Titan Studio PRO/Audio/\n' + titan_p,
                    font_size=sp(11), color=hex_c(C_MUTED2), halign='left', valign='middle')
@@ -1769,7 +1813,7 @@ class StudioScreen(Screen):
         how_card = BoxLayout(orientation='vertical', size_hint_y=None, height=dp(250),
                              padding=[dp(16), dp(14)], spacing=dp(5))
         card_bg(how_card, C_CARD, 14)
-        how_card.add_widget(lbl('📖 Quick Guide', 15, C_ACCENT, True, 34))
+        how_card.add_widget(lbl('Quick Guide', 15, C_ACCENT, True, 34))
         steps = [
             '1. Select Voice Preset (Narrator, News, etc.)',
             '2. Choose Language (30+ supported)',
@@ -1777,7 +1821,7 @@ class StudioScreen(Screen):
             '4. Set Emotion (Whisper, Shout, Happy…)',
             '5. Adjust Speed & Pitch sliders',
             '6. Type or Import text (TXT/PDF/DOCX)',
-            '7. Tap 🎙 Generate Voice',
+            '7. Tap [Generate Voice] button',
             '8. Preview → auto-saved to Titan Studio PRO/',
         ]
         for s in steps:
@@ -1816,15 +1860,23 @@ class StudioScreen(Screen):
 
     def _on_lang_change(self, inst, lang):
         if lang in RTL_LANGS:
-            self.rtl_lbl.text = '← RTL mode: ' + lang
+            self.rtl_lbl.text = '← RTL mode: ' + lang + '  |  Apna ' + lang + ' keyboard use karein'
             try:
                 self.txt.base_direction = 'rtl'
+            except Exception:
+                pass
+            try:
+                self.txt.hint_text = lang + ' mein yahan likhein...'
             except Exception:
                 pass
         else:
             self.rtl_lbl.text = ''
             try:
                 self.txt.base_direction = 'ltr'
+            except Exception:
+                pass
+            try:
+                self.txt.hint_text = 'Enter text here... (Urdu, Arabic, English, any language)'
             except Exception:
                 pass
 
@@ -2073,12 +2125,16 @@ class StudioScreen(Screen):
     def _on_err(self, msg):
         self.waveform.stop()
         m = msg.lower()
-        if any(k in m for k in ['network', 'connection', 'gaierror', 'timeout', 'errno']):
-            txt = '⚠ No internet! TTS needs an active connection.'
+        if any(k in m for k in ['network', 'connection', 'gaierror', 'timeout', 'errno',
+                                  'refused', 'reset', 'ssl', 'socket', 'unreachable',
+                                  'broken pipe', 'eof', 'server ne']):
+            txt = '⚠ Network Error! edge-tts Microsoft server se connect nahi hua.\nInternet ON hai? Dobara try karein — "Generate Voice" dabayein.'
         elif 'lang' in m:
-            txt = '⚠ Language not supported by the TTS engine.'
+            txt = '⚠ Yeh language TTS engine support nahi karta.'
+        elif 'import_error' in m:
+            txt = '⚠ edge-tts install nahi hai — gTTS fallback use ho raha hai.'
         else:
-            txt = '⚠ Error: ' + msg[:80]
+            txt = '⚠ Error: ' + msg[:100]
         self._upd(0, txt)
         self._set_ready(ok=False)
 
@@ -2087,12 +2143,12 @@ class StudioScreen(Screen):
             return
         if self._audio.state == 'play':
             self._audio.stop()
-            self.play_btn.text = '▶ Play Preview'
+            self.play_btn.text = 'Play Preview'
             self.play_btn.set_bg(C_RED)
             self.waveform.stop()
         else:
             self._audio.play()
-            self.play_btn.text = '⏹ Stop'
+            self.play_btn.text = 'Stop'
             self.play_btn.set_bg(C_AMBER)
             self.waveform.start()
 
