@@ -1,7 +1,16 @@
 # ============================================================
 # TITAN AI STUDIO PRO - main.py
-# Version: 1.0.0
+# Version: 1.1.0  (Android Crash Fixed)
 # Professional Voice Studio - Always Free
+# ============================================================
+#
+# FIXES IN THIS VERSION:
+#  - edge-tts replaced with gtts for Android compatibility
+#  - asyncio removed (crashes Android)
+#  - Storage path fixed for Android 10+
+#  - Permissions requested BEFORE storage access
+#  - SoundLoader fixed for Android
+#  - Thread safety improved
 # ============================================================
 
 import os
@@ -33,31 +42,33 @@ from kivy.animation import Animation
 from kivy.core.audio import SoundLoader
 
 # ─── Platform Check ───────────────────────────────────────────
+IS_ANDROID = False
 try:
-    from android.permissions import request_permissions, Permission
-    from android.storage import primary_external_storage_path
+    import android
+    from android.permissions import (
+        request_permissions,
+        check_permission,
+        Permission,
+    )
     IS_ANDROID = True
-except ImportError:
+except Exception:
     IS_ANDROID = False
 
-# ─── TTS Engine ───────────────────────────────────────────────
+# ─── TTS Engine (Android safe — NO asyncio) ───────────────────
+TTS_ENGINE = "none"
 try:
-    import edge_tts
-    import asyncio
-    TTS_ENGINE = "edge"
-except ImportError:
-    try:
-        from gtts import gTTS
-        TTS_ENGINE = "gtts"
-    except ImportError:
-        TTS_ENGINE = "none"
+    from gtts import gTTS
+    TTS_ENGINE = "gtts"
+except Exception:
+    pass
 
 # ─── ElevenLabs ───────────────────────────────────────────────
+REQUESTS_AVAILABLE = False
 try:
     import requests
     REQUESTS_AVAILABLE = True
-except ImportError:
-    REQUESTS_AVAILABLE = False
+except Exception:
+    pass
 
 # ==============================================================
 #  THEME / COLORS
@@ -80,83 +91,68 @@ COLORS = {
 Window.clearcolor = COLORS["bg_dark"]
 
 # ==============================================================
-#  SAVE FOLDER SETUP
+#  SAFE SAVE FOLDER SETUP  (Android crash fix)
 # ==============================================================
 def get_save_root():
+    """Get safe writable directory for Android and desktop."""
     if IS_ANDROID:
-        ext = primary_external_storage_path()
-        return os.path.join(ext, "TitanAIStudio")
+        # Use app's private external files dir — no MANAGE_EXTERNAL_STORAGE needed
+        try:
+            from android.storage import app_storage_path
+            base = app_storage_path()
+        except Exception:
+            # Fallback to internal app data dir
+            from kivy.app import App as KivyApp
+            base = KivyApp.get_running_app().user_data_dir if KivyApp.get_running_app() else "/sdcard"
+        return os.path.join(base, "TitanAIStudio")
     else:
         return os.path.join(os.path.expanduser("~"), "TitanAIStudio")
 
+
 def create_folders():
-    root = get_save_root()
-    subfolders = ["Audio", "Cloned", "Imported", "Exports", "Presets", "Queue"]
-    for sub in subfolders:
-        path = os.path.join(root, sub)
-        os.makedirs(path, exist_ok=True)
-    return root
+    """Create all required subfolders safely."""
+    try:
+        root = get_save_root()
+        subfolders = ["Audio", "Cloned", "Imported", "Exports", "Presets", "Queue"]
+        for sub in subfolders:
+            path = os.path.join(root, sub)
+            os.makedirs(path, exist_ok=True)
+        return root
+    except Exception as e:
+        # Fallback to a definitely-writable location
+        fallback = os.path.join(os.path.expanduser("~"), "TitanAIStudio")
+        os.makedirs(fallback, exist_ok=True)
+        return fallback
 
-SAVE_ROOT = create_folders()
+# Defer SAVE_ROOT init until after permissions on Android
+SAVE_ROOT = None
 
 # ==============================================================
-#  VOICE ENGINE
+#  VOICE ENGINE  (Android-safe, no asyncio)
 # ==============================================================
 
-# Edge TTS voice map — gender + mood aware
-EDGE_VOICES = {
-    "male": {
-        "normal":   "en-US-GuyNeural",
-        "happy":    "en-US-GuyNeural",
-        "sad":      "en-US-GuyNeural",
-        "whisper":  "en-US-GuyNeural",
-        "shout":    "en-US-GuyNeural",
-        "sarcasm":  "en-US-GuyNeural",
-        "excited":  "en-US-GuyNeural",
-        "serious":  "en-US-GuyNeural",
-    },
-    "female": {
-        "normal":   "en-US-JennyNeural",
-        "happy":    "en-US-JennyNeural",
-        "sad":      "en-US-JennyNeural",
-        "whisper":  "en-US-JennyNeural",
-        "shout":    "en-US-JennyNeural",
-        "sarcasm":  "en-US-JennyNeural",
-        "excited":  "en-US-JennyNeural",
-        "serious":  "en-US-JennyNeural",
-    },
+# gTTS lang + speed mapping
+GTTS_LANGS = {
+    "male":   "en",
+    "female": "en",
 }
 
-# Mood → SSML style mapping for Edge TTS
-MOOD_STYLES = {
-    "normal":  "general",
-    "happy":   "cheerful",
-    "sad":     "sad",
-    "whisper": "whispering",
-    "shout":   "shouting",
-    "sarcasm": "disgruntled",
-    "excited": "excited",
-    "serious": "serious",
-}
-
-
-async def _edge_generate(text, voice, style, rate, pitch_shift, out_path):
-    """Async Edge TTS generation with style and rate."""
-    rate_str = f"+{int((rate - 1.0) * 100)}%" if rate >= 1.0 else f"{int((rate - 1.0) * 100)}%"
-    pitch_str = f"+{pitch_shift}Hz" if pitch_shift >= 0 else f"{pitch_shift}Hz"
-    communicate = edge_tts.Communicate(text, voice, rate=rate_str, pitch=pitch_str)
-    await communicate.save(out_path)
+# Speed tiers for gTTS (only normal vs slow available)
+def _gtts_slow(speed):
+    return speed < 0.85
 
 
 def generate_voice(text, gender="female", mood="normal", speed=1.0,
                    pitch=0, elevenlabs_key=None, callback=None):
     """
-    Master voice generation function.
-    gender: 'male' | 'female'
-    mood:   'normal' | 'happy' | 'sad' | 'whisper' | 'shout' | 'sarcasm' | 'excited' | 'serious'
-    speed:  0.5 – 2.0 (1.0 = normal)
-    pitch:  semitones -10 to +10
+    Master voice generation. Runs in background thread.
+    Android-safe: no asyncio, no edge-tts.
     """
+    if SAVE_ROOT is None:
+        if callback:
+            Clock.schedule_once(lambda dt: callback(None, "Storage not ready yet. Try again."), 0)
+        return
+
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     out_path = os.path.join(SAVE_ROOT, "Audio", f"titan_{timestamp}.mp3")
 
@@ -164,24 +160,22 @@ def generate_voice(text, gender="female", mood="normal", speed=1.0,
         try:
             if elevenlabs_key and REQUESTS_AVAILABLE:
                 _elevenlabs_generate(text, gender, out_path, elevenlabs_key)
-            elif TTS_ENGINE == "edge":
-                voice = EDGE_VOICES.get(gender, EDGE_VOICES["female"]).get(mood, EDGE_VOICES["female"]["normal"])
-                style = MOOD_STYLES.get(mood, "general")
-                pitch_hz = pitch * 10  # semitones → approximate Hz offset
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                loop.run_until_complete(_edge_generate(text, voice, style, speed, pitch_hz, out_path))
-                loop.close()
+
             elif TTS_ENGINE == "gtts":
-                tts = gTTS(text=text, lang="en", slow=(speed < 0.8))
+                slow = _gtts_slow(speed)
+                tts = gTTS(text=text, lang=GTTS_LANGS.get(gender, "en"), slow=slow)
                 tts.save(out_path)
+
             else:
                 if callback:
-                    Clock.schedule_once(lambda dt: callback(None, "No TTS engine installed. Run: pip install edge-tts"), 0)
+                    Clock.schedule_once(
+                        lambda dt: callback(None, "No TTS engine found.\nInstall gTTS: pip install gTTS"), 0
+                    )
                 return
 
             if callback:
                 Clock.schedule_once(lambda dt: callback(out_path, None), 0)
+
         except Exception as e:
             if callback:
                 Clock.schedule_once(lambda dt: callback(None, str(e)), 0)
@@ -193,9 +187,12 @@ def _elevenlabs_generate(text, gender, out_path, api_key):
     voice_id = "ErXwobaYiN019PkySvjV" if gender == "male" else "21m00Tcm4TlvDq8ikWAM"
     url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
     headers = {"xi-api-key": api_key, "Content-Type": "application/json"}
-    payload = {"text": text, "model_id": "eleven_monolingual_v1",
-               "voice_settings": {"stability": 0.5, "similarity_boost": 0.75}}
-    resp = requests.post(url, json=payload, headers=headers)
+    payload = {
+        "text": text,
+        "model_id": "eleven_monolingual_v1",
+        "voice_settings": {"stability": 0.5, "similarity_boost": 0.75},
+    }
+    resp = requests.post(url, json=payload, headers=headers, timeout=30)
     if resp.status_code == 200:
         with open(out_path, "wb") as f:
             f.write(resp.content)
@@ -208,8 +205,6 @@ def _elevenlabs_generate(text, gender, out_path, api_key):
 # ==============================================================
 
 class RoundedButton(Button):
-    """A button with rounded corners and custom colors."""
-
     def __init__(self, bg_color=None, text_color=None, radius=dp(12), **kwargs):
         super().__init__(**kwargs)
         self.bg_color = bg_color or COLORS["blue"]
@@ -226,8 +221,7 @@ class RoundedButton(Button):
         self.canvas.before.clear()
         with self.canvas.before:
             Color(*self.bg_color)
-            RoundedRectangle(pos=self.pos, size=self.size,
-                             radius=[self.radius])
+            RoundedRectangle(pos=self.pos, size=self.size, radius=[self.radius])
 
     def on_press(self):
         anim = Animation(opacity=0.7, duration=0.05) + Animation(opacity=1.0, duration=0.05)
@@ -235,25 +229,20 @@ class RoundedButton(Button):
 
 
 class CirclePlayButton(Button):
-    """Round play/pause button like a media player."""
-
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.is_playing = False
         self.background_color = (0, 0, 0, 0)
         self.size_hint = (None, None)
         self.size = (dp(64), dp(64))
-        self.bind(pos=self._draw, size=self._draw, is_playing=self._draw)
+        self.bind(pos=self._draw, size=self._draw)
         Clock.schedule_once(self._draw)
 
     def _draw(self, *args):
         self.canvas.before.clear()
         with self.canvas.before:
-            # Outer circle
             Color(*COLORS["blue"])
             Ellipse(pos=self.pos, size=self.size)
-            # Inner icon: ▶ or ▮▮
-            Color(*COLORS["text"])
         self.text = "⏸" if self.is_playing else "▶"
         self.color = COLORS["text"]
         self.font_size = dp(22)
@@ -261,11 +250,10 @@ class CirclePlayButton(Button):
 
     def toggle(self):
         self.is_playing = not self.is_playing
+        self._draw()
 
 
 class CardBox(BoxLayout):
-    """A card with rounded background."""
-
     def __init__(self, bg=None, radius=dp(14), padding=dp(14), **kwargs):
         kwargs.setdefault("orientation", "vertical")
         super().__init__(padding=padding, **kwargs)
@@ -278,13 +266,10 @@ class CardBox(BoxLayout):
         self.canvas.before.clear()
         with self.canvas.before:
             Color(*self._bg_color)
-            RoundedRectangle(pos=self.pos, size=self.size,
-                             radius=[self._radius])
+            RoundedRectangle(pos=self.pos, size=self.size, radius=[self._radius])
 
 
 class SectionLabel(Label):
-    """Blue section header label."""
-
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.color = COLORS["blue_light"]
@@ -298,8 +283,6 @@ class SectionLabel(Label):
 
 
 class SubLabel(Label):
-    """Gray subtext label."""
-
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.color = COLORS["text_sub"]
@@ -312,8 +295,6 @@ class SubLabel(Label):
 
 
 class MoodButton(ToggleButton):
-    """Mood/emotion toggle button."""
-
     def __init__(self, mood_name, icon, **kwargs):
         super().__init__(group="mood", **kwargs)
         self.mood_name = mood_name
@@ -342,8 +323,6 @@ class MoodButton(ToggleButton):
 
 
 class GenderButton(ToggleButton):
-    """Male/Female gender toggle."""
-
     def __init__(self, label, icon, gender_val, **kwargs):
         super().__init__(group="gender", **kwargs)
         self.gender_val = gender_val
@@ -372,16 +351,10 @@ class GenderButton(ToggleButton):
 
 
 # ==============================================================
-#  SPLASH SCREEN  (only once)
+#  SPLASH SCREEN
 # ==============================================================
 
 class SplashScreen(Screen):
-
-    def on_enter(self):
-        Clock.schedule_once(self._go_main, 2.0)
-
-    def _go_main(self, dt):
-        self.manager.current = "main"
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -389,10 +362,11 @@ class SplashScreen(Screen):
         with layout.canvas.before:
             Color(*COLORS["bg_dark"])
             self._rect = Rectangle(size=Window.size)
-        layout.bind(size=lambda *a: setattr(self._rect, "size", layout.size),
-                    pos=lambda *a: setattr(self._rect, "pos", layout.pos))
+        layout.bind(
+            size=lambda *a: setattr(self._rect, "size", layout.size),
+            pos=lambda *a: setattr(self._rect, "pos", layout.pos),
+        )
 
-        # Logo area
         logo_box = BoxLayout(orientation="vertical", spacing=dp(8))
         logo_box.add_widget(Widget())
 
@@ -425,9 +399,19 @@ class SplashScreen(Screen):
         )
         logo_box.add_widget(sub)
         logo_box.add_widget(Widget())
-
         layout.add_widget(logo_box)
         self.add_widget(layout)
+
+    def on_enter(self):
+        # Give Android time to process permissions before going to main
+        Clock.schedule_once(self._go_main, 2.5)
+
+    def _go_main(self, dt):
+        # Init storage after splash (permissions already requested)
+        global SAVE_ROOT
+        if SAVE_ROOT is None:
+            SAVE_ROOT = create_folders()
+        self.manager.current = "main"
 
 
 # ==============================================================
@@ -439,7 +423,6 @@ class MainScreen(Screen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-        # ── State ─────────────────────────────────────────────
         self.selected_gender = "female"
         self.selected_mood   = "normal"
         self.speed_val       = 1.0
@@ -447,9 +430,8 @@ class MainScreen(Screen):
         self.last_audio_path = None
         self.current_sound   = None
         self.history         = []
-        self.elevenlabs_key  = self._load_api_key()
+        self.elevenlabs_key  = ""  # loaded on_enter
 
-        # ── Root layout ───────────────────────────────────────
         root = BoxLayout(orientation="vertical")
         root.add_widget(self._build_header())
 
@@ -471,24 +453,30 @@ class MainScreen(Screen):
         root.add_widget(scroll)
         self.add_widget(root)
 
-    # ── HEADER ────────────────────────────────────────────────
+    def on_enter(self):
+        # Load API key after storage is ready
+        self.elevenlabs_key = self._load_api_key()
+        # Update save path label
+        if SAVE_ROOT and hasattr(self, "_save_sub"):
+            self._save_sub.text = f"Saves to: {os.path.join(SAVE_ROOT, 'Audio')}"
+
+    # ── HEADER ──────────────────────────────────────────────────
     def _build_header(self):
         header = BoxLayout(orientation="horizontal", size_hint_y=None,
                            height=dp(64), padding=[dp(12), dp(8)], spacing=dp(10))
         with header.canvas.before:
             Color(*COLORS["bg_card"])
             self._hdr_rect = Rectangle()
-        header.bind(pos=lambda *a: setattr(self._hdr_rect, "pos", header.pos),
-                    size=lambda *a: setattr(self._hdr_rect, "size", header.size))
+        header.bind(
+            pos=lambda *a: setattr(self._hdr_rect, "pos", header.pos),
+            size=lambda *a: setattr(self._hdr_rect, "size", header.size),
+        )
 
-        # Logo box
         logo_box = BoxLayout(orientation="horizontal", size_hint_x=None,
                              width=dp(48), spacing=dp(4))
-        logo_lbl = Label(text="SG", font_size=dp(20), bold=True,
-                         color=COLORS["blue"])
+        logo_lbl = Label(text="SG", font_size=dp(20), bold=True, color=COLORS["blue"])
         logo_box.add_widget(logo_lbl)
 
-        # Title box
         title_box = BoxLayout(orientation="vertical", spacing=0)
         title_box.add_widget(Label(text="Titan AI Studio Pro", font_size=dp(15),
                                    bold=True, color=COLORS["text"],
@@ -499,7 +487,6 @@ class MainScreen(Screen):
                                    halign="left", valign="top",
                                    text_size=(None, None)))
 
-        # Settings button
         settings_btn = RoundedButton(text="⚙", bg_color=COLORS["bg_card2"],
                                      size_hint=(None, None),
                                      size=(dp(44), dp(44)), radius=dp(10))
@@ -511,16 +498,15 @@ class MainScreen(Screen):
         header.add_widget(settings_btn)
         return header
 
-    # ── GENDER ROW ────────────────────────────────────────────
+    # ── GENDER ROW ──────────────────────────────────────────────
     def _build_gender_row(self):
         card = CardBox(size_hint_y=None, height=dp(72))
         card.add_widget(SectionLabel(text="♂♀  Voice Gender"))
         row = BoxLayout(orientation="horizontal", spacing=dp(8),
                         size_hint_y=None, height=dp(52))
 
-        male_btn = GenderButton("Male", "♂", "male")
+        male_btn   = GenderButton("Male",   "♂", "male")
         female_btn = GenderButton("Female", "♀", "female", state="down")
-        self._female_btn = female_btn
 
         def on_gender(btn, state):
             if state == "down":
@@ -534,15 +520,15 @@ class MainScreen(Screen):
         card.add_widget(row)
         return card
 
-    # ── MOOD ROW ──────────────────────────────────────────────
+    # ── MOOD ROW ────────────────────────────────────────────────
     def _build_mood_row(self):
         card = CardBox(size_hint_y=None, height=dp(160))
         card.add_widget(SectionLabel(text="🎭  Emotions & Mood"))
 
         moods = [
-            ("Normal",   "😐"), ("Happy",   "😊"), ("Sad",     "😢"),
-            ("Whisper",  "🤫"), ("Shout",   "📢"), ("Sarcasm", "😏"),
-            ("Excited",  "🤩"), ("Serious", "😐"),
+            ("Normal",  "😐"), ("Happy",   "😊"), ("Sad",     "😢"),
+            ("Whisper", "🤫"), ("Shout",   "📢"), ("Sarcasm", "😏"),
+            ("Excited", "🤩"), ("Serious", "😐"),
         ]
 
         grid = GridLayout(cols=4, spacing=dp(6), size_hint_y=None, height=dp(130))
@@ -563,7 +549,7 @@ class MainScreen(Screen):
         card.add_widget(grid)
         return card
 
-    # ── SPEED & PITCH ─────────────────────────────────────────
+    # ── SPEED & PITCH ───────────────────────────────────────────
     def _build_speed_pitch(self):
         card = CardBox(size_hint_y=None, height=dp(160), spacing=dp(6))
         card.add_widget(SectionLabel(text="⚡  Speed  &  🎵  Pitch & Tone Shift"))
@@ -571,9 +557,8 @@ class MainScreen(Screen):
         row = BoxLayout(orientation="horizontal", spacing=dp(10),
                         size_hint_y=None, height=dp(110))
 
-        # Speed slider card
         spd_card = CardBox(bg=COLORS["bg_card2"])
-        spd_hdr = BoxLayout(orientation="horizontal", size_hint_y=None, height=dp(24))
+        spd_hdr  = BoxLayout(orientation="horizontal", size_hint_y=None, height=dp(24))
         spd_hdr.add_widget(SubLabel(text="Speed"))
         self._speed_lbl = Label(text="100%", font_size=dp(12),
                                  color=COLORS["blue_light"],
@@ -588,9 +573,8 @@ class MainScreen(Screen):
         spd_slider.bind(value=self._on_speed)
         spd_card.add_widget(spd_slider)
 
-        # Pitch slider card
         pch_card = CardBox(bg=COLORS["bg_card2"])
-        pch_hdr = BoxLayout(orientation="horizontal", size_hint_y=None, height=dp(24))
+        pch_hdr  = BoxLayout(orientation="horizontal", size_hint_y=None, height=dp(24))
         pch_hdr.add_widget(SubLabel(text="Pitch & Tone"))
         self._pitch_lbl = Label(text="0 st", font_size=dp(12),
                                  color=COLORS["blue_light"],
@@ -618,7 +602,7 @@ class MainScreen(Screen):
         self.pitch_val = int(val)
         self._pitch_lbl.text = f"{int(val):+d} st"
 
-    # ── ADVANCED OPTIONS ──────────────────────────────────────
+    # ── ADVANCED OPTIONS ────────────────────────────────────────
     def _build_advanced(self):
         card = CardBox(size_hint_y=None, height=dp(210), spacing=dp(4))
         card.add_widget(SectionLabel(text="🔧  Advanced Options"))
@@ -642,7 +626,7 @@ class MainScreen(Screen):
             card.add_widget(row)
         return card
 
-    # ── TEXT INPUT ────────────────────────────────────────────
+    # ── TEXT INPUT ──────────────────────────────────────────────
     def _build_text_input(self):
         card = CardBox(size_hint_y=None, height=dp(180), spacing=dp(6))
         card.add_widget(SectionLabel(text="✍  Enter Text"))
@@ -666,13 +650,12 @@ class MainScreen(Screen):
             size=lambda *a: setattr(self._ti_rect, "size", self._text_input.size),
         )
 
-        # Char counter row
         self._char_label = SubLabel(text="0 chars  ·  0 words  ·  0 lines")
         self._text_input.bind(text=self._update_counter)
 
         row = BoxLayout(orientation="horizontal", size_hint_y=None, height=dp(36), spacing=dp(8))
-        ssml_btn = RoundedButton(text="⟨/⟩ Preview SSML", bg_color=COLORS["bg_card2"],
-                                  size_hint_x=0.5, height=dp(36))
+        ssml_btn  = RoundedButton(text="⟨/⟩ Preview SSML", bg_color=COLORS["bg_card2"],
+                                   size_hint_x=0.5, height=dp(36))
         queue_btn = RoundedButton(text="+ Add to Queue", bg_color=COLORS["purple"],
                                    size_hint_x=0.5, height=dp(36))
         queue_btn.bind(on_press=self._add_to_queue)
@@ -690,12 +673,11 @@ class MainScreen(Screen):
         lines = text.count("\n") + 1 if text.strip() else 0
         self._char_label.text = f"{chars} chars  ·  {words} words  ·  {lines} lines"
 
-    # ── GENERATE SECTION ─────────────────────────────────────
+    # ── GENERATE SECTION ────────────────────────────────────────
     def _build_generate_section(self):
         card = CardBox(size_hint_y=None, height=dp(280), spacing=dp(10))
         card.add_widget(SectionLabel(text="🎙  Generate Voice"))
 
-        # Big Generate button
         gen_btn = RoundedButton(
             text="  🎤  Generate Voice",
             bg_color=COLORS["blue"],
@@ -706,7 +688,6 @@ class MainScreen(Screen):
         gen_btn.bind(on_press=self._generate)
         card.add_widget(gen_btn)
 
-        # Status label
         self._status_lbl = Label(
             text="Ready — Enter text and press Generate",
             font_size=dp(12),
@@ -718,7 +699,6 @@ class MainScreen(Screen):
         self._status_lbl.bind(size=lambda *a: setattr(self._status_lbl, "text_size", self._status_lbl.size))
         card.add_widget(self._status_lbl)
 
-        # ── Player row ────────────────────────────────────────
         player_row = BoxLayout(orientation="horizontal", size_hint_y=None,
                                height=dp(72), spacing=dp(16))
         player_row.add_widget(Widget())
@@ -727,15 +707,13 @@ class MainScreen(Screen):
         self._play_btn.bind(on_press=self._toggle_play)
         player_row.add_widget(self._play_btn)
 
-        # Progress bar area
         prog_box = BoxLayout(orientation="vertical", spacing=dp(4))
         self._prog_slider = Slider(min=0, max=100, value=0, size_hint_y=None, height=dp(30))
-        self._time_label = SubLabel(text="0:00 / 0:00", halign="center")
+        self._time_label  = SubLabel(text="0:00 / 0:00", halign="center")
         prog_box.add_widget(self._prog_slider)
         prog_box.add_widget(self._time_label)
         player_row.add_widget(prog_box)
 
-        # Save button
         save_btn = RoundedButton(text="💾 Save", bg_color=COLORS["green"],
                                   size_hint=(None, None), size=(dp(70), dp(54)),
                                   radius=dp(10))
@@ -744,25 +722,21 @@ class MainScreen(Screen):
         player_row.add_widget(Widget())
         card.add_widget(player_row)
 
-        # History & Queue row
         hq_row = BoxLayout(orientation="horizontal", size_hint_y=None,
                             height=dp(46), spacing=dp(8))
-        hist_btn = RoundedButton(text="📋 History", bg_color=COLORS["purple"])
-        hist_btn.bind(on_press=self._show_history)
+        hist_btn  = RoundedButton(text="📋 History",     bg_color=COLORS["purple"])
         batch_btn = RoundedButton(text="⏳ Batch Queue", bg_color=COLORS["bg_card2"])
+        hist_btn.bind(on_press=self._show_history)
         hq_row.add_widget(hist_btn)
         hq_row.add_widget(batch_btn)
         card.add_widget(hq_row)
 
-        # Save path label
-        save_sub = SubLabel(
-            text=f"Saves to: {os.path.join(SAVE_ROOT, 'Audio')}",
-            halign="left"
-        )
-        card.add_widget(save_sub)
+        save_path = os.path.join(SAVE_ROOT, "Audio") if SAVE_ROOT else "Initializing..."
+        self._save_sub = SubLabel(text=f"Saves to: {save_path}", halign="left")
+        card.add_widget(self._save_sub)
         return card
 
-    # ── HOW TO USE ────────────────────────────────────────────
+    # ── HOW TO USE ──────────────────────────────────────────────
     def _build_how_to(self):
         card = CardBox(size_hint_y=None, height=dp(180), spacing=dp(4))
         card.add_widget(SectionLabel(text="ℹ  How to Use"))
@@ -778,7 +752,7 @@ class MainScreen(Screen):
             card.add_widget(SubLabel(text=s))
         return card
 
-    # ── ACTIONS ───────────────────────────────────────────────
+    # ── ACTIONS ─────────────────────────────────────────────────
     def _generate(self, *args):
         text = self._text_input.text.strip()
         if not text:
@@ -803,26 +777,43 @@ class MainScreen(Screen):
             return
         self.last_audio_path = path
         self.history.append(path)
-        self._set_status(f"✅  Generated! Saved to Audio/")
-        # Auto load into player
+        self._set_status("✅  Generated! Saved to Audio/")
         self._load_audio(path)
 
     def _load_audio(self, path):
+        """Safely load audio — Android needs a small delay."""
         if self.current_sound:
-            self.current_sound.stop()
-        self.current_sound = SoundLoader.load(path)
+            try:
+                self.current_sound.stop()
+                self.current_sound.unload()
+            except Exception:
+                pass
+            self.current_sound = None
         self._play_btn.is_playing = False
         self._play_btn._draw()
+        # Schedule load to avoid blocking main thread on Android
+        Clock.schedule_once(lambda dt: self._do_load(path), 0.1)
+
+    def _do_load(self, path):
+        try:
+            self.current_sound = SoundLoader.load(path)
+            if self.current_sound is None:
+                self._set_status("⚠  Could not load audio for playback", error=True)
+        except Exception as e:
+            self._set_status(f"⚠  Audio load error: {e}", error=True)
 
     def _toggle_play(self, *args):
         if not self.current_sound:
             self._set_status("⚠  Generate audio first!", error=True)
             return
-        if self._play_btn.is_playing:
-            self.current_sound.stop()
-        else:
-            self.current_sound.play()
-        self._play_btn.toggle()
+        try:
+            if self._play_btn.is_playing:
+                self.current_sound.stop()
+            else:
+                self.current_sound.play()
+            self._play_btn.toggle()
+        except Exception as e:
+            self._set_status(f"⚠  Playback error: {e}", error=True)
 
     def _save_voice(self, *args):
         if not self.last_audio_path or not os.path.exists(self.last_audio_path):
@@ -835,20 +826,22 @@ class MainScreen(Screen):
         if not text:
             self._set_status("⚠  Enter text to add to queue", error=True)
             return
+        if SAVE_ROOT is None:
+            self._set_status("⚠  Storage not ready yet", error=True)
+            return
         queue_file = os.path.join(SAVE_ROOT, "Queue", "queue.json")
         try:
+            queue = []
             if os.path.exists(queue_file):
                 with open(queue_file) as f:
                     queue = json.load(f)
-            else:
-                queue = []
             queue.append({
-                "text": text,
+                "text":   text,
                 "gender": self.selected_gender,
-                "mood": self.selected_mood,
-                "speed": self.speed_val,
-                "pitch": self.pitch_val,
-                "added": datetime.now().isoformat(),
+                "mood":   self.selected_mood,
+                "speed":  self.speed_val,
+                "pitch":  self.pitch_val,
+                "added":  datetime.now().isoformat(),
             })
             with open(queue_file, "w") as f:
                 json.dump(queue, f, indent=2)
@@ -857,30 +850,25 @@ class MainScreen(Screen):
             self._set_status(f"❌  Queue error: {e}", error=True)
 
     def _show_history(self, *args):
-        content = BoxLayout(orientation="vertical", spacing=dp(6),
-                            padding=dp(10))
+        content = BoxLayout(orientation="vertical", spacing=dp(6), padding=dp(10))
         if not self.history:
             content.add_widget(Label(text="No history yet.", color=COLORS["text_sub"]))
         else:
             scroll = ScrollView()
-            inner = BoxLayout(orientation="vertical", size_hint_y=None, spacing=dp(6))
+            inner  = BoxLayout(orientation="vertical", size_hint_y=None, spacing=dp(6))
             inner.bind(minimum_height=inner.setter("height"))
-            for i, path in enumerate(reversed(self.history[-20:])):
+            for path in reversed(self.history[-20:]):
                 fname = os.path.basename(path)
-                row = BoxLayout(orientation="horizontal", size_hint_y=None, height=dp(44))
-
-                lbl = Label(text=fname, font_size=dp(12), color=COLORS["text"],
-                            halign="left", valign="middle")
+                row   = BoxLayout(orientation="horizontal", size_hint_y=None, height=dp(44))
+                lbl   = Label(text=fname, font_size=dp(12), color=COLORS["text"],
+                              halign="left", valign="middle")
                 lbl.bind(size=lambda w, *a: setattr(w, "text_size", w.size))
-
                 play_b = RoundedButton(text="▶", bg_color=COLORS["blue"],
                                        size_hint=(None, None), size=(dp(40), dp(36)))
-                _path = path
 
-                def _play(b, p=_path):
+                def _play(b, p=path):
                     self._load_audio(p)
-                    self._play_btn.is_playing = False
-                    self._toggle_play()
+                    Clock.schedule_once(lambda dt: self._toggle_play(), 0.2)
 
                 play_b.bind(on_press=_play)
                 row.add_widget(lbl)
@@ -892,7 +880,6 @@ class MainScreen(Screen):
         close_btn = RoundedButton(text="Close", bg_color=COLORS["red"],
                                    size_hint_y=None, height=dp(44))
         content.add_widget(close_btn)
-
         popup = Popup(title="History", content=content,
                       size_hint=(0.9, 0.7),
                       background_color=COLORS["bg_card"])
@@ -900,14 +887,19 @@ class MainScreen(Screen):
         popup.open()
 
     def _set_status(self, msg, error=False):
-        self._status_lbl.text = msg
+        self._status_lbl.text  = msg
         self._status_lbl.color = COLORS["red"] if error else COLORS["text_sub"]
 
     def _load_api_key(self):
+        if SAVE_ROOT is None:
+            return ""
         key_file = os.path.join(SAVE_ROOT, "Presets", "api_key.txt")
-        if os.path.exists(key_file):
-            with open(key_file) as f:
-                return f.read().strip()
+        try:
+            if os.path.exists(key_file):
+                with open(key_file) as f:
+                    return f.read().strip()
+        except Exception:
+            pass
         return ""
 
 
@@ -940,13 +932,13 @@ class SettingsScreen(Screen):
         with header.canvas.before:
             Color(*COLORS["bg_card"])
             self._r = Rectangle()
-        header.bind(pos=lambda *a: setattr(self._r, "pos", header.pos),
-                    size=lambda *a: setattr(self._r, "size", header.size))
-
+        header.bind(
+            pos=lambda *a: setattr(self._r, "pos", header.pos),
+            size=lambda *a: setattr(self._r, "size", header.size),
+        )
         back_btn = RoundedButton(text="← Back", bg_color=COLORS["bg_card2"],
                                   size_hint=(None, None), size=(dp(90), dp(40)))
         back_btn.bind(on_press=lambda *a: setattr(self.manager, "current", "main"))
-
         title = Label(text="⚙  Settings", font_size=dp(17), bold=True,
                       color=COLORS["blue_light"])
         header.add_widget(back_btn)
@@ -955,11 +947,11 @@ class SettingsScreen(Screen):
         return header
 
     def _build_save_folder(self):
-        card = CardBox(size_hint_y=None, height=dp(180), spacing=dp(6))
+        card = CardBox(size_hint_y=None, height=dp(200), spacing=dp(6))
         card.add_widget(SectionLabel(text="📁  App Save Folder"))
-        card.add_widget(SubLabel(text=SAVE_ROOT))
+        save_path = SAVE_ROOT if SAVE_ROOT else "Initializing..."
+        card.add_widget(SubLabel(text=save_path))
         card.add_widget(SubLabel(text="All audio saved here automatically"))
-
         card.add_widget(SectionLabel(text="📂  Folder Structure"))
         folders = [
             ("Audio/",    "Generated voice files"),
@@ -973,8 +965,7 @@ class SettingsScreen(Screen):
             row = BoxLayout(orientation="horizontal", size_hint_y=None, height=dp(22))
             row.add_widget(Label(text=folder, font_size=dp(12), color=COLORS["blue_light"],
                                   halign="left", valign="middle",
-                                  size_hint_x=0.35,
-                                  text_size=(None, None)))
+                                  size_hint_x=0.35, text_size=(None, None)))
             row.add_widget(Label(text=desc, font_size=dp(12), color=COLORS["text_sub"],
                                   halign="left", valign="middle",
                                   text_size=(None, None)))
@@ -1004,11 +995,14 @@ class SettingsScreen(Screen):
             pos=lambda *a: setattr(self._api_rect, "pos", self._api_input.pos),
             size=lambda *a: setattr(self._api_rect, "size", self._api_input.size),
         )
-        # Load existing key
-        key_file = os.path.join(SAVE_ROOT, "Presets", "api_key.txt")
-        if os.path.exists(key_file):
-            with open(key_file) as f:
-                self._api_input.text = f.read().strip()
+        if SAVE_ROOT:
+            key_file = os.path.join(SAVE_ROOT, "Presets", "api_key.txt")
+            try:
+                if os.path.exists(key_file):
+                    with open(key_file) as f:
+                        self._api_input.text = f.read().strip()
+            except Exception:
+                pass
 
         save_btn = RoundedButton(text="💾  Save API Key", bg_color=COLORS["blue"],
                                   size_hint_y=None, height=dp(44))
@@ -1020,16 +1014,22 @@ class SettingsScreen(Screen):
     def _build_about(self):
         card = CardBox(size_hint_y=None, height=dp(80), spacing=dp(6))
         card.add_widget(SectionLabel(text="ℹ  About"))
-        card.add_widget(SubLabel(text="Titan AI Studio Pro  v1.0.0"))
+        card.add_widget(SubLabel(text="Titan AI Studio Pro  v1.1.0  (Android Fixed)"))
         card.add_widget(SubLabel(text="Professional Voice Generation  ·  Always Free"))
         return card
 
     def _save_api_key(self, *args):
+        if SAVE_ROOT is None:
+            self._show_toast("Storage not ready yet!")
+            return
         key = self._api_input.text.strip()
         key_file = os.path.join(SAVE_ROOT, "Presets", "api_key.txt")
-        with open(key_file, "w") as f:
-            f.write(key)
-        self._show_toast("API key saved!")
+        try:
+            with open(key_file, "w") as f:
+                f.write(key)
+            self._show_toast("API key saved!")
+        except Exception as e:
+            self._show_toast(f"Error: {e}")
 
     def _show_toast(self, msg):
         popup = Popup(title="", content=Label(text=msg, color=COLORS["text"]),
@@ -1040,11 +1040,10 @@ class SettingsScreen(Screen):
 
 
 # ==============================================================
-#  SCREEN MANAGER (custom navigate)
+#  SCREEN MANAGER
 # ==============================================================
 
 class TitanSM(ScreenManager):
-
     def navigate(self, screen_name):
         self.current = screen_name
 
@@ -1056,20 +1055,27 @@ class TitanSM(ScreenManager):
 class TitanAIStudioApp(App):
 
     def build(self):
-        # Request Android permissions once
+        # Request Android permissions FIRST — before any storage access
         if IS_ANDROID:
-            request_permissions([
-                Permission.READ_EXTERNAL_STORAGE,
-                Permission.WRITE_EXTERNAL_STORAGE,
-                Permission.INTERNET,
-                Permission.RECORD_AUDIO,
-            ])
+            try:
+                request_permissions([
+                    Permission.READ_EXTERNAL_STORAGE,
+                    Permission.WRITE_EXTERNAL_STORAGE,
+                    Permission.INTERNET,
+                    Permission.RECORD_AUDIO,
+                ])
+            except Exception:
+                pass
+        else:
+            # Desktop: init storage immediately
+            global SAVE_ROOT
+            SAVE_ROOT = create_folders()
 
         sm = TitanSM(transition=FadeTransition(duration=0.25))
         sm.add_widget(SplashScreen(name="splash"))
         sm.add_widget(MainScreen(name="main"))
         sm.add_widget(SettingsScreen(name="settings"))
-        sm.current = "splash"   # ← Only ONE splash, set here
+        sm.current = "splash"
         return sm
 
     def get_application_name(self):
