@@ -1,18 +1,13 @@
 # =============================================================
-#  Titan AI Studio Pro — requirements.txt  v7.1.0
-#  FIXED: Coqui TTS hata diya (Android pe crash karta tha)
-#  gTTS use karo — reliable, lightweight, 12 languages support
+#  Titan AI Studio Pro — requirements.txt  v10.0
+#  Install: pip install -r requirements.txt
 # =============================================================
 
 # ── Core UI ───────────────────────────────────────────────────
 kivy==2.2.1
 
-# ── TTS Engine (gTTS — works on Android, needs internet) ──────
+# ── Text-to-Speech (Primary) ──────────────────────────────────
 gTTS==2.5.1
-
-# ── File import ───────────────────────────────────────────────
-PyPDF2==3.0.1
-python-docx==1.1.0
 
 # ── HTTP / Network ────────────────────────────────────────────
 requests==2.31.0
@@ -26,10 +21,3 @@ Pillow==10.2.0
 
 # ── Build tools ───────────────────────────────────────────────
 setuptools>=68.0.0
-
-# =============================================================
-#  NOTE: Coqui TTS (heavy ML library) Android pe support nahi
-#  karta properly. Desktop pe use karna ho to:
-#    pip install TTS>=0.22.0
-#  but Android APK mein mat daalein.
-# =============================================================
