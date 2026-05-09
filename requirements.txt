@@ -1,13 +1,12 @@
 # =============================================================
-#  Titan AI Studio Pro — requirements.txt
-#  Local Development Dependencies
-#  Install with: pip install -r requirements.txt
+#  Titan AI Studio Pro — requirements.txt  v10.0
+#  Install: pip install -r requirements.txt
 # =============================================================
 
 # ── Core UI ───────────────────────────────────────────────────
 kivy==2.2.1
 
-# ── Text-to-Speech ────────────────────────────────────────────
+# ── Text-to-Speech (Primary) ──────────────────────────────────
 gTTS==2.5.1
 
 # ── HTTP / Network ────────────────────────────────────────────
