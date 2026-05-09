@@ -1,54 +1,41 @@
-# =============================================================
-#  Titan AI Studio Pro — .gitignore
-# =============================================================
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
 
-# ── Buildozer build output ───────────────────────────────────
+# Buildozer
 .buildozer/
 bin/
 build.log
 
-# ── Python cache ─────────────────────────────────────────────
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-*.pycache
-
-# ── Virtual environments ─────────────────────────────────────
+# Virtual environments
 venv/
 env/
-.venv/
 .env/
 
-# ── Android / Java ───────────────────────────────────────────
-*.apk
-*.aab
-*.keystore
-*.jks
-*.class
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
 
-# ── App data / user files ────────────────────────────────────
-*.json
-!package.json
-*.db
-*.sqlite
-
-# ── OS files ─────────────────────────────────────────────────
+# OS
 .DS_Store
 Thumbs.db
 desktop.ini
 
-# ── Editor ───────────────────────────────────────────────────
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
+# Kivy
+*.kv~
 
-# ── Logs ─────────────────────────────────────────────────────
+# Logs
 *.log
 
-# ── Secrets (NEVER commit these) ─────────────────────────────
-*.env
-secrets.py
-api_keys.py
+# Generated audio (test files)
+tts_preview.mp3
