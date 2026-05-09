@@ -1,5 +1,6 @@
 # =============================================================
-#  Titan AI Studio Pro — .gitignore  v1.0.0
+#  Titan AI Studio Pro — .gitignore
+#  Industry-Standard Git Ignore Rules
 # =============================================================
 
 # ── Python ────────────────────────────────────────────────────
@@ -53,6 +54,7 @@ ENV/
 # ── macOS ─────────────────────────────────────────────────────
 .DS_Store
 .AppleDouble
+.LSOverride
 ._*
 .Spotlight-V100
 .Trashes
@@ -68,17 +70,13 @@ $RECYCLE.BIN/
 build.log
 logcat*.txt
 
-# ── Generated audio (local only, not for git) ─────────────────
-TitanAIStudio/
+# ── Generated audio (local only) ─────────────────────────────
 tts_out.mp3
 Titan_*.mp3
-titan_*.mp3
 history.json
-queue.json
 
-# ── Secrets (never commit!) ───────────────────────────────────
+# ── Secrets (never commit these!) ────────────────────────────
 *.pem
 *.key
 secrets.*
 .env.*
-api_key.txt
