@@ -1,60 +1,55 @@
-# Titan Studio PRO — Changelog
+# Titan Studio PRO — CHANGELOG
 
-All notable changes to this project are documented here.
+## v1.0.0 — CYBER MINT EDITION (Latest)
 
----
+### Bug Fixes:
 
-## [13.0.0] - 2025 | FIXES EDITION
+**[FIX 1] AI.png Icon**
+- App icon `AI.png` now properly shown on Loading Screen and Studio header
+- Both screens search for AI.png → AI.jpg → logo.png in order
 
-### Fixed
-- **Storage Bug (Critical):** Voice was not saving to device. Root cause was permission failure on Android 10+. Now uses a 3-layer smart save system:
-  1. Tries `/storage/emulated/0/Titan Studio PRO/Audio/` (internal storage)
-  2. Falls back to app's private data directory if permissions denied (no permission needed)
-  3. Shows clear error message with exact steps if both fail
-- **SD Card Bug:** Previous code could mistakenly detect `/sdcard` (which may point to SD card on some devices). Now explicitly targets `/storage/emulated/0` which is always internal phone storage
-- **Gender Selection in gTTS:** Male/Female selection was not correctly affecting gTTS fallback voice. Fixed TLD mapping per gender:
-  - Male → `com` (US English accent)
-  - Female → `co.uk` (UK English accent, more distinct)
-- **gTTS Robotic Sound:** `slow=True` was used at speed ≤30% which made voice worse. Changed to `slow=False` as default; `slow=True` only at speed ≤20%
-- **Android Permissions:** Added `MANAGE_EXTERNAL_STORAGE` request for Android 11+. Permission callback now always proceeds (save function handles fallback gracefully instead of blocking)
-- **gTTS Error Message:** Now shows helpful tip to install edge-tts for better quality
+**[FIX 2] Urdu/Hindi/Arabic Box Issue — FIXED**
+- Root cause: Default font doesn't support non-Latin scripts → shows □□□ boxes
+- Fix: `LabelBase.register()` called at startup for Noto fonts
+- Font auto-switches when language changes:
+  - Urdu → NotoNastaliqUrdu
+  - Hindi/Bengali/Punjabi/Tamil/Telugu → NotoSansDevanagari
+  - Arabic → NotoNaskhArabic
+  - Chinese/Japanese/Korean → NotoSansCJK
+- Falls back gracefully if Noto fonts not installed
 
-### Improved
-- Storage path detection is now much more reliable across different Android versions and manufacturers
-- Error messages are more specific and actionable
-- `get_titan_folder()` has graceful fallback chain: external → app private dir
+**[FIX 3] Auto Keyboard Switch per Language**
+- TextInput font changes immediately when language spinner changes
+- RTL indicator message updated to guide user to switch keyboard
+- On Android: attempts to invoke correct IME locale via pyjnius
+- LANG_KEYBOARD_LOCALE map covers 24+ languages
 
----
+**[FIX 4] Text Alignment Fixed**
+- All Label widgets now bind `width → text_size` properly
+- Text never clips, wraps correctly, aligns center/left/right as intended
+- FlatBtn text_size = widget size → button text always centered
 
-## [12.0.0] - CLEAN UI EDITION
+**[FIX 5] Male Voice Fixed + Advanced Options Work**
+- Verified all Edge-TTS Male voice IDs (e.g. en-US-GuyNeural confirmed)
+- Added Punjabi and Catalan to EDGE_VOICES table
+- Advanced Options now actually applied during generation:
+  - Breath Simulation → inserts pauses at sentence ends
+  - Adaptive Pacing → reduces speed for long texts
+  - SSML Support → wraps text in <speak> tags for edge-tts
+  - Low Latency → UI flag (edge-tts handles internally)
 
-### Fixed
-- Voice generation "No Internet" issue — better retry logic, DNS fallback, timeout increased to 90s
-- All button text properly centered (text_size fix)
-- All emoji removed — replaced with safe text icons (emoji causes broken boxes on many Android devices)
-- Folder banner "[Folder]" text overlap — fixed layout
-- Quick Guide text alignment — fully fixed
-- Every single button is functional — none are decorative/broken
-- Import file buttons show proper labels
-- Header layout — no overlapping text
-- gTTS fallback works when edge-tts fails
+**[FIX 6] Speed Above Pitch (Vertical Layout)**
+- Speed card now placed ABOVE Pitch card (separate full-width cards)
+- Each card has header row with label + current value displayed
+- Sliders are full-width → much easier to adjust numbers
+- Replaces old side-by-side cramped layout
 
-### Added
-- Clean professional dark UI
-- Animated waveform visualizer
-- Batch Queue screen
-- Voice History screen with playback
-- Settings screen
-- 30+ language support
-- 10 emotion modes (Normal, Happy, Sad, Whisper, Shout, Sarcasm, Excited, Calm, Serious, Fearful)
-- 8 voice presets (Narrator, Newsreader, Story, Meditation, Commercial, Robot, Poet, Audiobook)
-- File import: TXT, PDF, DOCX, SRT, CSV
-- Speed and Pitch sliders
-- RTL language support (Urdu, Arabic)
-- Auto-save to Titan Studio PRO/Audio/ folder
+**[FIX 7] Version → 1.0 MINT EDITION**
+- Version string changed from v14.0 to v1.0
+- Subtitle reads "v1.0 Mint Edition — Always Free"
+- About page updated
 
 ---
 
-## [11.x.x] - Earlier versions
-
-Internal development builds. Not publicly released.
+## v14.0.0 — Previous version
+(See original CHANGELOG)
