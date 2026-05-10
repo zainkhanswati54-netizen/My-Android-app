@@ -11,7 +11,7 @@ source.include_exts = py,png,jpg,jpeg,kv,atlas,mp3,ttf,json
 source.exclude_dirs = tests, bin, build, .git, __pycache__, venv, .venv
 
 # ── Version ─────────────────────────────────────────────────
-version = 13.0.0
+version = 1.0.0
 
 # ── Requirements ────────────────────────────────────────────
 # IMPORTANT: List every Python package your app imports.
