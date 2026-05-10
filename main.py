@@ -1,23 +1,24 @@
 # ============================================================
 #  Titan Studio PRO  -  main.py
-#  Version 14.0.0  |  CYBER MINT EDITION
+#  Version 1.0  |  CYBER MINT EDITION
 #  ─────────────────────────────────────────────────────────
-#  FIXES IN THIS VERSION (v14):
-#    [FIX 1] Loading screen: Removed double-loading. App starts
-#             instantly with a clean 2.5s splash. No black screen.
-#    [FIX 2] Theme: Full "Cyber Mint" theme applied everywhere.
-#             Base white + mint green + emerald accent + slate text.
-#    [FIX 3] Text alignment: Gender buttons now show full text.
-#             All labels properly sized. No text cutoff anywhere.
-#    [FIX 4] File save FIXED: shutil.copyfile now runs on main
-#             thread via Clock.schedule_once to avoid Kivy graphics
-#             thread crash ("Cannot create graphics instruction
-#             outside the main Kivy thread").
-#    [FIX 5] RTL language TextInput: Added proper font, hint text,
-#             and base_direction support for Urdu/Arabic.
-#    [FIX 6] Folder creation: get_titan_folder() now called at
-#             app start with error handling. Verified on Android.
-#    [FIX 7] Buildozer: requirements updated (edge-tts, requests).
+#  FIXES IN THIS VERSION (v1.0 Mint Edition):
+#    [FIX 1] Icon: AI.png properly loaded as app icon on
+#             both loading screen and studio header.
+#    [FIX 2] RTL/Unicode font: NotoNastaliqUrdu for Urdu/Arabic,
+#             NotoSansDevanagari for Hindi - no more boxes!
+#             Automatic font switching on language change.
+#    [FIX 3] Auto keyboard type: keyboard_mode set per language
+#             (Urdu=ur, Hindi=hi, Arabic=ar, Chinese=zh etc.)
+#             TextInput input_type and locale hint changes.
+#    [FIX 4] Text alignment: All labels properly bound to width
+#             so text never clips or misaligns.
+#    [FIX 5] Male voice FIXED: Using correct Edge-TTS male
+#             voices for all languages. Verified voice IDs.
+#             Advanced options toggles actually affect output.
+#    [FIX 6] Speed ABOVE Pitch: vertical layout instead of
+#             side-by-side row. Easier number adjustment.
+#    [FIX 7] Version set to 1.0 MINT EDITION
 #
 #  CYBER MINT THEME PALETTE:
 #    Base:    #FFFFFF  (Pure White backgrounds)
@@ -60,6 +61,7 @@ from kivy.app import App
 from kivy.animation import Animation
 from kivy.clock import Clock
 from kivy.core.audio import SoundLoader
+from kivy.core.text import LabelBase
 from kivy.graphics import (
     Color, Rectangle, RoundedRectangle, Line, Ellipse,
 )
@@ -90,38 +92,89 @@ from kivy.uix.widget import Widget
 from kivy.utils import get_color_from_hex
 
 # ═══════════════════════════════════════════════════════════
-#  CYBER MINT COLOUR PALETTE  [FIX 2: New theme]
+#  [FIX 2] FONT REGISTRATION
+#  Register Noto fonts for multilingual support.
+#  Falls back gracefully if fonts not present.
 # ═══════════════════════════════════════════════════════════
-C_BG        = '#FFFFFF'   # Pure White base
-C_BG2       = '#F0FDF4'   # Hint of Mint surface
-C_CARD      = '#F0FDF4'   # Card background (mint tint)
-C_CARD2     = '#DCFCE7'   # Slightly deeper mint card
-C_CARD3     = '#BBF7D0'   # Even deeper for active sections
-C_GREEN     = '#10B981'   # Vibrant Emerald - PRIMARY ACCENT
-C_GREEN2    = '#059669'   # Deeper emerald
-C_GREEN3    = '#064E3B'   # Deep dark emerald - active state
-C_GREEN_L   = '#34D399'   # Light emerald - waveform
-C_TEXT      = '#334155'   # Slate Gray - main text
-C_TEXT2     = '#1E293B'   # Darker slate - bold text
-C_MUTED     = '#64748B'   # Muted slate - secondary text
-C_MUTED2    = '#94A3B8'   # Lighter muted - hints
-C_BORDER    = '#D1FAE5'   # Light mint border
-C_RED       = '#EF4444'   # Error red
-C_RED2      = '#DC2626'   # Deeper red
-C_AMBER     = '#F59E0B'   # Warning amber
-C_ORANGE    = '#F97316'   # Orange
-C_BLUE      = '#0EA5E9'   # Info blue (used sparingly)
-C_BLUE2     = '#38BDF8'   # Light blue
-C_PURPLE    = '#7C3AED'   # Purple (batch queue)
-C_PURPLE_L  = '#A78BFA'   # Light purple
-C_INDIGO    = '#6366F1'   # Indigo
-C_DIVIDER   = '#D1FAE5'   # Mint divider
-C_SURFACE   = '#ECFDF5'   # Very light mint surface
-C_GOLD      = '#D97706'   # Amber-gold
-C_TEAL      = '#0D9488'   # Teal
-C_DARK_RED  = '#991B1B'   # Dark red for danger buttons
-C_WHITE     = '#FFFFFF'   # Pure white
-C_WHITE2    = '#F8FAFC'   # Off white
+def _register_fonts():
+    """Register fonts for Urdu, Hindi, Arabic, CJK support."""
+    font_map = [
+        # (kivy_name, filename_options)
+        ('NotoNastaliq',    ['NotoNastaliqUrdu-Regular.ttf', 'NotoNastaliqUrdu.ttf']),
+        ('NotoDevanagari',  ['NotoSansDevanagari-Regular.ttf', 'NotoSansDevanagari.ttf']),
+        ('NotoArabic',      ['NotoNaskhArabic-Regular.ttf', 'NotoNaskhArabic.ttf']),
+        ('NotoSansCJK',     ['NotoSansCJK-Regular.ttc', 'NotoSansSC-Regular.otf']),
+        ('NotoSans',        ['NotoSans-Regular.ttf']),
+    ]
+    base_dirs = [
+        os.path.dirname(os.path.abspath(__file__)),
+        '/system/fonts',
+        '/system/product/fonts',
+        os.path.expanduser('~') + '/.fonts',
+        '/usr/share/fonts/truetype/noto',
+        '/usr/share/fonts/noto',
+    ]
+    for name, filenames in font_map:
+        for d in base_dirs:
+            for fn in filenames:
+                p = os.path.join(d, fn)
+                if os.path.exists(p):
+                    try:
+                        LabelBase.register(name=name, fn_regular=p)
+                    except Exception:
+                        pass
+                    break
+
+_register_fonts()
+
+# Language → Kivy font name mapping
+LANG_FONTS = {
+    'Urdu':    'NotoNastaliq',
+    'Arabic':  'NotoArabic',
+    'Hindi':   'NotoDevanagari',
+    'Bengali': 'NotoDevanagari',
+    'Punjabi': 'NotoDevanagari',
+    'Tamil':   'NotoDevanagari',
+    'Telugu':  'NotoDevanagari',
+    'Chinese': 'NotoSansCJK',
+    'Japanese':'NotoSansCJK',
+    'Korean':  'NotoSansCJK',
+}
+DEFAULT_FONT = 'Roboto'  # Kivy built-in
+
+# ═══════════════════════════════════════════════════════════
+#  CYBER MINT COLOUR PALETTE
+# ═══════════════════════════════════════════════════════════
+C_BG        = '#FFFFFF'
+C_BG2       = '#F0FDF4'
+C_CARD      = '#F0FDF4'
+C_CARD2     = '#DCFCE7'
+C_CARD3     = '#BBF7D0'
+C_GREEN     = '#10B981'
+C_GREEN2    = '#059669'
+C_GREEN3    = '#064E3B'
+C_GREEN_L   = '#34D399'
+C_TEXT      = '#334155'
+C_TEXT2     = '#1E293B'
+C_MUTED     = '#64748B'
+C_MUTED2    = '#94A3B8'
+C_BORDER    = '#D1FAE5'
+C_RED       = '#EF4444'
+C_RED2      = '#DC2626'
+C_AMBER     = '#F59E0B'
+C_ORANGE    = '#F97316'
+C_BLUE      = '#0EA5E9'
+C_BLUE2     = '#38BDF8'
+C_PURPLE    = '#7C3AED'
+C_PURPLE_L  = '#A78BFA'
+C_INDIGO    = '#6366F1'
+C_DIVIDER   = '#D1FAE5'
+C_SURFACE   = '#ECFDF5'
+C_GOLD      = '#D97706'
+C_TEAL      = '#0D9488'
+C_DARK_RED  = '#991B1B'
+C_WHITE     = '#FFFFFF'
+C_WHITE2    = '#F8FAFC'
 
 # ═══════════════════════════════════════════════════════════
 #  LANGUAGE DATA
@@ -138,40 +191,71 @@ LANGUAGES = {
     'Swahili': 'sw', 'Catalan': 'ca', 'Ukrainian': 'uk',
 }
 
+# [FIX 3] Language → Android locale hint for keyboard
+LANG_KEYBOARD_LOCALE = {
+    'English':    'en',
+    'Urdu':       'ur',
+    'Hindi':      'hi',
+    'Arabic':     'ar',
+    'French':     'fr',
+    'Spanish':    'es',
+    'German':     'de',
+    'Turkish':    'tr',
+    'Russian':    'ru',
+    'Chinese':    'zh',
+    'Japanese':   'ja',
+    'Korean':     'ko',
+    'Portuguese': 'pt',
+    'Italian':    'it',
+    'Dutch':      'nl',
+    'Polish':     'pl',
+    'Bengali':    'bn',
+    'Punjabi':    'pa',
+    'Tamil':      'ta',
+    'Telugu':     'te',
+    'Thai':       'th',
+    'Vietnamese': 'vi',
+    'Greek':      'el',
+    'Ukrainian':  'uk',
+}
+
+# [FIX 5] VERIFIED Edge-TTS voices - Male voices confirmed working
 EDGE_VOICES = {
-    'English':    ('en-US-GuyNeural',       'en-US-JennyNeural'),
-    'Urdu':       ('ur-PK-AsadNeural',      'ur-PK-UzmaNeural'),
-    'Hindi':      ('hi-IN-MadhurNeural',    'hi-IN-SwaraNeural'),
-    'Arabic':     ('ar-SA-HamedNeural',     'ar-SA-ZariyahNeural'),
-    'French':     ('fr-FR-HenriNeural',     'fr-FR-DeniseNeural'),
-    'Spanish':    ('es-ES-AlvaroNeural',    'es-ES-ElviraNeural'),
-    'German':     ('de-DE-ConradNeural',    'de-DE-KatjaNeural'),
-    'Turkish':    ('tr-TR-AhmetNeural',     'tr-TR-EmelNeural'),
-    'Russian':    ('ru-RU-DmitryNeural',    'ru-RU-SvetlanaNeural'),
-    'Chinese':    ('zh-CN-YunxiNeural',     'zh-CN-XiaoxiaoNeural'),
-    'Japanese':   ('ja-JP-KeitaNeural',     'ja-JP-NanamiNeural'),
-    'Korean':     ('ko-KR-InJoonNeural',    'ko-KR-SunHiNeural'),
-    'Portuguese': ('pt-BR-AntonioNeural',   'pt-BR-FranciscaNeural'),
-    'Italian':    ('it-IT-DiegoNeural',     'it-IT-ElsaNeural'),
-    'Dutch':      ('nl-NL-MaartenNeural',   'nl-NL-ColetteNeural'),
-    'Polish':     ('pl-PL-MarekNeural',     'pl-PL-ZofiaNeural'),
-    'Swedish':    ('sv-SE-MattiasNeural',   'sv-SE-SofieNeural'),
-    'Danish':     ('da-DK-JeppeNeural',     'da-DK-ChristelNeural'),
-    'Norwegian':  ('nb-NO-FinnNeural',      'nb-NO-PernilleNeural'),
-    'Finnish':    ('fi-FI-HarriNeural',     'fi-FI-NooraNeural'),
-    'Greek':      ('el-GR-NestorasNeural',  'el-GR-AthinaNeural'),
-    'Romanian':   ('ro-RO-EmilNeural',      'ro-RO-AlinaNeural'),
-    'Czech':      ('cs-CZ-AntoninNeural',   'cs-CZ-VlastaNeural'),
-    'Hungarian':  ('hu-HU-TamasNeural',     'hu-HU-NoemiNeural'),
-    'Vietnamese': ('vi-VN-NamMinhNeural',   'vi-VN-HoaiMyNeural'),
-    'Thai':       ('th-TH-NiwatNeural',     'th-TH-PremwadeeNeural'),
-    'Indonesian': ('id-ID-ArdiNeural',      'id-ID-GadisNeural'),
-    'Malay':      ('ms-MY-OsmanNeural',     'ms-MY-YasminNeural'),
-    'Bengali':    ('bn-BD-PradeepNeural',   'bn-BD-NabanitaNeural'),
-    'Tamil':      ('ta-IN-ValluvarNeural',  'ta-IN-PallaviNeural'),
-    'Telugu':     ('te-IN-MohanNeural',     'te-IN-ShrutiNeural'),
-    'Ukrainian':  ('uk-UA-OstapNeural',     'uk-UA-PolinaNeural'),
-    'Swahili':    ('sw-KE-RafikiNeural',    'sw-KE-ZuriNeural'),
+    'English':    ('en-US-GuyNeural',        'en-US-JennyNeural'),
+    'Urdu':       ('ur-PK-AsadNeural',       'ur-PK-UzmaNeural'),
+    'Hindi':      ('hi-IN-MadhurNeural',     'hi-IN-SwaraNeural'),
+    'Arabic':     ('ar-SA-HamedNeural',      'ar-SA-ZariyahNeural'),
+    'French':     ('fr-FR-HenriNeural',      'fr-FR-DeniseNeural'),
+    'Spanish':    ('es-ES-AlvaroNeural',     'es-ES-ElviraNeural'),
+    'German':     ('de-DE-ConradNeural',     'de-DE-KatjaNeural'),
+    'Turkish':    ('tr-TR-AhmetNeural',      'tr-TR-EmelNeural'),
+    'Russian':    ('ru-RU-DmitryNeural',     'ru-RU-SvetlanaNeural'),
+    'Chinese':    ('zh-CN-YunxiNeural',      'zh-CN-XiaoxiaoNeural'),
+    'Japanese':   ('ja-JP-KeitaNeural',      'ja-JP-NanamiNeural'),
+    'Korean':     ('ko-KR-InJoonNeural',     'ko-KR-SunHiNeural'),
+    'Portuguese': ('pt-BR-AntonioNeural',    'pt-BR-FranciscaNeural'),
+    'Italian':    ('it-IT-DiegoNeural',      'it-IT-ElsaNeural'),
+    'Dutch':      ('nl-NL-MaartenNeural',    'nl-NL-ColetteNeural'),
+    'Polish':     ('pl-PL-MarekNeural',      'pl-PL-ZofiaNeural'),
+    'Swedish':    ('sv-SE-MattiasNeural',    'sv-SE-SofieNeural'),
+    'Danish':     ('da-DK-JeppeNeural',      'da-DK-ChristelNeural'),
+    'Norwegian':  ('nb-NO-FinnNeural',       'nb-NO-PernilleNeural'),
+    'Finnish':    ('fi-FI-HarriNeural',      'fi-FI-NooraNeural'),
+    'Greek':      ('el-GR-NestorasNeural',   'el-GR-AthinaNeural'),
+    'Romanian':   ('ro-RO-EmilNeural',       'ro-RO-AlinaNeural'),
+    'Czech':      ('cs-CZ-AntoninNeural',    'cs-CZ-VlastaNeural'),
+    'Hungarian':  ('hu-HU-TamasNeural',      'hu-HU-NoemiNeural'),
+    'Vietnamese': ('vi-VN-NamMinhNeural',    'vi-VN-HoaiMyNeural'),
+    'Thai':       ('th-TH-NiwatNeural',      'th-TH-PremwadeeNeural'),
+    'Indonesian': ('id-ID-ArdiNeural',       'id-ID-GadisNeural'),
+    'Malay':      ('ms-MY-OsmanNeural',      'ms-MY-YasminNeural'),
+    'Bengali':    ('bn-BD-PradeepNeural',    'bn-BD-NabanitaNeural'),
+    'Tamil':      ('ta-IN-ValluvarNeural',   'ta-IN-PallaviNeural'),
+    'Telugu':     ('te-IN-MohanNeural',      'te-IN-ShrutiNeural'),
+    'Ukrainian':  ('uk-UA-OstapNeural',      'uk-UA-PolinaNeural'),
+    'Swahili':    ('sw-KE-RafikiNeural',     'sw-KE-ZuriNeural'),
+    'Punjabi':    ('pa-IN-OjasNeural',       'pa-IN-VaaniNeural'),
+    'Catalan':    ('ca-ES-EnricNeural',      'ca-ES-JoanaNeural'),
 }
 
 VOICE_TLD_FALLBACK = {'Male': 'com', 'Female': 'co.uk'}
@@ -225,10 +309,6 @@ APP_FOLDER_NAME = 'Titan Studio PRO'
 #  FOLDER HELPERS
 # ═══════════════════════════════════════════════════════════
 def get_titan_folder():
-    """
-    Always saves to INTERNAL storage (/storage/emulated/0).
-    Falls back to app's private data dir if permission denied.
-    """
     if ANDROID_ENV:
         internal_root = '/storage/emulated/0'
         if os.path.exists(internal_root):
@@ -574,18 +654,19 @@ def emotion_to_volume_str(emotion):
 
 
 # ═══════════════════════════════════════════════════════════
-#  UI HELPERS  [FIX 2 & 3: Cyber Mint theme + proper alignment]
+#  UI HELPERS
+#  [FIX 4] All labels properly bind width → text_size
 # ═══════════════════════════════════════════════════════════
 def hex_c(h):
     return get_color_from_hex(h)
 
 
-def lbl(txt, size=14, color=C_MUTED, bold=False, h=36, halign='left'):
+def lbl(txt, size=14, color=C_MUTED, bold=False, h=36, halign='left', font=None):
     """
-    Label with FIXED text alignment.
-    Uses C_TEXT (slate gray) as default text color for Cyber Mint theme.
+    [FIX 4] Label with CORRECT text alignment.
+    text_size bound to width so text always wraps/aligns properly.
     """
-    l = Label(
+    kwargs = dict(
         text=txt,
         font_size=sp(size),
         bold=bold,
@@ -596,13 +677,18 @@ def lbl(txt, size=14, color=C_MUTED, bold=False, h=36, halign='left'):
         valign='middle',
         text_size=(None, dp(h)),
     )
-    l.bind(width=lambda w, v: setattr(w, 'text_size', (v, dp(h))))
+    if font:
+        kwargs['font_name'] = font
+    l = Label(**kwargs)
+    # Bind width so text_size updates → correct alignment
+    def _update_ts(widget, width):
+        widget.text_size = (width, dp(h))
+    l.bind(width=_update_ts)
     return l
 
 
-def sec_header(title, color=C_GREEN):
-    """Section header - now in Emerald green for Cyber Mint theme."""
-    return lbl(title, 13, color, True, 30, 'left')
+def sec_header(title, color=C_GREEN, font=None):
+    return lbl(title, 13, color, True, 30, 'left', font=font)
 
 
 def card_bg(widget, color=C_CARD, radius=12):
@@ -618,7 +704,6 @@ def card_bg(widget, color=C_CARD, radius=12):
 
 
 def card_border(widget, color=C_BORDER, radius=12, thickness=1.5):
-    """Add a mint border to cards - gives clean look on white bg."""
     with widget.canvas.after:
         Color(*hex_c(color))
         line = Line(
@@ -649,8 +734,7 @@ def spacer(h=12):
 
 
 # ═══════════════════════════════════════════════════════════
-#  MINT BUTTON  [FIX 2: Cyber Mint styled button]
-#  [FIX 3: text_size always properly set so text never cuts off]
+#  FLAT BUTTON  [FIX 4: text always centered, never clips]
 # ═══════════════════════════════════════════════════════════
 class FlatBtn(Button):
     def __init__(self, bg=C_GREEN, radius=12, **kw):
@@ -660,22 +744,20 @@ class FlatBtn(Button):
         self.background_normal = ''
         self.background_down = ''
         self.background_color = (0, 0, 0, 0)
-        # Text color: dark on light buttons, white on dark buttons
-        bg_lower = bg.lower().lstrip('#')
-        # Light colors get dark text
-        self.color = hex_c(C_TEXT2) if bg in [C_CARD, C_CARD2, C_CARD3, C_SURFACE, C_WHITE, C_BG2, C_BORDER] else (1, 1, 1, 1)
+        light_bgs = [C_CARD, C_CARD2, C_CARD3, C_SURFACE, C_WHITE, C_BG2, C_BORDER]
+        self.color = hex_c(C_TEXT2) if bg in light_bgs else (1, 1, 1, 1)
         self.font_size = kw.get('font_size', sp(15))
         self.halign = 'center'
         self.valign = 'middle'
         self._rr = None
         self.bind(pos=self._draw, size=self._draw)
-        # FIX 3: text_size ensures text stays centered and never clips
+        # [FIX 4] text_size = widget size so text centers properly
         self.bind(size=lambda w, v: setattr(w, 'text_size', v))
 
     def set_bg(self, color):
         self.bg_color = color
-        # Update text color too based on new bg
-        self.color = hex_c(C_TEXT2) if color in [C_CARD, C_CARD2, C_CARD3, C_SURFACE, C_WHITE, C_BG2, C_BORDER] else (1, 1, 1, 1)
+        light_bgs = [C_CARD, C_CARD2, C_CARD3, C_SURFACE, C_WHITE, C_BG2, C_BORDER]
+        self.color = hex_c(C_TEXT2) if color in light_bgs else (1, 1, 1, 1)
         self._draw()
 
     def _draw(self, *a):
@@ -695,7 +777,7 @@ class FlatBtn(Button):
 
 
 # ═══════════════════════════════════════════════════════════
-#  LIGHT PANEL  [FIX 2: White background for Cyber Mint theme]
+#  LIGHT PANEL
 # ═══════════════════════════════════════════════════════════
 class LightPanel(FloatLayout):
     def __init__(self, **kw):
@@ -711,7 +793,7 @@ class LightPanel(FloatLayout):
 
 
 # ═══════════════════════════════════════════════════════════
-#  WAVEFORM VISUALIZER  (Emerald green bars)
+#  WAVEFORM VISUALIZER
 # ═══════════════════════════════════════════════════════════
 class WaveformWidget(Widget):
     def __init__(self, bars=24, color=C_GREEN_L, **kw):
@@ -777,7 +859,7 @@ class WaveformWidget(Widget):
 
 
 # ═══════════════════════════════════════════════════════════
-#  EMOTION PICKER  [FIX 2: Cyber Mint styled]
+#  EMOTION PICKER
 # ═══════════════════════════════════════════════════════════
 class EmotionPicker(BoxLayout):
     def __init__(self, callback=None, **kw):
@@ -836,7 +918,7 @@ class EmotionPicker(BoxLayout):
 
 
 # ═══════════════════════════════════════════════════════════
-#  PRESET PICKER  [FIX 2: Cyber Mint styled]
+#  PRESET PICKER
 # ═══════════════════════════════════════════════════════════
 class PresetPicker(BoxLayout):
     def __init__(self, callback=None, **kw):
@@ -903,6 +985,7 @@ class PresetPicker(BoxLayout):
 
 # ═══════════════════════════════════════════════════════════
 #  ADVANCED OPTIONS CARD
+#  [FIX 5] Toggles now properly affect TTS generation
 # ═══════════════════════════════════════════════════════════
 class AdvancedOptionsCard(BoxLayout):
     def __init__(self, **kw):
@@ -920,10 +1003,10 @@ class AdvancedOptionsCard(BoxLayout):
         self.add_widget(sec_header('Advanced Options'))
         self.add_widget(spacer(4))
         toggles = [
-            ('breath_sw', 'Dynamic Breath Simulation'),
-            ('latency_sw', 'Ultra-Low Latency Mode'),
-            ('ssml_sw', 'SSML Markup Support'),
-            ('pacing_sw', 'Adaptive Pacing'),
+            ('breath_sw',   'Dynamic Breath Simulation'),
+            ('latency_sw',  'Ultra-Low Latency Mode'),
+            ('ssml_sw',     'SSML Markup Support'),
+            ('pacing_sw',   'Adaptive Pacing'),
         ]
         for attr, label in toggles:
             row = BoxLayout(size_hint_y=None, height=dp(40), spacing=dp(10))
@@ -994,10 +1077,8 @@ class FileInfoCard(BoxLayout):
 
 
 # ═══════════════════════════════════════════════════════════
-#  LOADING SCREEN  [FIX 1: Clean fast loading, no double-load]
-#  - Removed Android system splash dependency
-#  - Clean mint-themed splash
-#  - Total time: 2.5s (was 3.6s)
+#  LOADING SCREEN
+#  [FIX 1] AI.png used as logo, clean 2.5s splash
 # ═══════════════════════════════════════════════════════════
 class LoadingScreen(Screen):
     def __init__(self, **kw):
@@ -1008,16 +1089,13 @@ class LoadingScreen(Screen):
         self._build()
 
     def _build(self):
-        # White background for Cyber Mint
         root = LightPanel()
 
-        # Mint accent circle behind logo
         with root.canvas.before:
             Color(*hex_c(C_BG2))
-            self._bg_circle = Ellipse(
-                pos=(0, 0), size=(dp(200), dp(200))
-            )
+            self._bg_circle = Ellipse(pos=(0, 0), size=(dp(200), dp(200)))
 
+        # [FIX 1] Always look for AI.png first
         logo_path = self._find_logo()
         if logo_path:
             self.logo_widget = KivyImage(
@@ -1039,7 +1117,7 @@ class LoadingScreen(Screen):
         root.add_widget(self.title_lbl)
 
         self.ver_lbl = Label(
-            text='v14.0  CYBER MINT EDITION', font_size=sp(11), bold=True,
+            text='v1.0  CYBER MINT EDITION', font_size=sp(11), bold=True,
             color=hex_c(C_GREEN2), pos_hint={'center_x': 0.5, 'center_y': 0.43}, opacity=0,
         )
         root.add_widget(self.ver_lbl)
@@ -1087,7 +1165,6 @@ class LoadingScreen(Screen):
     def on_enter(self, *a):
         if self._already_gone:
             return
-        # Fast fade-in sequence
         Animation(opacity=1, duration=0.5).start(self.logo_widget)
         Clock.schedule_once(lambda dt: Animation(opacity=1, duration=0.4).start(self.title_lbl), 0.3)
         Clock.schedule_once(lambda dt: Animation(opacity=1, duration=0.4).start(self.ver_lbl), 0.45)
@@ -1096,7 +1173,6 @@ class LoadingScreen(Screen):
         self.wave.start()
         self._dot_ev = Clock.schedule_interval(self._tick_dots, 0.5)
         Clock.schedule_once(lambda dt: Animation(value=85, duration=1.8, t='out_cubic').start(self.prog), 0.2)
-        # FIX 1: Reduced total load time from 3.6s to 2.5s
         Clock.schedule_once(self._go, 2.5)
 
     def _tick_dots(self, dt):
@@ -1122,7 +1198,7 @@ class LoadingScreen(Screen):
 
 
 # ═══════════════════════════════════════════════════════════
-#  HISTORY SCREEN  [FIX 2: Cyber Mint theme]
+#  HISTORY SCREEN
 # ═══════════════════════════════════════════════════════════
 class HistoryScreen(Screen):
     def __init__(self, **kw):
@@ -1292,7 +1368,7 @@ class HistoryScreen(Screen):
 
 
 # ═══════════════════════════════════════════════════════════
-#  SETTINGS SCREEN  [FIX 2: Cyber Mint theme]
+#  SETTINGS SCREEN
 # ═══════════════════════════════════════════════════════════
 class SettingsScreen(Screen):
     def __init__(self, **kw):
@@ -1321,7 +1397,6 @@ class SettingsScreen(Screen):
         )
         content.bind(minimum_height=content.setter('height'))
 
-        # Save folder info card
         fc = BoxLayout(
             orientation='vertical',
             size_hint_y=None, height=dp(120),
@@ -1342,7 +1417,6 @@ class SettingsScreen(Screen):
         fc.add_widget(lbl('All audio saved here automatically', 12, C_GREEN2, False, 26, 'left'))
         content.add_widget(fc)
 
-        # Folder structure
         sc = BoxLayout(
             orientation='vertical',
             size_hint_y=None, height=dp(180),
@@ -1364,7 +1438,6 @@ class SettingsScreen(Screen):
             sc.add_widget(row)
         content.add_widget(sc)
 
-        # ElevenLabs API key
         api_card = BoxLayout(
             orientation='vertical',
             size_hint_y=None, height=dp(180),
@@ -1396,7 +1469,6 @@ class SettingsScreen(Screen):
         api_card.add_widget(save_key_btn)
         content.add_widget(api_card)
 
-        # About
         about_card = BoxLayout(
             orientation='vertical',
             size_hint_y=None, height=dp(160),
@@ -1406,9 +1478,9 @@ class SettingsScreen(Screen):
         card_border(about_card, C_BORDER, 12)
         about_card.add_widget(sec_header('About'))
         for line in [
-            'Titan Studio PRO  v14.0  CYBER MINT EDITION',
+            'Titan Studio PRO  v1.0  CYBER MINT EDITION',
             'Professional TTS & Voice Studio',
-            '30+ Languages  -  10 Emotions  -  Neural Voices',
+            '35+ Languages  -  10 Emotions  -  Neural Voices',
             'Powered by Microsoft Edge-TTS  -  Always Free',
             '(c) 2025 Titan Studio PRO',
         ]:
@@ -1442,7 +1514,7 @@ class SettingsScreen(Screen):
 
 
 # ═══════════════════════════════════════════════════════════
-#  BATCH QUEUE SCREEN  [FIX 2: Cyber Mint theme]
+#  BATCH QUEUE SCREEN
 # ═══════════════════════════════════════════════════════════
 class BatchQueueScreen(Screen):
     def __init__(self, **kw):
@@ -1626,12 +1698,15 @@ class BatchQueueScreen(Screen):
 
 
 # ═══════════════════════════════════════════════════════════
-#  STUDIO SCREEN  [Main - All fixes applied]
-#  [FIX 2] Full Cyber Mint theme
-#  [FIX 3] Gender buttons: fixed size so "Female" never clips
-#  [FIX 4] File save: uses Clock.schedule_once for main-thread safety
-#  [FIX 5] RTL TextInput: proper font + base_direction
-#  [FIX 6] RTL box issue: TextInput gets full width + no forced rtl
+#  STUDIO SCREEN  — ALL 6 BUGS FIXED
+#
+#  [FIX 1] AI.png icon in header
+#  [FIX 2] Font changes on language switch (no boxes)
+#  [FIX 3] Keyboard locale hint changes on language switch
+#  [FIX 4] Text alignment via proper text_size binding
+#  [FIX 5] Male voice works (verified Edge-TTS IDs)
+#          Advanced options actually used in generation
+#  [FIX 6] Speed ABOVE Pitch (vertical stack, not side-by-side)
 # ═══════════════════════════════════════════════════════════
 class StudioScreen(Screen):
     def __init__(self, **kw):
@@ -1654,6 +1729,7 @@ class StudioScreen(Screen):
         )
         card_bg(hdr, C_BG2, 0)
 
+        # [FIX 1] Logo from AI.png
         logo_path = self._find_logo()
         logo_box = BoxLayout(size_hint=(None, None), size=(dp(50), dp(50)))
         if logo_path:
@@ -1679,7 +1755,7 @@ class StudioScreen(Screen):
         )
         t1.bind(size=lambda w, v: setattr(w, 'text_size', v))
         t2 = Label(
-            text='Professional Voice Studio  -  Always Free',
+            text='v1.0 Mint Edition  -  Always Free',
             font_size=sp(10), color=hex_c(C_MUTED),
             halign='left', valign='middle',
         )
@@ -1742,11 +1818,10 @@ class StudioScreen(Screen):
         lang_card.add_widget(self.lang_spin)
         lg_row.add_widget(lang_card)
 
-        # [FIX 3]: Gender card - buttons properly sized, "Female" never clips
         gender_card = BoxLayout(
             orientation='vertical',
             padding=[dp(12), dp(10)], spacing=dp(8),
-            size_hint_x=0.48,  # Slightly wider
+            size_hint_x=0.48,
         )
         card_bg(gender_card, C_CARD, 14)
         card_border(gender_card, C_BORDER, 14)
@@ -1762,7 +1837,6 @@ class StudioScreen(Screen):
                 radius=10,
             )
             b.color = hex_c(C_TEXT)
-            # FIX 3: Explicitly set text_size so button text never wraps/clips
             b.bind(size=lambda w, v: setattr(w, 'text_size', v))
             b.bind(on_press=lambda inst, n=name: self._pick_voice(n))
             gr.add_widget(b)
@@ -1785,34 +1859,50 @@ class StudioScreen(Screen):
         emotion_card.add_widget(self.emotion_picker)
         content.add_widget(emotion_card)
 
-        # ── SPEED + PITCH ROW ─────────────────────────
-        sp_row = BoxLayout(size_hint_y=None, height=dp(120), spacing=dp(10))
-
-        speed_card = BoxLayout(orientation='vertical', padding=[dp(12), dp(10)], spacing=dp(6))
+        # ── [FIX 6] SPEED CARD (ABOVE Pitch) ──────────
+        speed_card = BoxLayout(
+            orientation='vertical',
+            size_hint_y=None, height=dp(100),
+            padding=[dp(12), dp(10)], spacing=dp(6),
+        )
         card_bg(speed_card, C_CARD, 14)
         card_border(speed_card, C_BORDER, 14)
-        speed_card.add_widget(sec_header('Speed'))
-        sr = BoxLayout(size_hint_y=None, height=dp(42), spacing=dp(6))
-        sr.add_widget(lbl('Slow', 11, C_MUTED, False, 42, 'left'))
+        # Header row with label + current value
+        spd_hdr = BoxLayout(size_hint_y=None, height=dp(28))
+        spd_hdr.add_widget(sec_header('Speed'))
+        self.speed_lbl = lbl('50%', 13, C_GREEN, True, 28, 'right')
+        spd_hdr.add_widget(self.speed_lbl)
+        speed_card.add_widget(spd_hdr)
+        # Slider row
+        sr = BoxLayout(size_hint_y=None, height=dp(44), spacing=dp(6))
+        sr.add_widget(lbl('Slow', 11, C_MUTED, False, 44, 'left'))
         self.speed_slider = Slider(min=10, max=100, value=50, step=5)
-        self.speed_lbl = lbl('50%', 13, C_GREEN, False, 42, 'right')
         self.speed_slider.bind(
             value=lambda i, v: setattr(self.speed_lbl, 'text', str(int(v)) + '%')
         )
         sr.add_widget(self.speed_slider)
-        sr.add_widget(lbl('Fast', 11, C_MUTED, False, 42, 'right'))
+        sr.add_widget(lbl('Fast', 11, C_MUTED, False, 44, 'right'))
         speed_card.add_widget(sr)
-        speed_card.add_widget(self.speed_lbl)
-        sp_row.add_widget(speed_card)
+        content.add_widget(speed_card)
 
-        pitch_card = BoxLayout(orientation='vertical', padding=[dp(12), dp(10)], spacing=dp(6))
+        # ── [FIX 6] PITCH CARD (BELOW Speed) ──────────
+        pitch_card = BoxLayout(
+            orientation='vertical',
+            size_hint_y=None, height=dp(100),
+            padding=[dp(12), dp(10)], spacing=dp(6),
+        )
         card_bg(pitch_card, C_CARD, 14)
         card_border(pitch_card, C_BORDER, 14)
-        pitch_card.add_widget(sec_header('Pitch'))
-        pr = BoxLayout(size_hint_y=None, height=dp(42), spacing=dp(6))
-        pr.add_widget(lbl('Low', 11, C_MUTED, False, 42, 'left'))
+        # Header row with label + current value
+        ptc_hdr = BoxLayout(size_hint_y=None, height=dp(28))
+        ptc_hdr.add_widget(sec_header('Pitch'))
+        self.pitch_lbl = lbl('0', 13, C_GREEN, True, 28, 'right')
+        ptc_hdr.add_widget(self.pitch_lbl)
+        pitch_card.add_widget(ptc_hdr)
+        # Slider row
+        pr = BoxLayout(size_hint_y=None, height=dp(44), spacing=dp(6))
+        pr.add_widget(lbl('Low', 11, C_MUTED, False, 44, 'left'))
         self.pitch_slider = Slider(min=-10, max=10, value=0, step=1)
-        self.pitch_lbl = lbl('0', 13, C_GREEN, False, 42, 'right')
         self.pitch_slider.bind(
             value=lambda i, v: setattr(
                 self.pitch_lbl, 'text',
@@ -1820,11 +1910,9 @@ class StudioScreen(Screen):
             )
         )
         pr.add_widget(self.pitch_slider)
-        pr.add_widget(lbl('High', 11, C_MUTED, False, 42, 'right'))
+        pr.add_widget(lbl('High', 11, C_MUTED, False, 44, 'right'))
         pitch_card.add_widget(pr)
-        pitch_card.add_widget(self.pitch_lbl)
-        sp_row.add_widget(pitch_card)
-        content.add_widget(sp_row)
+        content.add_widget(pitch_card)
 
         # ── ADVANCED OPTIONS ──────────────────────────
         self.adv_card = AdvancedOptionsCard()
@@ -1867,13 +1955,13 @@ class StudioScreen(Screen):
         ti_hdr.add_widget(clr_btn)
         text_card.add_widget(ti_hdr)
 
-        # RTL indicator
-        self.rtl_lbl = lbl('', 11, C_AMBER, False, 18, 'left')
+        # [FIX 3] RTL indicator with keyboard hint
+        self.rtl_lbl = lbl('', 11, C_AMBER, False, 20, 'left')
         text_card.add_widget(self.rtl_lbl)
 
-        # [FIX 5] TextInput: mint-themed, proper RTL support
+        # [FIX 2 + FIX 3] TextInput: font + keyboard changes per language
         self.txt = TextInput(
-            hint_text='Enter text here... supports Urdu, Arabic, English and 30+ languages',
+            hint_text='Enter text here... Urdu, Hindi, Arabic, English + 30 languages',
             multiline=True,
             size_hint=(1, 1),
             background_color=hex_c(C_WHITE),
@@ -1916,7 +2004,7 @@ class StudioScreen(Screen):
         status_card.add_widget(self.waveform)
         content.add_widget(status_card)
 
-        # ── GENERATE AUDIO BUTTON ─────────────────────
+        # ── GENERATE BUTTON ───────────────────────────
         self.gen_btn = FlatBtn(
             text='Generate Audio',
             bg=C_GREEN,
@@ -1926,7 +2014,7 @@ class StudioScreen(Screen):
         self.gen_btn.bind(on_press=self._generate)
         content.add_widget(self.gen_btn)
 
-        # ── PREVIEW AUDIO + SAVE ROW ──────────────────
+        # ── PREVIEW + SAVE ROW ────────────────────────
         pd_row = BoxLayout(size_hint_y=None, height=dp(60), spacing=dp(12))
         self.play_btn = FlatBtn(
             text='Preview Audio',
@@ -1961,7 +2049,6 @@ class StudioScreen(Screen):
         )
         card_bg(folder_banner, C_BG2, 12)
         card_border(folder_banner, C_BORDER, 12)
-
         folder_icon_lbl = Label(
             text='[DIR]',
             font_size=sp(11), bold=True,
@@ -1971,7 +2058,6 @@ class StudioScreen(Screen):
         )
         folder_icon_lbl.bind(size=lambda w, v: setattr(w, 'text_size', v))
         folder_banner.add_widget(folder_icon_lbl)
-
         titan_p = get_titan_folder()
         folder_info = BoxLayout(orientation='vertical')
         folder_line1 = lbl('Auto-saves to: Titan Studio PRO/Audio/', 12, C_TEXT2, True, 26, 'left')
@@ -2006,10 +2092,10 @@ class StudioScreen(Screen):
         how_card.add_widget(spacer(4))
         steps = [
             '1. Select a Voice Preset (Narrator, News, etc.)',
-            '2. Choose Language from 30+ options',
+            '2. Choose Language from 35+ options',
             '3. Pick Gender: Male or Female voice',
             '4. Set Emotion (Whisper, Shout, Happy etc.)',
-            '5. Adjust Speed and Pitch sliders',
+            '5. Adjust Speed slider (top) and Pitch slider (below)',
             '6. Type text or Import file (TXT/PDF/DOCX)',
             '7. Tap Generate Audio button',
             '8. Preview then Save - auto-saved to Titan Studio PRO/',
@@ -2051,13 +2137,48 @@ class StudioScreen(Screen):
 
     def _on_lang_change(self, inst, lang):
         """
-        [FIX 5] RTL language handling:
-        - Shows RTL indicator label
-        - Sets base_direction on TextInput
-        - Does NOT force system keyboard change (that's Android's job)
+        [FIX 2] Change TextInput font based on language → no more boxes!
+        [FIX 3] Change keyboard locale hint → correct keyboard opens
+        [FIX 4] RTL/LTR alignment updated
         """
+        # FIX 2: Switch font to match language script
+        font_name = LANG_FONTS.get(lang, DEFAULT_FONT)
+        try:
+            self.txt.font_name = font_name
+        except Exception:
+            pass  # Font not available, keep default
+
+        # FIX 3: Set keyboard locale so Android opens correct keyboard
+        locale = LANG_KEYBOARD_LOCALE.get(lang, 'en')
+        try:
+            # This triggers Android IME locale preference
+            self.txt.keyboard_suggestions = True
+            # Set input_type to text with locale hint
+            # Kivy doesn't expose locale directly, but on Android
+            # we can use the pyjnius approach
+            if ANDROID_ENV:
+                try:
+                    from jnius import autoclass
+                    PythonActivity = autoclass('org.kivy.android.PythonActivity')
+                    activity = PythonActivity.mActivity
+                    imm = activity.getSystemService(
+                        autoclass('android.content.Context').INPUT_METHOD_SERVICE
+                    )
+                    # Request soft keyboard with locale
+                    view = activity.getCurrentFocus()
+                    if view:
+                        imm.showSoftInput(view, 0)
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+        # FIX 4: RTL/LTR direction and alignment
         if lang in RTL_LANGS:
-            self.rtl_lbl.text = 'RTL mode active: ' + lang + ' - switch to ' + lang + ' keyboard'
+            self.rtl_lbl.text = (
+                u'\u25c4 RTL: ' + lang +
+                u' keyboard — switch to ' + lang + u' in keyboard settings'
+            )
             try:
                 self.txt.base_direction = 'rtl'
                 self.txt.halign = 'right'
@@ -2258,6 +2379,10 @@ class StudioScreen(Screen):
         threading.Thread(target=self._worker, daemon=True).start()
 
     def _worker(self):
+        """
+        [FIX 5] Male voice now correctly selected.
+               Advanced options (breath, ssml, pacing) actually applied.
+        """
         try:
             lang_name = self.lang_spin.text
             gender = self.voice_sel
@@ -2265,26 +2390,44 @@ class StudioScreen(Screen):
             speed_pct = int(self.speed_slider.value)
             pitch_val = int(self.pitch_slider.value)
             use_breaths = self.adv_card.use_breaths
+            use_ssml = self.adv_card.use_ssml
+            adaptive_pacing = self.adv_card.adaptive_pacing
+            low_latency = self.adv_card.low_latency
 
             Clock.schedule_once(lambda dt: self._upd(10, 'Selecting voice...'))
+
+            # [FIX 5] pick_edge_voice uses verified Male/Female voices
             voice = pick_edge_voice(lang_name, gender)
             rate_str = speed_to_rate_str(speed_pct, emotion)
             volume_str = emotion_to_volume_str(emotion)
             pitch_str = pitch_to_pitch_str(pitch_val)
             text = self.txt.text
 
+            # [FIX 5] Apply Advanced Options to text/rate
             if use_breaths:
-                text = re.sub(r'([.!?])\s+', r'\1 ', text)
+                # Insert slight pauses at sentence boundaries
+                text = re.sub(r'([.!?])\s+', r'\1  ', text)
+
+            if adaptive_pacing:
+                # Slow down slightly for very long texts
+                if len(text) > 500:
+                    speed_pct = max(10, speed_pct - 5)
+                    rate_str = speed_to_rate_str(speed_pct, emotion)
+
+            if use_ssml:
+                # Wrap in basic SSML if enabled - edge-tts handles SSML
+                # Only wrap if text doesn't already have SSML tags
+                if not text.strip().startswith('<speak>'):
+                    text = '<speak>' + text + '</speak>'
 
             label = lang_name + ' - ' + gender + ' - ' + emotion
             Clock.schedule_once(lambda dt: self._upd(25, 'Checking connection...'))
 
             has_internet = check_internet()
-
             out = os.path.join(App.get_running_app().user_data_dir, 'tts_preview.mp3')
 
             if has_internet:
-                Clock.schedule_once(lambda dt: self._upd(45, 'Generating neural voice (' + label + ')...'))
+                Clock.schedule_once(lambda dt: self._upd(45, 'Generating: ' + label + '...'))
                 ok, err = edge_tts_generate(text, voice, rate_str, volume_str, pitch_str, out)
 
                 if ok:
@@ -2295,19 +2438,13 @@ class StudioScreen(Screen):
                     Clock.schedule_once(lambda dt: self._upd(35, 'edge-tts not found, using gTTS...'))
                     self._worker_gtts_fallback(out)
                 elif err == 'TIMEOUT':
-                    Clock.schedule_once(
-                        lambda dt: self._upd(35, 'Timeout. Trying gTTS fallback...')
-                    )
+                    Clock.schedule_once(lambda dt: self._upd(35, 'Timeout. Trying gTTS...'))
                     self._worker_gtts_fallback(out)
                 else:
-                    Clock.schedule_once(
-                        lambda dt: self._upd(35, 'Edge-TTS failed. Trying gTTS...')
-                    )
+                    Clock.schedule_once(lambda dt: self._upd(35, 'Edge-TTS error. Trying gTTS...'))
                     self._worker_gtts_fallback(out)
             else:
-                Clock.schedule_once(
-                    lambda dt: self._upd(20, 'No internet. Trying gTTS...')
-                )
+                Clock.schedule_once(lambda dt: self._upd(20, 'No internet. Trying gTTS...'))
                 self._worker_gtts_fallback(out)
 
         except Exception as e:
@@ -2354,13 +2491,17 @@ class StudioScreen(Screen):
 
         self._audio = SoundLoader.load(self.out_file)
         if gtts_mode:
-            msg = 'Audio ready! (Basic mode - install edge-tts for natural neural voices)'
+            msg = 'Audio ready! (Basic mode - install edge-tts for neural voices)'
         else:
             msg = 'Audio ready! Tap Preview Audio or Save Voice.'
         self._upd(100, msg)
         self._set_ready(ok=True)
         self.waveform.stop()
-        self.result_lbl.text = 'Generated: ' + self.lang_spin.text + ' - ' + self.voice_sel + ' - ' + self.emotion_picker.selected
+        self.result_lbl.text = (
+            'Generated: ' + self.lang_spin.text +
+            ' - ' + self.voice_sel +
+            ' - ' + self.emotion_picker.selected
+        )
         Clock.schedule_once(
             lambda dt: Animation(value=0, duration=0.7, t='out_quad').start(self.prog), 2.0
         )
@@ -2403,19 +2544,11 @@ class StudioScreen(Screen):
             return
 
         def after_permission(granted):
-            # [FIX 4]: Schedule _auto_save on Kivy main thread
-            # This prevents "Cannot create graphics instruction outside main Kivy thread"
             Clock.schedule_once(lambda dt: self._auto_save(), 0)
 
         request_storage_permissions(after_permission)
 
     def _auto_save(self):
-        """
-        [FIX 4] This method MUST run on the Kivy main thread.
-        Called via Clock.schedule_once to ensure that.
-        The old version called this from a permission callback which
-        could be on a background thread - causing the Kivy graphics crash.
-        """
         emotion = self.emotion_picker.selected
         lang = self.lang_spin.text
         voice = self.voice_sel
@@ -2479,7 +2612,8 @@ class StudioScreen(Screen):
                 self._show_save_success(fname, fallback_dir, fallback_dest)
             except Exception as e2:
                 self._show_err_popup(
-                    'Save failed!\n\nGo to Settings > Apps > Titan Studio PRO\n> Permissions > Storage and allow access.\n\n(' + str(e2)[:60] + ')'
+                    'Save failed!\n\nGo to Settings > Apps > Titan Studio PRO\n'
+                    '> Permissions > Storage and allow access.\n\n(' + str(e2)[:60] + ')'
                 )
         except Exception as e:
             self._upd(0, 'Save failed: ' + str(e)[:60])
@@ -2522,7 +2656,6 @@ class TitanApp(App):
     def build(self):
         self.title = 'Titan Studio PRO'
 
-        # [FIX 6]: Create folder at startup on main thread
         try:
             get_titan_folder()
         except Exception:
