@@ -1,13 +1,9 @@
 # ============================================================
 #  Titan Studio PRO - GitHub Actions Build Workflow
-#  Version: 14.0.6 - DEFINITIVE AIDL FIX
+#  Version: 14.0.7 - ROOT WARNING FIX
 #
-#  ROOT CAUSE (confirmed): buildozer andar se build-tools;37.0.0
-#  download karne ki koshish karta hai lekin license accept nahi hoti
-#
-#  FIX: Docker ke andar jaake pehle license accept karo,
-#  build-tools;33.0.2 install karo, phir buildozer.spec mein
-#  version lock karo - TAB buildozer android debug chalao
+#  FIX: Buildozer root user warning bypass
+#  BUILDOZER_WARN_ON_ROOT=0 se confirmation skip hogi
 # ============================================================
 
 name: Build Titan Studio PRO APK
@@ -29,23 +25,22 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Patch buildozer.spec before build
+      - name: Patch buildozer.spec
         run: |
-          # buildozer.spec mein build tools version lock karo
-          # Pehle check karo duplicate na ho
           grep -q "android.build_tools_version" buildozer.spec || \
             echo "android.build_tools_version = 33.0.2" >> buildozer.spec
-          echo "=== buildozer.spec tail ==="
           tail -5 buildozer.spec
 
       - name: Build APK using Docker
         run: |
           docker run --rm \
             -v ${{ github.workspace }}:/home/user/hostcwd \
+            -e BUILDOZER_WARN_ON_ROOT=0 \
             --entrypoint /bin/bash \
             kivy/buildozer:latest \
             -c "
               set -e
+
               echo '=== Accepting SDK licenses ==='
               mkdir -p /home/user/.buildozer/android/platform/android-sdk/licenses
               echo '24333f8a63b6825ea9c5514f83c2829b004d1fee' > /home/user/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
@@ -59,11 +54,12 @@ jobs:
               AIDL=\$(find /home/user/.buildozer -name 'aidl' 2>/dev/null | head -1)
               if [ -n \"\$AIDL\" ]; then
                 ln -sf \"\$AIDL\" /usr/local/bin/aidl
-                echo \"aidl linked from: \$AIDL\"
+                echo \"aidl linked: \$AIDL\"
               fi
 
               echo '=== Starting buildozer ==='
               cd /home/user/hostcwd
+              export BUILDOZER_WARN_ON_ROOT=0
               buildozer android debug 2>&1 | tee build_output.txt
             "
 
