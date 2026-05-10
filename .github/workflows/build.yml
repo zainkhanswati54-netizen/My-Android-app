@@ -1,9 +1,10 @@
 # ============================================================
 #  Titan Studio PRO - GitHub Actions Build Workflow
-#  Version: 14.0.7 - ROOT WARNING FIX
+#  Version: 14.0.8 - ROOT PATH + LICENSE FINAL FIX
 #
-#  FIX: Buildozer root user warning bypass
-#  BUILDOZER_WARN_ON_ROOT=0 se confirmation skip hogi
+#  FIX 1: Licenses /root/.buildozer mein rakhi (root user hai Docker mein)
+#  FIX 2: build-tools;37.0.0 ki jagah 33.0.2 force kiya
+#  FIX 3: BUILDOZER_WARN_ON_ROOT=0 root warning bypass
 # ============================================================
 
 name: Build Titan Studio PRO APK
@@ -41,21 +42,21 @@ jobs:
             -c "
               set -e
 
-              echo '=== Accepting SDK licenses ==='
-              mkdir -p /home/user/.buildozer/android/platform/android-sdk/licenses
-              echo '24333f8a63b6825ea9c5514f83c2829b004d1fee' > /home/user/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
-              echo 'd56f5187479451eabf01fb78af6dfcb131a6481e' >> /home/user/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
-              echo '84831b9409646a918e30573bab4c9c91346d8abd' > /home/user/.buildozer/android/platform/android-sdk/licenses/android-sdk-preview-license
+              echo '=== Writing licenses to /root path ==='
+              mkdir -p /root/.buildozer/android/platform/android-sdk/licenses
+              echo '24333f8a63b6825ea9c5514f83c2829b004d1fee' > /root/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
+              echo 'd56f5187479451eabf01fb78af6dfcb131a6481e' >> /root/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
+              echo '84831b9409646a918e30573bab4c9c91346d8abd' > /root/.buildozer/android/platform/android-sdk/licenses/android-sdk-preview-license
+              echo '601085b94cd77f0b54ff86406957099ebe79c4d6' > /root/.buildozer/android/platform/android-sdk/licenses/android-googletv-license
+              echo '33b6a2b64607f11b759f320ef9dff4ae5c47d97a' > /root/.buildozer/android/platform/android-sdk/licenses/google-gdk-license
+              echo 'Licenses written!'
 
-              echo '=== Installing build-tools 33.0.2 ==='
-              yes | sdkmanager 'build-tools;33.0.2' 'platforms;android-33' || true
+              echo '=== Installing build-tools 33.0.2 via sdkmanager ==='
+              yes | sdkmanager --sdk_root=/root/.buildozer/android/platform/android-sdk \
+                'build-tools;33.0.2' 'platforms;android-33' 2>/dev/null || true
 
-              echo '=== Fixing aidl ==='
-              AIDL=\$(find /home/user/.buildozer -name 'aidl' 2>/dev/null | head -1)
-              if [ -n \"\$AIDL\" ]; then
-                ln -sf \"\$AIDL\" /usr/local/bin/aidl
-                echo \"aidl linked: \$AIDL\"
-              fi
+              echo '=== Checking aidl ==='
+              find /root/.buildozer -name 'aidl' 2>/dev/null || echo 'aidl not found yet'
 
               echo '=== Starting buildozer ==='
               cd /home/user/hostcwd
