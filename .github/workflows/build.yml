@@ -1,6 +1,6 @@
 # ============================================================
 #  Titan Studio PRO - GitHub Actions Build Workflow
-#  Version: 14.0.3 - FULL LOG VERSION
+#  Version: 14.0.4 - EXACT ERROR CAPTURE
 # ============================================================
 
 name: Build Titan Studio PRO APK
@@ -28,13 +28,13 @@ jobs:
             -v ${{ github.workspace }}:/home/user/hostcwd \
             -e ANDROID_SDK_ROOT=/home/user/.android/sdk \
             kivy/buildozer:latest \
-            bash -c "cd /home/user/hostcwd && buildozer android debug 2>&1 | tee build_output.txt; exit \${PIPESTATUS[0]}" || true
+            bash -c "cd /home/user/hostcwd && buildozer android debug 2>&1 | tee /home/user/hostcwd/build_output.txt; exit \${PIPESTATUS[0]}"
 
-      - name: Show last 100 lines of log
+      - name: Show FULL build log
         if: always()
         run: |
-          echo "====== LAST 100 LINES OF BUILD LOG ======"
-          tail -100 build_output.txt 2>/dev/null || echo "No log file found"
+          echo "====== FULL BUILD LOG ======"
+          cat build_output.txt 2>/dev/null || echo "Log file nahi mila"
 
       - name: Upload build log
         if: always()
