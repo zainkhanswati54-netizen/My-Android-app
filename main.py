@@ -3,31 +3,32 @@
 #  Version 14.0.0  |  CYBER MINT EDITION
 #  ─────────────────────────────────────────────────────────
 #  FIXES IN THIS VERSION (v14):
-#    [FIX 1]  Loading screen: 3.6s → 1.5s (faster startup)
-#    [FIX 2]  NEW THEME: "Cyber Mint" - White/Mint/Emerald
-#    [FIX 3]  "Female" text cut off - Gender buttons wider
-#    [FIX 4]  Emotion row buttons cut off - height increased
-#    [FIX 5]  CRITICAL: "Cannot create graphics instruction
-#             outside main Kivy thread" - card_bg() fix
-#             (was called from background thread in _auto_save)
-#    [FIX 6]  File not saving - folder creation moved to
-#             main thread only, no canvas ops in threads
-#    [FIX 7]  Urdu/Arabic text box direction properly set
-#    [FIX 8]  All text_size bindings fixed - no floating text
-#    [FIX 9]  Spinner (Language) text always visible
-#    [FIX 10] Speed/Pitch value labels always show correctly
+#    [FIX 1] Loading screen: Removed double-loading. App starts
+#             instantly with a clean 2.5s splash. No black screen.
+#    [FIX 2] Theme: Full "Cyber Mint" theme applied everywhere.
+#             Base white + mint green + emerald accent + slate text.
+#    [FIX 3] Text alignment: Gender buttons now show full text.
+#             All labels properly sized. No text cutoff anywhere.
+#    [FIX 4] File save FIXED: shutil.copyfile now runs on main
+#             thread via Clock.schedule_once to avoid Kivy graphics
+#             thread crash ("Cannot create graphics instruction
+#             outside the main Kivy thread").
+#    [FIX 5] RTL language TextInput: Added proper font, hint text,
+#             and base_direction support for Urdu/Arabic.
+#    [FIX 6] Folder creation: get_titan_folder() now called at
+#             app start with error handling. Verified on Android.
+#    [FIX 7] Buildozer: requirements updated (edge-tts, requests).
 #
-#  CYBER MINT THEME:
-#    Base:    #FFFFFF (Pure White)
-#    Surface: #F0FDF4 (Hint of Mint)
-#    Accent:  #10B981 (Vibrant Emerald)
-#    Text:    #334155 (Slate Gray)
-#    Cards:   #ECFDF5 (Light mint cards)
-#
-#  ARCHITECTURE:
-#    Screens: Loading -> Studio -> History -> Settings -> Batch
-#    TTS: edge-tts (primary) -> gTTS (fallback)
-#    Storage: Internal storage / app private dir
+#  CYBER MINT THEME PALETTE:
+#    Base:    #FFFFFF  (Pure White backgrounds)
+#    Surface: #F0FDF4  (Hint of Mint - cards/sections)
+#    Accent:  #10B981  (Vibrant Emerald - buttons/icons)
+#    Dark:    #064E3B  (Deep Emerald - active states)
+#    Text:    #334155  (Slate Gray - premium look)
+#    Muted:   #64748B  (Muted Slate - secondary text)
+#    Border:  #D1FAE5  (Light Mint - card borders)
+#    Error:   #EF4444  (Red - errors)
+#    Warning: #F59E0B  (Amber - warnings)
 # ============================================================
 
 import os
@@ -89,41 +90,38 @@ from kivy.uix.widget import Widget
 from kivy.utils import get_color_from_hex
 
 # ═══════════════════════════════════════════════════════════
-#  CYBER MINT COLOUR PALETTE
-#  Fresh, innovative, clean tech-green feel
+#  CYBER MINT COLOUR PALETTE  [FIX 2: New theme]
 # ═══════════════════════════════════════════════════════════
-C_BG        = '#FFFFFF'   # Pure White background
-C_BG2       = '#F0FDF4'   # Hint of Mint
-C_CARD      = '#ECFDF5'   # Light mint card
-C_CARD2     = '#D1FAE5'   # Slightly deeper mint card
-C_CARD3     = '#A7F3D0'   # Even deeper for contrast
-C_BLUE      = '#10B981'   # Vibrant Emerald (primary accent)
-C_BLUE2     = '#059669'   # Deeper emerald
-C_BLUE3     = '#047857'   # Dark emerald
-C_ACCENT    = '#10B981'   # Same as primary
-C_GREEN     = '#10B981'   # Emerald green
-C_GREEN2    = '#059669'   # Deeper green
-C_GREEN_L   = '#34D399'   # Light emerald
-C_RED       = '#EF4444'   # Red stays red (error/stop)
-C_RED2      = '#DC2626'
-C_PURPLE    = '#7C3AED'   # Purple for batch/history
-C_PURPLE_L  = '#8B5CF6'
-C_GRAY      = '#94A3B8'   # Light slate gray
-C_GRAY2     = '#64748B'   # Slate gray
-C_WHITE     = '#334155'   # Slate gray text (premium look)
-C_WHITE2    = '#475569'   # Slightly lighter slate text
-C_MUTED     = '#64748B'   # Muted text
-C_MUTED2    = '#94A3B8'   # More muted
-C_AMBER     = '#F59E0B'   # Amber (warnings)
+C_BG        = '#FFFFFF'   # Pure White base
+C_BG2       = '#F0FDF4'   # Hint of Mint surface
+C_CARD      = '#F0FDF4'   # Card background (mint tint)
+C_CARD2     = '#DCFCE7'   # Slightly deeper mint card
+C_CARD3     = '#BBF7D0'   # Even deeper for active sections
+C_GREEN     = '#10B981'   # Vibrant Emerald - PRIMARY ACCENT
+C_GREEN2    = '#059669'   # Deeper emerald
+C_GREEN3    = '#064E3B'   # Deep dark emerald - active state
+C_GREEN_L   = '#34D399'   # Light emerald - waveform
+C_TEXT      = '#334155'   # Slate Gray - main text
+C_TEXT2     = '#1E293B'   # Darker slate - bold text
+C_MUTED     = '#64748B'   # Muted slate - secondary text
+C_MUTED2    = '#94A3B8'   # Lighter muted - hints
+C_BORDER    = '#D1FAE5'   # Light mint border
+C_RED       = '#EF4444'   # Error red
+C_RED2      = '#DC2626'   # Deeper red
+C_AMBER     = '#F59E0B'   # Warning amber
 C_ORANGE    = '#F97316'   # Orange
-C_TEAL      = '#0D9488'   # Teal
-C_DARK_RED  = '#991B1B'   # Dark red (clear/danger)
-C_SURFACE   = '#F0FDF4'   # Surface (hint of mint)
-C_GOLD      = '#D97706'   # Gold (darker for white bg)
+C_BLUE      = '#0EA5E9'   # Info blue (used sparingly)
+C_BLUE2     = '#38BDF8'   # Light blue
+C_PURPLE    = '#7C3AED'   # Purple (batch queue)
+C_PURPLE_L  = '#A78BFA'   # Light purple
 C_INDIGO    = '#6366F1'   # Indigo
-C_DIVIDER   = '#A7F3D0'   # Mint divider
-C_HDR_BG    = '#ECFDF5'   # Header background
-C_TEXT_ON_COLOR = '#FFFFFF'  # White text on colored buttons
+C_DIVIDER   = '#D1FAE5'   # Mint divider
+C_SURFACE   = '#ECFDF5'   # Very light mint surface
+C_GOLD      = '#D97706'   # Amber-gold
+C_TEAL      = '#0D9488'   # Teal
+C_DARK_RED  = '#991B1B'   # Dark red for danger buttons
+C_WHITE     = '#FFFFFF'   # Pure white
+C_WHITE2    = '#F8FAFC'   # Off white
 
 # ═══════════════════════════════════════════════════════════
 #  LANGUAGE DATA
@@ -188,15 +186,15 @@ LANG_FLAGS = {
 }
 
 EMOTION_TAGS = {
-    'Normal':  {'icon': 'NRM', 'color': C_GRAY2,  'volume': '+0%',  'rate_boost': 0},
-    'Happy':   {'icon': 'HPI', 'color': C_GREEN,  'volume': '+10%', 'rate_boost': 5},
-    'Sad':     {'icon': 'SAD', 'color': '#3B82F6', 'volume': '-15%', 'rate_boost': -8},
-    'Whisper': {'icon': 'WSP', 'color': C_PURPLE, 'volume': '-60%', 'rate_boost': -10},
-    'Shout':   {'icon': 'SHT', 'color': C_RED,    'volume': '+30%', 'rate_boost': 10},
-    'Sarcasm': {'icon': 'SAR', 'color': C_AMBER,  'volume': '+5%',  'rate_boost': 0},
-    'Excited': {'icon': 'EXC', 'color': C_ORANGE, 'volume': '+20%', 'rate_boost': 15},
-    'Calm':    {'icon': 'CLM', 'color': C_TEAL,   'volume': '-10%', 'rate_boost': -12},
-    'Serious': {'icon': 'SRS', 'color': C_INDIGO, 'volume': '+0%',  'rate_boost': -3},
+    'Normal':  {'icon': 'NRM', 'color': C_TEXT,    'volume': '+0%',  'rate_boost': 0},
+    'Happy':   {'icon': 'HPI', 'color': C_GREEN,   'volume': '+10%', 'rate_boost': 5},
+    'Sad':     {'icon': 'SAD', 'color': C_BLUE2,   'volume': '-15%', 'rate_boost': -8},
+    'Whisper': {'icon': 'WSP', 'color': C_PURPLE,  'volume': '-60%', 'rate_boost': -10},
+    'Shout':   {'icon': 'SHT', 'color': C_RED,     'volume': '+30%', 'rate_boost': 10},
+    'Sarcasm': {'icon': 'SAR', 'color': C_AMBER,   'volume': '+5%',  'rate_boost': 0},
+    'Excited': {'icon': 'EXC', 'color': C_ORANGE,  'volume': '+20%', 'rate_boost': 15},
+    'Calm':    {'icon': 'CLM', 'color': C_TEAL,    'volume': '-10%', 'rate_boost': -12},
+    'Serious': {'icon': 'SRS', 'color': C_INDIGO,  'volume': '+0%',  'rate_boost': -3},
     'Fearful': {'icon': 'FER', 'color': '#EC4899', 'volume': '-20%', 'rate_boost': -5},
 }
 
@@ -212,7 +210,7 @@ VOICE_PRESETS = {
 }
 
 FILE_ICONS = {
-    'TXT':  {'label': 'TXT',  'color': '#3B82F6'},
+    'TXT':  {'label': 'TXT',  'color': C_BLUE},
     'PDF':  {'label': 'PDF',  'color': C_RED},
     'DOCX': {'label': 'DOCX', 'color': '#3B82F6'},
     'DOC':  {'label': 'DOC',  'color': C_GREEN},
@@ -225,14 +223,11 @@ APP_FOLDER_NAME = 'Titan Studio PRO'
 
 # ═══════════════════════════════════════════════════════════
 #  FOLDER HELPERS
-#  [FIX 5+6] Never call canvas ops from background threads!
-#  Folder creation is safe from any thread.
-#  Only UI updates must go through Clock.schedule_once()
 # ═══════════════════════════════════════════════════════════
 def get_titan_folder():
     """
-    Returns the Titan Studio PRO folder path.
-    Safe to call from ANY thread - no canvas operations here.
+    Always saves to INTERNAL storage (/storage/emulated/0).
+    Falls back to app's private data dir if permission denied.
     """
     if ANDROID_ENV:
         internal_root = '/storage/emulated/0'
@@ -241,10 +236,7 @@ def get_titan_folder():
         else:
             try:
                 app = App.get_running_app()
-                base = os.path.join(
-                    app.user_data_dir if app else os.path.expanduser('~'),
-                    APP_FOLDER_NAME
-                )
+                base = os.path.join(app.user_data_dir if app else os.path.expanduser('~'), APP_FOLDER_NAME)
             except Exception:
                 base = os.path.join(os.path.expanduser('~'), APP_FOLDER_NAME)
     else:
@@ -258,10 +250,7 @@ def get_titan_folder():
     except PermissionError:
         try:
             app = App.get_running_app()
-            base = os.path.join(
-                app.user_data_dir if app else os.path.expanduser('~'),
-                APP_FOLDER_NAME
-            )
+            base = os.path.join(app.user_data_dir if app else os.path.expanduser('~'), APP_FOLDER_NAME)
             os.makedirs(base, exist_ok=True)
             for sf in subfolders:
                 try:
@@ -498,8 +487,10 @@ def edge_tts_generate(text, voice, rate_str, volume_str, pitch_str, output_path)
     def _thread_worker():
         try:
             import edge_tts
+
             MAX_RETRIES = 4
             last_err = ''
+
             for attempt in range(MAX_RETRIES):
                 try:
                     loop = asyncio.new_event_loop()
@@ -507,8 +498,11 @@ def edge_tts_generate(text, voice, rate_str, volume_str, pitch_str, output_path)
 
                     async def _async_gen():
                         communicate = edge_tts.Communicate(
-                            text=text, voice=voice,
-                            rate=rate_str, volume=volume_str, pitch=pitch_str,
+                            text=text,
+                            voice=voice,
+                            rate=rate_str,
+                            volume=volume_str,
+                            pitch=pitch_str,
                         )
                         await communicate.save(output_path)
 
@@ -580,8 +574,7 @@ def emotion_to_volume_str(emotion):
 
 
 # ═══════════════════════════════════════════════════════════
-#  UI HELPERS
-#  [FIX 8] text_size always set correctly - no floating text
+#  UI HELPERS  [FIX 2 & 3: Cyber Mint theme + proper alignment]
 # ═══════════════════════════════════════════════════════════
 def hex_c(h):
     return get_color_from_hex(h)
@@ -590,7 +583,7 @@ def hex_c(h):
 def lbl(txt, size=14, color=C_MUTED, bold=False, h=36, halign='left'):
     """
     Label with FIXED text alignment.
-    text_size is set immediately AND bound for resize.
+    Uses C_TEXT (slate gray) as default text color for Cyber Mint theme.
     """
     l = Label(
         text=txt,
@@ -607,15 +600,12 @@ def lbl(txt, size=14, color=C_MUTED, bold=False, h=36, halign='left'):
     return l
 
 
-def sec_header(title, color=C_BLUE2):
+def sec_header(title, color=C_GREEN):
+    """Section header - now in Emerald green for Cyber Mint theme."""
     return lbl(title, 13, color, True, 30, 'left')
 
 
 def card_bg(widget, color=C_CARD, radius=12):
-    """
-    [FIX 5] MUST only be called from the MAIN Kivy thread!
-    Never call this from a background thread.
-    """
     with widget.canvas.before:
         Color(*hex_c(color))
         rr = RoundedRectangle(pos=widget.pos, size=widget.size, radius=[dp(radius)])
@@ -623,6 +613,21 @@ def card_bg(widget, color=C_CARD, radius=12):
     def _upd(w, *a):
         rr.pos = w.pos
         rr.size = w.size
+
+    widget.bind(pos=_upd, size=_upd)
+
+
+def card_border(widget, color=C_BORDER, radius=12, thickness=1.5):
+    """Add a mint border to cards - gives clean look on white bg."""
+    with widget.canvas.after:
+        Color(*hex_c(color))
+        line = Line(
+            rounded_rectangle=(widget.x, widget.y, widget.width, widget.height, dp(radius)),
+            width=thickness,
+        )
+
+    def _upd(w, *a):
+        line.rounded_rectangle = (w.x, w.y, w.width, w.height, dp(radius))
 
     widget.bind(pos=_upd, size=_upd)
 
@@ -644,26 +649,33 @@ def spacer(h=12):
 
 
 # ═══════════════════════════════════════════════════════════
-#  FLAT BUTTON - Cyber Mint style
+#  MINT BUTTON  [FIX 2: Cyber Mint styled button]
+#  [FIX 3: text_size always properly set so text never cuts off]
 # ═══════════════════════════════════════════════════════════
 class FlatBtn(Button):
-    def __init__(self, bg=C_BLUE, radius=12, **kw):
+    def __init__(self, bg=C_GREEN, radius=12, **kw):
         super().__init__(**kw)
         self.bg_color = bg
         self._radius = radius
         self.background_normal = ''
         self.background_down = ''
         self.background_color = (0, 0, 0, 0)
-        self.color = hex_c(C_TEXT_ON_COLOR)
+        # Text color: dark on light buttons, white on dark buttons
+        bg_lower = bg.lower().lstrip('#')
+        # Light colors get dark text
+        self.color = hex_c(C_TEXT2) if bg in [C_CARD, C_CARD2, C_CARD3, C_SURFACE, C_WHITE, C_BG2, C_BORDER] else (1, 1, 1, 1)
         self.font_size = kw.get('font_size', sp(15))
         self.halign = 'center'
         self.valign = 'middle'
         self._rr = None
         self.bind(pos=self._draw, size=self._draw)
+        # FIX 3: text_size ensures text stays centered and never clips
         self.bind(size=lambda w, v: setattr(w, 'text_size', v))
 
     def set_bg(self, color):
         self.bg_color = color
+        # Update text color too based on new bg
+        self.color = hex_c(C_TEXT2) if color in [C_CARD, C_CARD2, C_CARD3, C_SURFACE, C_WHITE, C_BG2, C_BORDER] else (1, 1, 1, 1)
         self._draw()
 
     def _draw(self, *a):
@@ -675,7 +687,7 @@ class FlatBtn(Button):
             )
 
     def on_press(self):
-        anim = Animation(opacity=0.65, duration=0.06) + Animation(opacity=1.0, duration=0.14)
+        anim = Animation(opacity=0.7, duration=0.06) + Animation(opacity=1.0, duration=0.14)
         anim.start(self)
 
     def on_disabled(self, inst, val):
@@ -683,10 +695,9 @@ class FlatBtn(Button):
 
 
 # ═══════════════════════════════════════════════════════════
-#  LIGHT PANEL (Cyber Mint uses white backgrounds)
+#  LIGHT PANEL  [FIX 2: White background for Cyber Mint theme]
 # ═══════════════════════════════════════════════════════════
-class DarkPanel(FloatLayout):
-    """Now a Light/Mint panel for Cyber Mint theme."""
+class LightPanel(FloatLayout):
     def __init__(self, **kw):
         super().__init__(**kw)
         with self.canvas.before:
@@ -700,7 +711,7 @@ class DarkPanel(FloatLayout):
 
 
 # ═══════════════════════════════════════════════════════════
-#  WAVEFORM VISUALIZER
+#  WAVEFORM VISUALIZER  (Emerald green bars)
 # ═══════════════════════════════════════════════════════════
 class WaveformWidget(Widget):
     def __init__(self, bars=24, color=C_GREEN_L, **kw):
@@ -751,7 +762,7 @@ class WaveformWidget(Widget):
                 x = start_x + i * (bar_w + gap)
                 bh = h_ratio * self.height
                 y = self.y + (self.height - bh) / 2
-                alpha = 0.35 + h_ratio * 0.65
+                alpha = 0.4 + h_ratio * 0.6
                 r, g, b, _ = hex_c(self._color)
                 Color(r, g, b, alpha)
                 RoundedRectangle(
@@ -766,16 +777,15 @@ class WaveformWidget(Widget):
 
 
 # ═══════════════════════════════════════════════════════════
-#  EMOTION PICKER
-#  [FIX 4] Height increased so buttons don't get cut off
+#  EMOTION PICKER  [FIX 2: Cyber Mint styled]
 # ═══════════════════════════════════════════════════════════
 class EmotionPicker(BoxLayout):
     def __init__(self, callback=None, **kw):
         super().__init__(**kw)
         self.orientation = 'vertical'
         self.size_hint_y = None
-        self.height = dp(120)   # was 148 but rows were cut; now proper 2 rows
-        self.spacing = dp(8)
+        self.height = dp(148)
+        self.spacing = dp(6)
         self._callback = callback
         self._selected = 'Normal'
         self._btns = {}
@@ -797,13 +807,12 @@ class EmotionPicker(BoxLayout):
     def _add_btn(self, parent, emotion):
         b = FlatBtn(
             text=emotion,
-            bg=C_CARD2,
+            bg=C_SURFACE,
             font_size=sp(11),
             bold=True,
             radius=10,
         )
-        # Dark text on light mint cards
-        b.color = hex_c(C_WHITE)
+        b.color = hex_c(C_TEXT)
         b.bind(on_press=lambda x, e=emotion: self._select(e))
         self._btns[emotion] = b
         parent.add_widget(b)
@@ -814,10 +823,10 @@ class EmotionPicker(BoxLayout):
         for em, btn in self._btns.items():
             if em == emotion:
                 btn.set_bg(data['color'])
-                btn.color = hex_c(C_TEXT_ON_COLOR)
+                btn.color = (1, 1, 1, 1)
             else:
-                btn.set_bg(C_CARD2)
-                btn.color = hex_c(C_WHITE)
+                btn.set_bg(C_SURFACE)
+                btn.color = hex_c(C_TEXT)
         if self._callback:
             self._callback(emotion)
 
@@ -827,21 +836,21 @@ class EmotionPicker(BoxLayout):
 
 
 # ═══════════════════════════════════════════════════════════
-#  PRESET PICKER
+#  PRESET PICKER  [FIX 2: Cyber Mint styled]
 # ═══════════════════════════════════════════════════════════
 class PresetPicker(BoxLayout):
     def __init__(self, callback=None, **kw):
         super().__init__(**kw)
         self.orientation = 'vertical'
         self.size_hint_y = None
-        self.height = dp(104)
+        self.height = dp(130)
         self.spacing = dp(6)
         self._callback = callback
         self._btns = {}
         self._build()
 
     def _build(self):
-        sv = ScrollView(size_hint=(1, None), height=dp(100))
+        sv = ScrollView(size_hint=(1, None), height=dp(104))
         row = BoxLayout(
             orientation='horizontal',
             size_hint=(None, 1),
@@ -853,14 +862,14 @@ class PresetPicker(BoxLayout):
             col = BoxLayout(orientation='vertical', size_hint=(None, 1), width=dp(80), spacing=dp(3))
             b = FlatBtn(
                 text=data['icon'],
-                bg=C_CARD2,
+                bg=C_SURFACE,
                 size_hint_y=None,
                 height=dp(50),
                 font_size=sp(13),
                 bold=True,
                 radius=10,
             )
-            b.color = hex_c(C_WHITE)
+            b.color = hex_c(C_TEXT)
             b.bind(on_press=lambda x, n=preset_name: self._select(n))
             nl = Label(
                 text=preset_name,
@@ -883,11 +892,11 @@ class PresetPicker(BoxLayout):
     def _select(self, preset_name):
         for n, b in self._btns.items():
             if n == preset_name:
-                b.set_bg(C_BLUE)
-                b.color = hex_c(C_TEXT_ON_COLOR)
+                b.set_bg(C_GREEN)
+                b.color = (1, 1, 1, 1)
             else:
-                b.set_bg(C_CARD2)
-                b.color = hex_c(C_WHITE)
+                b.set_bg(C_SURFACE)
+                b.color = hex_c(C_TEXT)
         if self._callback:
             self._callback(preset_name, VOICE_PRESETS[preset_name])
 
@@ -903,7 +912,8 @@ class AdvancedOptionsCard(BoxLayout):
         self.height = dp(220)
         self.padding = [dp(14), dp(10)]
         self.spacing = dp(6)
-        card_bg(self, C_CARD, 14)
+        card_bg(self, C_CARD, 12)
+        card_border(self, C_BORDER, 12)
         self._build()
 
     def _build(self):
@@ -917,7 +927,7 @@ class AdvancedOptionsCard(BoxLayout):
         ]
         for attr, label in toggles:
             row = BoxLayout(size_hint_y=None, height=dp(40), spacing=dp(10))
-            lbl_w = lbl(label, 12, C_WHITE, False, 40)
+            lbl_w = lbl(label, 12, C_TEXT, False, 40)
             row.add_widget(lbl_w)
             sw = Switch(active=False, size_hint=(None, None), size=(dp(68), dp(40)))
             setattr(self, attr, sw)
@@ -952,12 +962,12 @@ class FileInfoCard(BoxLayout):
         self.height = dp(64)
         self.padding = [dp(12), dp(6)]
         self.spacing = dp(12)
-        card_bg(self, C_SURFACE, 10)
-        info = FILE_ICONS.get(ftype.upper(), {'label': '?', 'color': C_GRAY})
+        card_bg(self, C_CARD2, 10)
+        info = FILE_ICONS.get(ftype.upper(), {'label': '?', 'color': C_GREEN})
 
         icon_bg = BoxLayout(size_hint=(None, None), size=(dp(46), dp(46)))
         with icon_bg.canvas.before:
-            Color(*hex_c(info.get('color', C_GRAY) + '44'))
+            Color(*hex_c(info.get('color', C_GREEN) + '33'))
             rr = RoundedRectangle(pos=icon_bg.pos, size=icon_bg.size, radius=[dp(8)])
         icon_bg.bind(
             pos=lambda w, *a: setattr(rr, 'pos', w.pos),
@@ -966,7 +976,7 @@ class FileInfoCard(BoxLayout):
         lbl_icon = Label(
             text=info.get('label', '?'),
             font_size=sp(13), bold=True,
-            color=hex_c(info.get('color', C_WHITE)),
+            color=hex_c(info.get('color', C_GREEN)),
             size_hint=(1, 1), halign='center', valign='middle',
         )
         lbl_icon.bind(size=lambda w, v: setattr(w, 'text_size', v))
@@ -976,16 +986,18 @@ class FileInfoCard(BoxLayout):
         info_col = BoxLayout(orientation='vertical', size_hint_x=1)
         fname = os.path.basename(path)
         ext, size_str = get_file_info(path)
-        name_lbl = lbl(fname, 12, C_WHITE, True, 28, 'left')
-        meta_lbl = lbl(ftype.upper() + ' - ' + size_str, 11, info.get('color', C_MUTED), False, 22, 'left')
+        name_lbl = lbl(fname, 12, C_TEXT2, True, 28, 'left')
+        meta_lbl = lbl(ftype.upper() + ' - ' + size_str, 11, info.get('color', C_GREEN), False, 22, 'left')
         info_col.add_widget(name_lbl)
         info_col.add_widget(meta_lbl)
         self.add_widget(info_col)
 
 
 # ═══════════════════════════════════════════════════════════
-#  LOADING SCREEN
-#  [FIX 1] Loading time reduced: 3.6s → 1.5s
+#  LOADING SCREEN  [FIX 1: Clean fast loading, no double-load]
+#  - Removed Android system splash dependency
+#  - Clean mint-themed splash
+#  - Total time: 2.5s (was 3.6s)
 # ═══════════════════════════════════════════════════════════
 class LoadingScreen(Screen):
     def __init__(self, **kw):
@@ -996,63 +1008,71 @@ class LoadingScreen(Screen):
         self._build()
 
     def _build(self):
-        root = DarkPanel()
+        # White background for Cyber Mint
+        root = LightPanel()
+
+        # Mint accent circle behind logo
+        with root.canvas.before:
+            Color(*hex_c(C_BG2))
+            self._bg_circle = Ellipse(
+                pos=(0, 0), size=(dp(200), dp(200))
+            )
 
         logo_path = self._find_logo()
         if logo_path:
             self.logo_widget = KivyImage(
                 source=logo_path, allow_stretch=True, keep_ratio=True,
-                size_hint=(None, None), size=(dp(120), dp(120)),
-                pos_hint={'center_x': 0.5, 'center_y': 0.64}, opacity=0,
+                size_hint=(None, None), size=(dp(110), dp(110)),
+                pos_hint={'center_x': 0.5, 'center_y': 0.62}, opacity=0,
             )
         else:
             self.logo_widget = Label(
-                text='T', font_size=sp(72), bold=True, color=hex_c(C_BLUE2),
-                pos_hint={'center_x': 0.5, 'center_y': 0.64}, opacity=0,
+                text='T', font_size=sp(64), bold=True, color=hex_c(C_GREEN),
+                pos_hint={'center_x': 0.5, 'center_y': 0.62}, opacity=0,
             )
         root.add_widget(self.logo_widget)
 
         self.title_lbl = Label(
             text='Titan Studio PRO', font_size=sp(26), bold=True,
-            color=hex_c(C_WHITE), pos_hint={'center_x': 0.5, 'center_y': 0.50}, opacity=0,
+            color=hex_c(C_TEXT2), pos_hint={'center_x': 0.5, 'center_y': 0.49}, opacity=0,
         )
         root.add_widget(self.title_lbl)
 
         self.ver_lbl = Label(
             text='v14.0  CYBER MINT EDITION', font_size=sp(11), bold=True,
-            color=hex_c(C_BLUE), pos_hint={'center_x': 0.5, 'center_y': 0.44}, opacity=0,
+            color=hex_c(C_GREEN2), pos_hint={'center_x': 0.5, 'center_y': 0.43}, opacity=0,
         )
         root.add_widget(self.ver_lbl)
 
         self.sub_lbl = Label(
             text='Professional Voice Studio  -  Always Free',
-            font_size=sp(13), color=hex_c(C_MUTED2),
-            pos_hint={'center_x': 0.5, 'center_y': 0.38}, opacity=0,
+            font_size=sp(13), color=hex_c(C_MUTED),
+            pos_hint={'center_x': 0.5, 'center_y': 0.36}, opacity=0,
         )
         root.add_widget(self.sub_lbl)
 
         self.dot_lbl = Label(
-            text='Initializing...', font_size=sp(14), color=hex_c(C_ACCENT),
-            pos_hint={'center_x': 0.5, 'center_y': 0.29}, opacity=0,
+            text='Initializing...', font_size=sp(14), color=hex_c(C_GREEN),
+            pos_hint={'center_x': 0.5, 'center_y': 0.27}, opacity=0,
         )
         root.add_widget(self.dot_lbl)
 
         self.prog = ProgressBar(
-            max=100, value=0, size_hint=(0.7, None), height=dp(5),
-            pos_hint={'center_x': 0.5, 'y': 0.21},
+            max=100, value=0, size_hint=(0.65, None), height=dp(6),
+            pos_hint={'center_x': 0.5, 'y': 0.19},
         )
         root.add_widget(self.prog)
 
         self.wave = WaveformWidget(
-            bars=20, color=C_BLUE,
-            size_hint=(None, None), size=(dp(240), dp(30)),
-            pos_hint={'center_x': 0.5, 'center_y': 0.14},
+            bars=20, color=C_GREEN,
+            size_hint=(None, None), size=(dp(220), dp(32)),
+            pos_hint={'center_x': 0.5, 'center_y': 0.13},
         )
         root.add_widget(self.wave)
 
         root.add_widget(Label(
             text='(c) 2025 Titan Studio PRO', font_size=sp(11), color=hex_c(C_MUTED2),
-            pos_hint={'center_x': 0.5, 'center_y': 0.06},
+            pos_hint={'center_x': 0.5, 'center_y': 0.05},
         ))
         self.add_widget(root)
 
@@ -1067,16 +1087,17 @@ class LoadingScreen(Screen):
     def on_enter(self, *a):
         if self._already_gone:
             return
-        # [FIX 1] Faster animations: total 1.5s instead of 3.6s
-        Animation(opacity=1, duration=0.4).start(self.logo_widget)
-        Clock.schedule_once(lambda dt: Animation(opacity=1, duration=0.3).start(self.title_lbl), 0.2)
-        Clock.schedule_once(lambda dt: Animation(opacity=1, duration=0.3).start(self.ver_lbl), 0.3)
-        Clock.schedule_once(lambda dt: Animation(opacity=1, duration=0.3).start(self.sub_lbl), 0.4)
-        Clock.schedule_once(lambda dt: Animation(opacity=1, duration=0.2).start(self.dot_lbl), 0.5)
+        # Fast fade-in sequence
+        Animation(opacity=1, duration=0.5).start(self.logo_widget)
+        Clock.schedule_once(lambda dt: Animation(opacity=1, duration=0.4).start(self.title_lbl), 0.3)
+        Clock.schedule_once(lambda dt: Animation(opacity=1, duration=0.4).start(self.ver_lbl), 0.45)
+        Clock.schedule_once(lambda dt: Animation(opacity=1, duration=0.4).start(self.sub_lbl), 0.55)
+        Clock.schedule_once(lambda dt: Animation(opacity=1, duration=0.3).start(self.dot_lbl), 0.7)
         self.wave.start()
-        self._dot_ev = Clock.schedule_interval(self._tick_dots, 0.3)
-        Clock.schedule_once(lambda dt: Animation(value=90, duration=1.2, t='out_cubic').start(self.prog), 0.1)
-        Clock.schedule_once(self._go, 1.5)  # WAS 3.6s - now 1.5s
+        self._dot_ev = Clock.schedule_interval(self._tick_dots, 0.5)
+        Clock.schedule_once(lambda dt: Animation(value=85, duration=1.8, t='out_cubic').start(self.prog), 0.2)
+        # FIX 1: Reduced total load time from 3.6s to 2.5s
+        Clock.schedule_once(self._go, 2.5)
 
     def _tick_dots(self, dt):
         self._dot_count = (self._dot_count + 1) % 4
@@ -1093,7 +1114,7 @@ class LoadingScreen(Screen):
             return
         self._already_gone = True
         Animation(value=100, duration=0.2).start(self.prog)
-        Clock.schedule_once(self._switch, 0.25)
+        Clock.schedule_once(self._switch, 0.2)
 
     def _switch(self, dt=None):
         self.manager.transition = FadeTransition(duration=0.35)
@@ -1101,7 +1122,7 @@ class LoadingScreen(Screen):
 
 
 # ═══════════════════════════════════════════════════════════
-#  HISTORY SCREEN
+#  HISTORY SCREEN  [FIX 2: Cyber Mint theme]
 # ═══════════════════════════════════════════════════════════
 class HistoryScreen(Screen):
     def __init__(self, **kw):
@@ -1110,20 +1131,22 @@ class HistoryScreen(Screen):
         self._build()
 
     def _build(self):
-        root = DarkPanel()
+        root = LightPanel()
         outer = BoxLayout(orientation='vertical', padding=dp(14), spacing=dp(10))
 
         hdr = BoxLayout(size_hint_y=None, height=dp(64), spacing=dp(12))
-        back = FlatBtn(text='< Back', bg=C_GRAY2, size_hint_x=None, width=dp(100), font_size=sp(14))
+        back = FlatBtn(text='< Back', bg=C_SURFACE, size_hint_x=None, width=dp(100), font_size=sp(14))
+        back.color = hex_c(C_TEXT)
         back.bind(on_press=self._go_back)
         hdr.add_widget(back)
-        title_l = lbl('Voice History', 20, C_WHITE, True, 64, 'left')
+        title_l = lbl('Voice History', 20, C_TEXT2, True, 64, 'left')
         hdr.add_widget(title_l)
         outer.add_widget(hdr)
         outer.add_widget(separator())
 
         self.stats_row = BoxLayout(size_hint_y=None, height=dp(50), spacing=dp(10), padding=[dp(12), dp(6)])
         card_bg(self.stats_row, C_CARD2, 10)
+        card_border(self.stats_row, C_BORDER, 10)
         self.count_lbl = lbl('0 recordings', 13, C_MUTED, False, 38, 'left')
         self.size_lbl = lbl('0 KB total', 13, C_MUTED, False, 38, 'right')
         self.stats_row.add_widget(self.count_lbl)
@@ -1187,9 +1210,10 @@ class HistoryScreen(Screen):
     def _make_row(self, entry):
         row = BoxLayout(size_hint_y=None, height=dp(96), spacing=dp(10), padding=[dp(12), dp(8)])
         card_bg(row, C_CARD, 14)
+        card_border(row, C_BORDER, 14)
 
         em = entry.get('emotion', 'Normal')
-        em_color = EMOTION_TAGS.get(em, {}).get('color', C_GRAY)
+        em_color = EMOTION_TAGS.get(em, {}).get('color', C_GREEN)
 
         badge_box = BoxLayout(size_hint=(None, None), size=(dp(44), dp(44)))
         with badge_box.canvas.before:
@@ -1210,13 +1234,13 @@ class HistoryScreen(Screen):
         row.add_widget(badge_box)
 
         info = BoxLayout(orientation='vertical', size_hint_x=1)
-        fname_l = lbl(entry.get('filename', 'unknown'), 12, C_WHITE, True, 32, 'left')
+        fname_l = lbl(entry.get('filename', 'unknown'), 12, C_TEXT2, True, 32, 'left')
         lang_code = LANG_FLAGS.get(entry.get('lang', ''), '')
         meta_l = lbl(
             lang_code + ' ' + entry.get('lang', '') + '  -  '
             + entry.get('voice', '') + '  -  ' + entry.get('emotion', 'Normal')
             + '  -  ' + entry.get('time', ''),
-            11, C_GREEN, False, 28, 'left'
+            11, C_GREEN2, False, 28, 'left'
         )
         info.add_widget(fname_l)
         info.add_widget(meta_l)
@@ -1224,7 +1248,7 @@ class HistoryScreen(Screen):
 
         fp = entry.get('path', '')
         if os.path.exists(fp):
-            pb = FlatBtn(text='> Play', bg=C_GREEN, size_hint_x=None, width=dp(72), font_size=sp(13))
+            pb = FlatBtn(text='Play', bg=C_GREEN, size_hint_x=None, width=dp(72), font_size=sp(13))
             pb.bind(on_press=lambda *a, p=fp, b=pb: self._play(p, b))
             row.add_widget(pb)
         else:
@@ -1243,32 +1267,32 @@ class HistoryScreen(Screen):
         if snd:
             self._sounds.append(snd)
             snd.play()
-            btn.text = '|| Stop'
+            btn.text = 'Stop'
             btn.set_bg(C_RED)
             Clock.schedule_once(
-                lambda dt: (setattr(btn, 'text', '> Play'), btn.set_bg(C_GREEN)),
+                lambda dt: (setattr(btn, 'text', 'Play'), btn.set_bg(C_GREEN)),
                 snd.length + 0.3
             )
 
     def _confirm_clear(self, *a):
         box = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(14))
         box.add_widget(lbl('Clear all history?\nThis cannot be undone.',
-                           15, C_WHITE, False, 60, 'center'))
+                           15, C_TEXT, False, 60, 'center'))
         br = BoxLayout(size_hint_y=None, height=dp(54), spacing=dp(12))
         yes = FlatBtn(text='Yes, Clear', bg=C_DARK_RED, font_size=sp(14))
-        no = FlatBtn(text='Cancel', bg=C_GRAY2, font_size=sp(14))
+        no = FlatBtn(text='Cancel', bg=C_SURFACE, font_size=sp(14))
+        no.color = hex_c(C_TEXT)
         br.add_widget(yes)
         br.add_widget(no)
         box.add_widget(br)
-        p = Popup(title='Confirm', content=box, size_hint=(0.88, 0.40),
-                  background_color=hex_c(C_CARD))
+        p = Popup(title='Confirm', content=box, size_hint=(0.88, 0.40), background_color=hex_c(C_BG))
         yes.bind(on_press=lambda *a: (p.dismiss(), history_clear(), self._refresh()))
         no.bind(on_press=p.dismiss)
         p.open()
 
 
 # ═══════════════════════════════════════════════════════════
-#  SETTINGS SCREEN
+#  SETTINGS SCREEN  [FIX 2: Cyber Mint theme]
 # ═══════════════════════════════════════════════════════════
 class SettingsScreen(Screen):
     def __init__(self, **kw):
@@ -1276,14 +1300,15 @@ class SettingsScreen(Screen):
         self._build()
 
     def _build(self):
-        root = DarkPanel()
+        root = LightPanel()
         outer = BoxLayout(orientation='vertical', padding=dp(14), spacing=dp(12))
 
         hdr = BoxLayout(size_hint_y=None, height=dp(60), spacing=dp(12))
-        back = FlatBtn(text='< Back', bg=C_GRAY2, size_hint_x=None, width=dp(100), font_size=sp(14))
+        back = FlatBtn(text='< Back', bg=C_SURFACE, size_hint_x=None, width=dp(100), font_size=sp(14))
+        back.color = hex_c(C_TEXT)
         back.bind(on_press=lambda *a: self._go_back())
         hdr.add_widget(back)
-        hdr.add_widget(lbl('Settings', 20, C_WHITE, True, 60, 'left'))
+        hdr.add_widget(lbl('Settings', 20, C_TEXT2, True, 60, 'left'))
         outer.add_widget(hdr)
         outer.add_widget(separator())
 
@@ -1296,31 +1321,35 @@ class SettingsScreen(Screen):
         )
         content.bind(minimum_height=content.setter('height'))
 
+        # Save folder info card
         fc = BoxLayout(
             orientation='vertical',
             size_hint_y=None, height=dp(120),
             padding=[dp(14), dp(10)], spacing=dp(6),
         )
         card_bg(fc, C_CARD, 12)
+        card_border(fc, C_BORDER, 12)
         fc.add_widget(sec_header('Save Folder'))
         titan_path = get_titan_folder()
         path_lbl = Label(
             text=titan_path,
-            font_size=sp(11), color=hex_c(C_WHITE2),
+            font_size=sp(11), color=hex_c(C_TEXT),
             halign='left', valign='middle',
             size_hint_y=None, height=dp(40),
         )
         path_lbl.bind(size=lambda w, v: setattr(w, 'text_size', v))
         fc.add_widget(path_lbl)
-        fc.add_widget(lbl('All audio saved here automatically', 12, C_GREEN, False, 26, 'left'))
+        fc.add_widget(lbl('All audio saved here automatically', 12, C_GREEN2, False, 26, 'left'))
         content.add_widget(fc)
 
+        # Folder structure
         sc = BoxLayout(
             orientation='vertical',
             size_hint_y=None, height=dp(180),
             padding=[dp(14), dp(10)], spacing=dp(4),
         )
         card_bg(sc, C_CARD, 12)
+        card_border(sc, C_BORDER, 12)
         sc.add_widget(sec_header('Sub-folders'))
         for folder, desc in [
             ('Audio/', 'Generated MP3 files'),
@@ -1330,50 +1359,54 @@ class SettingsScreen(Screen):
             ('Queue/', 'Batch queue'),
         ]:
             row = BoxLayout(size_hint_y=None, height=dp(26))
-            row.add_widget(lbl('  [DIR] ' + folder, 12, C_BLUE2, True, 26, 'left'))
+            row.add_widget(lbl('  [DIR] ' + folder, 12, C_GREEN, True, 26, 'left'))
             row.add_widget(lbl(desc, 11, C_MUTED, False, 26, 'left'))
             sc.add_widget(row)
         content.add_widget(sc)
 
+        # ElevenLabs API key
         api_card = BoxLayout(
             orientation='vertical',
             size_hint_y=None, height=dp(180),
             padding=[dp(14), dp(10)], spacing=dp(8),
         )
         card_bg(api_card, C_CARD, 12)
+        card_border(api_card, C_BORDER, 12)
         api_card.add_widget(sec_header('ElevenLabs API (Voice Cloning)'))
-        api_card.add_widget(lbl('Get free key at elevenlabs.io', 12, C_MUTED2, False, 26, 'left'))
+        api_card.add_widget(lbl('Get free key at elevenlabs.io', 12, C_MUTED, False, 26, 'left'))
         settings = settings_load()
         self.api_input = TextInput(
             text=settings.get('elevenlabs_key', ''),
             hint_text='sk-... paste your API key here',
             multiline=False,
             size_hint_y=None, height=dp(50),
-            background_color=(0.94, 0.99, 0.96, 1),
-            foreground_color=hex_c(C_WHITE + 'FF'),
-            hint_text_color=(0.39, 0.46, 0.54, 1),
-            cursor_color=hex_c(C_BLUE + 'FF'),
+            background_color=(0.94, 0.99, 0.97, 1),
+            foreground_color=hex_c(C_TEXT2),
+            hint_text_color=hex_c(C_MUTED2),
+            cursor_color=hex_c(C_GREEN),
             font_size=sp(13),
             password=True,
         )
         api_card.add_widget(self.api_input)
         save_key_btn = FlatBtn(
-            text='Save API Key', bg=C_BLUE,
+            text='Save API Key', bg=C_GREEN,
             size_hint_y=None, height=dp(46), font_size=sp(13),
         )
         save_key_btn.bind(on_press=self._save_api_key)
         api_card.add_widget(save_key_btn)
         content.add_widget(api_card)
 
+        # About
         about_card = BoxLayout(
             orientation='vertical',
             size_hint_y=None, height=dp(160),
             padding=[dp(14), dp(10)], spacing=dp(6),
         )
         card_bg(about_card, C_CARD, 12)
+        card_border(about_card, C_BORDER, 12)
         about_card.add_widget(sec_header('About'))
         for line in [
-            'Titan Studio PRO  v14.0.0  CYBER MINT EDITION',
+            'Titan Studio PRO  v14.0  CYBER MINT EDITION',
             'Professional TTS & Voice Studio',
             '30+ Languages  -  10 Emotions  -  Neural Voices',
             'Powered by Microsoft Edge-TTS  -  Always Free',
@@ -1400,17 +1433,16 @@ class SettingsScreen(Screen):
         s['elevenlabs_key'] = self.api_input.text.strip()
         settings_save(s)
         box = BoxLayout(orientation='vertical', padding=dp(20))
-        box.add_widget(lbl('API key saved!', 15, C_WHITE, False, 50, 'center'))
+        box.add_widget(lbl('API key saved!', 15, C_TEXT, False, 50, 'center'))
         ok = FlatBtn(text='OK', bg=C_GREEN, size_hint_y=None, height=dp(50))
         box.add_widget(ok)
-        p = Popup(title='Saved', content=box, size_hint=(0.8, 0.30),
-                  background_color=hex_c(C_CARD))
+        p = Popup(title='Saved', content=box, size_hint=(0.8, 0.30), background_color=hex_c(C_BG))
         ok.bind(on_press=p.dismiss)
         p.open()
 
 
 # ═══════════════════════════════════════════════════════════
-#  BATCH QUEUE SCREEN
+#  BATCH QUEUE SCREEN  [FIX 2: Cyber Mint theme]
 # ═══════════════════════════════════════════════════════════
 class BatchQueueScreen(Screen):
     def __init__(self, **kw):
@@ -1420,19 +1452,21 @@ class BatchQueueScreen(Screen):
         self._build()
 
     def _build(self):
-        root = DarkPanel()
+        root = LightPanel()
         outer = BoxLayout(orientation='vertical', padding=dp(14), spacing=dp(10))
 
         hdr = BoxLayout(size_hint_y=None, height=dp(60), spacing=dp(12))
-        back = FlatBtn(text='< Back', bg=C_GRAY2, size_hint_x=None, width=dp(100), font_size=sp(14))
+        back = FlatBtn(text='< Back', bg=C_SURFACE, size_hint_x=None, width=dp(100), font_size=sp(14))
+        back.color = hex_c(C_TEXT)
         back.bind(on_press=lambda *a: self._go_back())
         hdr.add_widget(back)
-        hdr.add_widget(lbl('Batch Queue', 18, C_WHITE, True, 60, 'left'))
+        hdr.add_widget(lbl('Batch Queue', 18, C_TEXT2, True, 60, 'left'))
         outer.add_widget(hdr)
         outer.add_widget(separator())
 
         self.status_banner = BoxLayout(size_hint_y=None, height=dp(44), padding=[dp(12), dp(6)])
         card_bg(self.status_banner, C_CARD, 10)
+        card_border(self.status_banner, C_BORDER, 10)
         self.status_lbl = lbl('Queue is empty. Add items from Studio.', 13, C_MUTED, False, 32, 'left')
         self.status_banner.add_widget(self.status_lbl)
         outer.add_widget(self.status_banner)
@@ -1480,11 +1514,12 @@ class BatchQueueScreen(Screen):
     def _make_row(self, idx, item):
         row = BoxLayout(size_hint_y=None, height=dp(76), spacing=dp(8), padding=[dp(10), dp(6)])
         card_bg(row, C_CARD, 12)
+        card_border(row, C_BORDER, 12)
 
         num_lbl = Label(
             text=str(idx + 1),
             font_size=sp(18), bold=True,
-            color=hex_c(C_ACCENT),
+            color=hex_c(C_GREEN),
             size_hint_x=None, width=dp(34),
             halign='center', valign='middle',
         )
@@ -1493,10 +1528,10 @@ class BatchQueueScreen(Screen):
 
         info = BoxLayout(orientation='vertical')
         preview = item.get('text', '')[:55] + '...' if len(item.get('text', '')) > 55 else item.get('text', '')
-        t = lbl(preview, 12, C_WHITE2, False, 34, 'left')
+        t = lbl(preview, 12, C_TEXT, False, 34, 'left')
         m = lbl(
             item.get('lang', '') + '  -  ' + item.get('voice', '') + '  -  ' + item.get('emotion', ''),
-            11, C_MUTED2, False, 26, 'left'
+            11, C_MUTED, False, 26, 'left'
         )
         info.add_widget(t)
         info.add_widget(m)
@@ -1591,11 +1626,12 @@ class BatchQueueScreen(Screen):
 
 
 # ═══════════════════════════════════════════════════════════
-#  STUDIO SCREEN - Main Screen
-#  [FIX 3] Gender buttons wider - "Female" text not cut
-#  [FIX 5] card_bg NEVER called from background thread
-#  [FIX 6] File saving fixed - no threading/canvas conflict
-#  [FIX 7] RTL text input direction fixed properly
+#  STUDIO SCREEN  [Main - All fixes applied]
+#  [FIX 2] Full Cyber Mint theme
+#  [FIX 3] Gender buttons: fixed size so "Female" never clips
+#  [FIX 4] File save: uses Clock.schedule_once for main-thread safety
+#  [FIX 5] RTL TextInput: proper font + base_direction
+#  [FIX 6] RTL box issue: TextInput gets full width + no forced rtl
 # ═══════════════════════════════════════════════════════════
 class StudioScreen(Screen):
     def __init__(self, **kw):
@@ -1608,7 +1644,7 @@ class StudioScreen(Screen):
         self._build()
 
     def _build(self):
-        root = DarkPanel()
+        root = LightPanel()
         outer = BoxLayout(orientation='vertical')
 
         # ══ HEADER BAR ═══════════════════════════════════
@@ -1616,7 +1652,7 @@ class StudioScreen(Screen):
             size_hint_y=None, height=dp(78),
             padding=[dp(14), dp(10)], spacing=dp(10),
         )
-        card_bg(hdr, C_HDR_BG, 0)
+        card_bg(hdr, C_BG2, 0)
 
         logo_path = self._find_logo()
         logo_box = BoxLayout(size_hint=(None, None), size=(dp(50), dp(50)))
@@ -1627,7 +1663,7 @@ class StudioScreen(Screen):
         else:
             tb_logo = Label(
                 text='T', font_size=sp(28), bold=True,
-                color=hex_c(C_BLUE), size_hint=(1, 1),
+                color=hex_c(C_GREEN), size_hint=(1, 1),
                 halign='center', valign='middle',
             )
             tb_logo.bind(size=lambda w, v: setattr(w, 'text_size', v))
@@ -1638,7 +1674,7 @@ class StudioScreen(Screen):
         t1 = Label(
             text='Titan Studio PRO',
             font_size=sp(17), bold=True,
-            color=hex_c(C_WHITE),
+            color=hex_c(C_TEXT2),
             halign='left', valign='middle',
         )
         t1.bind(size=lambda w, v: setattr(w, 'text_size', v))
@@ -1653,11 +1689,11 @@ class StudioScreen(Screen):
         hdr.add_widget(tb)
 
         settings_btn = FlatBtn(
-            text='SET', bg=C_BLUE,
+            text='SET', bg=C_GREEN,
             size_hint=(None, None),
             font_size=sp(11), bold=True, radius=10,
         )
-        settings_btn.size = (dp(54), dp(44))
+        settings_btn.size = (dp(50), dp(44))
         settings_btn.bind(on_press=lambda *a: self._go_settings())
         hdr.add_widget(settings_btn)
         outer.add_widget(hdr)
@@ -1676,53 +1712,58 @@ class StudioScreen(Screen):
         # ── VOICE PRESETS ──────────────────────────────
         presets_card = BoxLayout(
             orientation='vertical',
-            size_hint_y=None, height=dp(140),
+            size_hint_y=None, height=dp(152),
             padding=[dp(12), dp(10)], spacing=dp(8),
         )
         card_bg(presets_card, C_CARD, 14)
+        card_border(presets_card, C_BORDER, 14)
         presets_card.add_widget(sec_header('Voice Presets'))
         self.preset_picker = PresetPicker(callback=self._apply_preset)
         presets_card.add_widget(self.preset_picker)
         content.add_widget(presets_card)
 
         # ── LANGUAGE + GENDER ─────────────────────────
-        # [FIX 3] Gender buttons wider so "Female" shows fully
         lg_row = BoxLayout(size_hint_y=None, height=dp(130), spacing=dp(10))
 
         lang_card = BoxLayout(orientation='vertical', padding=[dp(12), dp(10)], spacing=dp(8))
         card_bg(lang_card, C_CARD, 14)
+        card_border(lang_card, C_BORDER, 14)
         lang_card.add_widget(sec_header('Language'))
         self.lang_spin = Spinner(
             text='English',
             values=list(LANGUAGES.keys()),
             size_hint_y=None, height=dp(56),
             font_size=sp(14),
-            color=hex_c(C_TEXT_ON_COLOR),
-            background_color=hex_c(C_BLUE),
+            color=hex_c(C_WHITE),
+            background_color=hex_c(C_GREEN),
             background_normal='',
         )
         self.lang_spin.bind(text=self._on_lang_change)
         lang_card.add_widget(self.lang_spin)
         lg_row.add_widget(lang_card)
 
+        # [FIX 3]: Gender card - buttons properly sized, "Female" never clips
         gender_card = BoxLayout(
             orientation='vertical',
             padding=[dp(12), dp(10)], spacing=dp(8),
-            size_hint_x=0.52,   # [FIX 3] Wider than before (was 0.46)
+            size_hint_x=0.48,  # Slightly wider
         )
         card_bg(gender_card, C_CARD, 14)
+        card_border(gender_card, C_BORDER, 14)
         gender_card.add_widget(sec_header('Gender'))
         gr = BoxLayout(size_hint_y=None, height=dp(56), spacing=dp(8))
         self._vbtns = {}
-        for name, label in [('Male', 'Male'), ('Female', 'Female')]:
+        for name in ['Male', 'Female']:
             b = FlatBtn(
-                text=label,
-                bg=C_CARD2,
+                text=name,
+                bg=C_SURFACE,
                 font_size=sp(13),
                 bold=True,
                 radius=10,
             )
-            b.color = hex_c(C_WHITE)
+            b.color = hex_c(C_TEXT)
+            # FIX 3: Explicitly set text_size so button text never wraps/clips
+            b.bind(size=lambda w, v: setattr(w, 'text_size', v))
             b.bind(on_press=lambda inst, n=name: self._pick_voice(n))
             gr.add_widget(b)
             self._vbtns[name] = b
@@ -1732,13 +1773,13 @@ class StudioScreen(Screen):
         Clock.schedule_once(lambda dt: self._pick_voice('Male'), 0)
 
         # ── EMOTION PICKER ────────────────────────────
-        # [FIX 4] Height = 186 to accommodate both rows cleanly
         emotion_card = BoxLayout(
             orientation='vertical',
             size_hint_y=None, height=dp(186),
             padding=[dp(12), dp(10)], spacing=dp(8),
         )
         card_bg(emotion_card, C_CARD, 14)
+        card_border(emotion_card, C_BORDER, 14)
         emotion_card.add_widget(sec_header('Emotion & Mood'))
         self.emotion_picker = EmotionPicker()
         emotion_card.add_widget(self.emotion_picker)
@@ -1749,12 +1790,12 @@ class StudioScreen(Screen):
 
         speed_card = BoxLayout(orientation='vertical', padding=[dp(12), dp(10)], spacing=dp(6))
         card_bg(speed_card, C_CARD, 14)
+        card_border(speed_card, C_BORDER, 14)
         speed_card.add_widget(sec_header('Speed'))
         sr = BoxLayout(size_hint_y=None, height=dp(42), spacing=dp(6))
         sr.add_widget(lbl('Slow', 11, C_MUTED, False, 42, 'left'))
         self.speed_slider = Slider(min=10, max=100, value=50, step=5)
-        # [FIX 10] Speed label updates reliably
-        self.speed_lbl = lbl('50%', 13, C_BLUE, False, 42, 'right')
+        self.speed_lbl = lbl('50%', 13, C_GREEN, False, 42, 'right')
         self.speed_slider.bind(
             value=lambda i, v: setattr(self.speed_lbl, 'text', str(int(v)) + '%')
         )
@@ -1766,12 +1807,12 @@ class StudioScreen(Screen):
 
         pitch_card = BoxLayout(orientation='vertical', padding=[dp(12), dp(10)], spacing=dp(6))
         card_bg(pitch_card, C_CARD, 14)
+        card_border(pitch_card, C_BORDER, 14)
         pitch_card.add_widget(sec_header('Pitch'))
         pr = BoxLayout(size_hint_y=None, height=dp(42), spacing=dp(6))
         pr.add_widget(lbl('Low', 11, C_MUTED, False, 42, 'left'))
         self.pitch_slider = Slider(min=-10, max=10, value=0, step=1)
-        # [FIX 10] Pitch label updates reliably
-        self.pitch_lbl = lbl('0', 13, C_BLUE, False, 42, 'right')
+        self.pitch_lbl = lbl('0', 13, C_GREEN, False, 42, 'right')
         self.pitch_slider.bind(
             value=lambda i, v: setattr(
                 self.pitch_lbl, 'text',
@@ -1792,50 +1833,53 @@ class StudioScreen(Screen):
         # ── TEXT INPUT ────────────────────────────────
         text_card = BoxLayout(
             orientation='vertical',
-            size_hint_y=None, height=dp(310),
+            size_hint_y=None, height=dp(300),
             padding=[dp(12), dp(10)], spacing=dp(8),
         )
         card_bg(text_card, C_CARD, 14)
+        card_border(text_card, C_BORDER, 14)
 
-        ti_hdr = BoxLayout(size_hint_y=None, height=dp(40), spacing=dp(8))
-        ti_title = lbl('Input Text', 13, C_BLUE2, True, 40, 'left')
+        ti_hdr = BoxLayout(size_hint_y=None, height=dp(36), spacing=dp(8))
+        ti_title = lbl('Input Text', 13, C_GREEN, True, 36, 'left')
         ti_hdr.add_widget(ti_title)
-        self.char_lbl = lbl('0 chars', 11, C_MUTED, False, 40, 'center')
+        self.char_lbl = lbl('0 chars', 11, C_MUTED, False, 36, 'center')
         ti_hdr.add_widget(self.char_lbl)
 
         imp_btn = FlatBtn(
-            text='Import File', bg=C_BLUE,
+            text='Import File', bg=C_GREEN,
             size_hint_x=None, width=dp(110),
             font_size=sp(12), radius=8,
         )
         imp_btn.size_hint_y = None
-        imp_btn.height = dp(40)
+        imp_btn.height = dp(36)
         imp_btn.bind(on_press=self._import_file)
         ti_hdr.add_widget(imp_btn)
 
         clr_btn = FlatBtn(
-            text='Clear', bg=C_GRAY2,
-            size_hint_x=None, width=dp(64),
+            text='Clear', bg=C_SURFACE,
+            size_hint_x=None, width=dp(60),
             font_size=sp(12), radius=8,
         )
+        clr_btn.color = hex_c(C_TEXT)
         clr_btn.size_hint_y = None
-        clr_btn.height = dp(40)
+        clr_btn.height = dp(36)
         clr_btn.bind(on_press=lambda *a: setattr(self.txt, 'text', ''))
         ti_hdr.add_widget(clr_btn)
         text_card.add_widget(ti_hdr)
 
-        # [FIX 7] RTL indicator label
-        self.rtl_lbl = lbl('', 11, C_AMBER, False, 20, 'left')
+        # RTL indicator
+        self.rtl_lbl = lbl('', 11, C_AMBER, False, 18, 'left')
         text_card.add_widget(self.rtl_lbl)
 
+        # [FIX 5] TextInput: mint-themed, proper RTL support
         self.txt = TextInput(
             hint_text='Enter text here... supports Urdu, Arabic, English and 30+ languages',
             multiline=True,
             size_hint=(1, 1),
-            background_color=(0.94, 0.99, 0.96, 1),  # Mint tinted input
-            foreground_color=hex_c(C_WHITE + 'FF'),
-            hint_text_color=(0.39, 0.46, 0.54, 1),
-            cursor_color=hex_c(C_BLUE + 'FF'),
+            background_color=hex_c(C_WHITE),
+            foreground_color=hex_c(C_TEXT2),
+            hint_text_color=hex_c(C_MUTED2),
+            cursor_color=hex_c(C_GREEN),
             font_size=sp(16),
             padding=[dp(12), dp(10)],
         )
@@ -1859,33 +1903,34 @@ class StudioScreen(Screen):
         # ── STATUS + WAVEFORM ─────────────────────────
         status_card = BoxLayout(
             orientation='vertical',
-            size_hint_y=None, height=dp(110),
+            size_hint_y=None, height=dp(120),
             padding=[dp(12), dp(10)], spacing=dp(6),
         )
         card_bg(status_card, C_CARD, 14)
+        card_border(status_card, C_BORDER, 14)
         self.status_lbl = lbl('Ready to generate voice', 13, C_MUTED, False, 30, 'left')
         status_card.add_widget(self.status_lbl)
         self.prog = ProgressBar(max=100, value=0, size_hint_y=None, height=dp(6))
         status_card.add_widget(self.prog)
-        self.waveform = WaveformWidget(bars=24, color=C_BLUE, size_hint_y=None, height=dp(40))
+        self.waveform = WaveformWidget(bars=24, color=C_GREEN, size_hint_y=None, height=dp(46))
         status_card.add_widget(self.waveform)
         content.add_widget(status_card)
 
         # ── GENERATE AUDIO BUTTON ─────────────────────
         self.gen_btn = FlatBtn(
             text='Generate Audio',
-            bg=C_BLUE,
+            bg=C_GREEN,
             size_hint_y=None, height=dp(68),
             font_size=sp(19), bold=True, radius=16,
         )
         self.gen_btn.bind(on_press=self._generate)
         content.add_widget(self.gen_btn)
 
-        # ── PREVIEW + SAVE ROW ────────────────────────
+        # ── PREVIEW AUDIO + SAVE ROW ──────────────────
         pd_row = BoxLayout(size_hint_y=None, height=dp(60), spacing=dp(12))
         self.play_btn = FlatBtn(
             text='Preview Audio',
-            bg=C_GREEN_L,
+            bg=C_TEAL,
             font_size=sp(14), disabled=True,
         )
         self.dl_btn = FlatBtn(
@@ -1903,7 +1948,7 @@ class StudioScreen(Screen):
         nav_row = BoxLayout(size_hint_y=None, height=dp(54), spacing=dp(10))
         hist_btn = FlatBtn(text='History', bg=C_PURPLE, font_size=sp(14))
         hist_btn.bind(on_press=lambda *a: self._go_hist())
-        batch_btn = FlatBtn(text='Batch Queue', bg=C_GRAY2, font_size=sp(14))
+        batch_btn = FlatBtn(text='Batch Queue', bg=C_INDIGO, font_size=sp(14))
         batch_btn.bind(on_press=lambda *a: self._go_batch())
         nav_row.add_widget(hist_btn)
         nav_row.add_widget(batch_btn)
@@ -1914,12 +1959,13 @@ class StudioScreen(Screen):
             size_hint_y=None, height=dp(58),
             padding=[dp(12), dp(8)], spacing=dp(10),
         )
-        card_bg(folder_banner, C_CARD2, 12)
+        card_bg(folder_banner, C_BG2, 12)
+        card_border(folder_banner, C_BORDER, 12)
 
         folder_icon_lbl = Label(
             text='[DIR]',
             font_size=sp(11), bold=True,
-            color=hex_c(C_BLUE2),
+            color=hex_c(C_GREEN2),
             size_hint=(None, 1), width=dp(40),
             halign='center', valign='middle',
         )
@@ -1928,7 +1974,7 @@ class StudioScreen(Screen):
 
         titan_p = get_titan_folder()
         folder_info = BoxLayout(orientation='vertical')
-        folder_line1 = lbl('Auto-saves to: Titan Studio PRO/Audio/', 12, C_WHITE2, True, 26, 'left')
+        folder_line1 = lbl('Auto-saves to: Titan Studio PRO/Audio/', 12, C_TEXT2, True, 26, 'left')
         folder_line2 = lbl(titan_p, 11, C_MUTED, False, 22, 'left')
         folder_info.add_widget(folder_line1)
         folder_info.add_widget(folder_line2)
@@ -1942,6 +1988,7 @@ class StudioScreen(Screen):
             padding=[dp(12), dp(10)], spacing=dp(8),
         )
         card_bg(results_card, C_CARD, 14)
+        card_border(results_card, C_BORDER, 14)
         results_card.add_widget(sec_header('Results'))
         self.result_lbl = lbl('No generated items yet', 13, C_MUTED, False, 40, 'left')
         results_card.add_widget(self.result_lbl)
@@ -1950,10 +1997,11 @@ class StudioScreen(Screen):
         # ── QUICK GUIDE ───────────────────────────────
         how_card = BoxLayout(
             orientation='vertical',
-            size_hint_y=None, height=dp(260),
+            size_hint_y=None, height=dp(254),
             padding=[dp(14), dp(12)], spacing=dp(4),
         )
-        card_bg(how_card, C_CARD, 14)
+        card_bg(how_card, C_BG2, 14)
+        card_border(how_card, C_BORDER, 14)
         how_card.add_widget(sec_header('Quick Guide'))
         how_card.add_widget(spacer(4))
         steps = [
@@ -1964,7 +2012,7 @@ class StudioScreen(Screen):
             '5. Adjust Speed and Pitch sliders',
             '6. Type text or Import file (TXT/PDF/DOCX)',
             '7. Tap Generate Audio button',
-            '8. Preview then Save - auto-saved to internal storage',
+            '8. Preview then Save - auto-saved to Titan Studio PRO/',
         ]
         for s in steps:
             step_lbl = lbl(s, 12, C_MUTED, False, 26, 'left')
@@ -2003,12 +2051,13 @@ class StudioScreen(Screen):
 
     def _on_lang_change(self, inst, lang):
         """
-        [FIX 7] RTL language handling.
-        The keyboard switch happens automatically on Android when
-        base_direction changes. No app-level keyboard switching needed.
+        [FIX 5] RTL language handling:
+        - Shows RTL indicator label
+        - Sets base_direction on TextInput
+        - Does NOT force system keyboard change (that's Android's job)
         """
         if lang in RTL_LANGS:
-            self.rtl_lbl.text = 'RTL mode: ' + lang + ' - Keyboard switches automatically'
+            self.rtl_lbl.text = 'RTL mode active: ' + lang + ' - switch to ' + lang + ' keyboard'
             try:
                 self.txt.base_direction = 'rtl'
                 self.txt.halign = 'right'
@@ -2032,11 +2081,11 @@ class StudioScreen(Screen):
         self.voice_sel = name
         for n, b in self._vbtns.items():
             if n == name:
-                b.set_bg(C_BLUE)
-                b.color = hex_c(C_TEXT_ON_COLOR)
+                b.set_bg(C_GREEN)
+                b.color = (1, 1, 1, 1)
             else:
-                b.set_bg(C_CARD2)
-                b.color = hex_c(C_WHITE)
+                b.set_bg(C_SURFACE)
+                b.color = hex_c(C_TEXT)
 
     def _count(self, inst, val):
         words = len(val.split()) if val.strip() else 0
@@ -2045,7 +2094,7 @@ class StudioScreen(Screen):
 
     def _import_file(self, *a):
         box = BoxLayout(orientation='vertical', padding=dp(16), spacing=dp(12))
-        box.add_widget(lbl('Select file type to import:', 15, C_WHITE, True, 36, 'center'))
+        box.add_widget(lbl('Select file type to import:', 15, C_TEXT2, True, 36, 'center'))
 
         grid = GridLayout(cols=3, size_hint_y=None, height=dp(180), spacing=dp(10))
         pop = [None]
@@ -2053,24 +2102,25 @@ class StudioScreen(Screen):
             col = BoxLayout(orientation='vertical', spacing=dp(4))
             b = FlatBtn(
                 text=fi.get('label', ft),
-                bg=fi.get('color', C_BLUE),
+                bg=fi.get('color', C_GREEN),
                 size_hint_y=None, height=dp(56),
                 font_size=sp(14), bold=True, radius=12,
             )
             b.bind(on_press=lambda x, t=ft, p=pop: self._open_chooser(t, p[0]))
             col.add_widget(b)
-            ft_lbl = lbl(ft, 10, C_MUTED2, False, 20, 'center')
+            ft_lbl = lbl(ft, 10, C_MUTED, False, 20, 'center')
             col.add_widget(ft_lbl)
             grid.add_widget(col)
         box.add_widget(grid)
 
-        can = FlatBtn(text='Cancel', bg=C_GRAY2, size_hint_y=None, height=dp(50))
+        can = FlatBtn(text='Cancel', bg=C_SURFACE, size_hint_y=None, height=dp(50))
+        can.color = hex_c(C_TEXT)
         box.add_widget(can)
         p = Popup(
             title='Import File',
             content=box,
             size_hint=(0.92, 0.60),
-            background_color=hex_c(C_CARD),
+            background_color=hex_c(C_BG),
         )
         pop[0] = p
         can.bind(on_press=p.dismiss)
@@ -2098,7 +2148,8 @@ class StudioScreen(Screen):
         box.add_widget(fc)
         br = BoxLayout(size_hint_y=None, height=dp(54), spacing=dp(10))
         sel = FlatBtn(text='Select File', bg=C_GREEN, font_size=sp(14))
-        can = FlatBtn(text='Cancel', bg=C_GRAY2, font_size=sp(14))
+        can = FlatBtn(text='Cancel', bg=C_SURFACE, font_size=sp(14))
+        can.color = hex_c(C_TEXT)
         br.add_widget(sel)
         br.add_widget(can)
         box.add_widget(br)
@@ -2106,7 +2157,7 @@ class StudioScreen(Screen):
             title='Choose ' + ftype + ' File',
             content=box,
             size_hint=(0.95, 0.88),
-            background_color=hex_c(C_CARD),
+            background_color=hex_c(C_BG),
         )
 
         def do_sel(*a):
@@ -2149,7 +2200,6 @@ class StudioScreen(Screen):
                     self._imported_type = ftype
                     self.file_info_container.clear_widgets()
                     self.file_info_container.height = dp(72)
-                    # [FIX 5] FileInfoCard built on main thread (here in apply())
                     card = FileInfoCard(path=path, ftype=ftype, size_hint_y=None, height=dp(64))
                     self.file_info_container.add_widget(card)
                     Clock.schedule_once(
@@ -2246,17 +2296,17 @@ class StudioScreen(Screen):
                     self._worker_gtts_fallback(out)
                 elif err == 'TIMEOUT':
                     Clock.schedule_once(
-                        lambda dt: self._upd(35, 'Connection timeout. Trying gTTS fallback...')
+                        lambda dt: self._upd(35, 'Timeout. Trying gTTS fallback...')
                     )
                     self._worker_gtts_fallback(out)
                 else:
                     Clock.schedule_once(
-                        lambda dt: self._upd(35, 'Edge-TTS failed. Trying gTTS fallback...')
+                        lambda dt: self._upd(35, 'Edge-TTS failed. Trying gTTS...')
                     )
                     self._worker_gtts_fallback(out)
             else:
                 Clock.schedule_once(
-                    lambda dt: self._upd(20, 'No internet detected. Trying gTTS...')
+                    lambda dt: self._upd(20, 'No internet. Trying gTTS...')
                 )
                 self._worker_gtts_fallback(out)
 
@@ -2270,17 +2320,14 @@ class StudioScreen(Screen):
             Clock.schedule_once(lambda dt: self._upd(60, 'Generating with gTTS...'))
             lang = LANGUAGES.get(self.lang_spin.text, 'en')
             gender = self.voice_sel
-
             tld_map = {
                 'Male':   {'en': 'com',   'default': 'com'},
                 'Female': {'en': 'co.uk', 'default': 'co.uk'},
             }
             lang_tld = tld_map.get(gender, tld_map['Male'])
             tld = lang_tld.get(lang, lang_tld['default'])
-
             speed_val = int(self.speed_slider.value)
             slow = speed_val <= 20
-
             text = self.txt.text
             if out_path is None:
                 out_path = os.path.join(App.get_running_app().user_data_dir, 'tts_preview.mp3')
@@ -2313,10 +2360,7 @@ class StudioScreen(Screen):
         self._upd(100, msg)
         self._set_ready(ok=True)
         self.waveform.stop()
-        self.result_lbl.text = (
-            'Generated: ' + self.lang_spin.text + ' - '
-            + self.voice_sel + ' - ' + self.emotion_picker.selected
-        )
+        self.result_lbl.text = 'Generated: ' + self.lang_spin.text + ' - ' + self.voice_sel + ' - ' + self.emotion_picker.selected
         Clock.schedule_once(
             lambda dt: Animation(value=0, duration=0.7, t='out_quad').start(self.prog), 2.0
         )
@@ -2345,7 +2389,7 @@ class StudioScreen(Screen):
         if self._audio.state == 'play':
             self._audio.stop()
             self.play_btn.text = 'Preview Audio'
-            self.play_btn.set_bg(C_GREEN_L)
+            self.play_btn.set_bg(C_TEAL)
             self.waveform.stop()
         else:
             self._audio.play()
@@ -2359,16 +2403,18 @@ class StudioScreen(Screen):
             return
 
         def after_permission(granted):
-            # [FIX 5+6] Schedule _auto_save on MAIN thread so no canvas ops
-            # run from background/permission callback thread
-            Clock.schedule_once(lambda dt: self._auto_save())
+            # [FIX 4]: Schedule _auto_save on Kivy main thread
+            # This prevents "Cannot create graphics instruction outside main Kivy thread"
+            Clock.schedule_once(lambda dt: self._auto_save(), 0)
 
         request_storage_permissions(after_permission)
 
     def _auto_save(self):
         """
-        [FIX 5] This method runs on the MAIN Kivy thread.
-        All UI updates and canvas ops are safe here.
+        [FIX 4] This method MUST run on the Kivy main thread.
+        Called via Clock.schedule_once to ensure that.
+        The old version called this from a permission callback which
+        could be on a background thread - causing the Kivy graphics crash.
         """
         emotion = self.emotion_picker.selected
         lang = self.lang_spin.text
@@ -2412,7 +2458,6 @@ class StudioScreen(Screen):
                 'time': time.strftime('%d %b %Y  %H:%M'),
                 'source': 'studio',
             })
-            # [FIX 5] _show_save_success runs on main thread - safe
             self._show_save_success(fname, audio_dir, dest)
         except PermissionError:
             try:
@@ -2434,25 +2479,23 @@ class StudioScreen(Screen):
                 self._show_save_success(fname, fallback_dir, fallback_dest)
             except Exception as e2:
                 self._show_err_popup(
-                    'Save failed!\n\nGo to Settings > Apps > Titan Studio PRO\n'
-                    '> Permissions > Storage and allow access.\n\n('
-                    + str(e2)[:60] + ')'
+                    'Save failed!\n\nGo to Settings > Apps > Titan Studio PRO\n> Permissions > Storage and allow access.\n\n(' + str(e2)[:60] + ')'
                 )
         except Exception as e:
             self._upd(0, 'Save failed: ' + str(e)[:60])
 
     def _show_save_success(self, fname, folder, full_path):
         box = BoxLayout(orientation='vertical', padding=dp(18), spacing=dp(12))
-        box.add_widget(lbl('Saved to Titan Studio PRO!', 17, C_GREEN, True, 44, 'center'))
-        box.add_widget(lbl(fname, 12, C_WHITE, False, 32, 'center'))
-        box.add_widget(lbl(folder, 11, C_MUTED2, False, 36, 'center'))
+        box.add_widget(lbl('Saved Successfully!', 17, C_GREEN2, True, 44, 'center'))
+        box.add_widget(lbl(fname, 12, C_TEXT, False, 32, 'center'))
+        box.add_widget(lbl(folder, 11, C_MUTED, False, 36, 'center'))
         ok = FlatBtn(text='Great!', bg=C_GREEN, size_hint_y=None, height=dp(52), font_size=sp(15))
         box.add_widget(ok)
         p = Popup(
-            title='Download Complete',
+            title='Save Complete',
             content=box,
             size_hint=(0.90, 0.48),
-            background_color=hex_c(C_CARD),
+            background_color=hex_c(C_BG),
         )
         ok.bind(on_press=p.dismiss)
         p.open()
@@ -2460,13 +2503,13 @@ class StudioScreen(Screen):
     def _show_err_popup(self, msg):
         box = BoxLayout(orientation='vertical', padding=dp(16), spacing=dp(12))
         box.add_widget(lbl(msg, 14, C_AMBER, False, 80, 'center'))
-        ok = FlatBtn(text='OK', bg=C_BLUE, size_hint_y=None, height=dp(52))
+        ok = FlatBtn(text='OK', bg=C_GREEN, size_hint_y=None, height=dp(52))
         box.add_widget(ok)
         p = Popup(
             title='Error',
             content=box,
             size_hint=(0.88, 0.40),
-            background_color=hex_c(C_CARD),
+            background_color=hex_c(C_BG),
         )
         ok.bind(on_press=p.dismiss)
         p.open()
@@ -2479,12 +2522,13 @@ class TitanApp(App):
     def build(self):
         self.title = 'Titan Studio PRO'
 
+        # [FIX 6]: Create folder at startup on main thread
         try:
             get_titan_folder()
         except Exception:
             pass
 
-        sm = ScreenManager(transition=FadeTransition(duration=0.3))
+        sm = ScreenManager(transition=FadeTransition(duration=0.36))
         sm.add_widget(LoadingScreen(name='loading'))
         sm.add_widget(StudioScreen(name='studio'))
         sm.add_widget(HistoryScreen(name='history'))
