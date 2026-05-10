@@ -1,12 +1,7 @@
 # ============================================================
 #  Titan Studio PRO - GitHub Actions Build Workflow
 #  File: .github/workflows/build.yml
-#  Version: 14.0.0 - DOCKER SOLUTION (SABSE RELIABLE)
-#
-#  Yeh approach use karta hai:
-#  kivy/buildozer Docker image - isme SABB pehle se installed hai
-#  Android SDK, NDK, aidl, build-tools - sab ready
-#  Koi manual install nahi, koi license issue nahi
+#  Version: 14.0.2 - FINAL CLEAN BUILD
 # ============================================================
 
 name: Build Titan Studio PRO APK
@@ -25,43 +20,23 @@ jobs:
 
     steps:
 
-      # ── Step 1: Code ────────────────────────────────────────
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # ── Step 2: Cache ────────────────────────────────────────
-      - name: Cache .buildozer
-        uses: actions/cache@v4
-        with:
-          path: .buildozer
-          key: buildozer-docker-${{ hashFiles('buildozer.spec') }}-${{ hashFiles('main.py') }}
-          restore-keys: |
-            buildozer-docker-${{ hashFiles('buildozer.spec') }}-
-            buildozer-docker-
-
-      # ── Step 3: BUILD (Docker ke andar sab hoga) ─────────────
-      # kivy/buildozer image mein yeh sab PEHLE SE hai:
-      # - Python 3
-      # - Android SDK (build-tools, platforms, aidl)
-      # - Android NDK
-      # - Buildozer
-      # - Cython
-      # - Saari system libraries
       - name: Build APK using Docker
         run: |
           docker run --rm \
             -v ${{ github.workspace }}:/home/user/hostcwd \
+            -e ANDROID_SDK_ROOT=/home/user/.android/sdk \
             kivy/buildozer:latest \
-            android debug
+            bash -c "cd /home/user/hostcwd && buildozer android debug"
 
-      # ── Step 4: APK dhundo ───────────────────────────────────
       - name: Find APK
+        if: success()
         run: |
-          echo "=== Searching APK ==="
           find . -name "*.apk" 2>/dev/null
           ls -lh bin/*.apk 2>/dev/null || echo "APK not in bin/"
 
-      # ── Step 5: APK Upload ───────────────────────────────────
       - name: Upload APK
         if: success()
         uses: actions/upload-artifact@v4
@@ -71,15 +46,21 @@ jobs:
           retention-days: 30
           if-no-files-found: error
 
-      # ── Step 6: Summary ──────────────────────────────────────
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: build_output.txt
+          retention-days: 7
+          if-no-files-found: ignore
+
       - name: Build Summary
         if: always()
         run: |
           echo "==============================="
           echo "  Titan Studio PRO Build Done"
           echo "==============================="
-          echo "Branch : ${{ github.ref_name }}"
-          echo "Commit : ${{ github.sha }}"
           if ls bin/*.apk 1>/dev/null 2>&1; then
             echo "APK    : $(ls bin/*.apk)"
             echo "Size   : $(du -h bin/*.apk | cut -f1)"
