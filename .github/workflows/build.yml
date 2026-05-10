@@ -1,11 +1,12 @@
 # ============================================================
 #  Titan Studio PRO - GitHub Actions Build Workflow
 #  File: .github/workflows/build.yml
-#  Version: 13.0.2 FIXED
+#  Version: 13.0.3 FIXED
 #
 #  FIX: Android SDK licenses auto-accept
 #  FIX: build-tools properly installed
-#  FIX: aidl not found resolved
+#  FIX: aidl not found resolved  <-- MAIN FIX
+#  FIX: build-tools version locked to 33.0.2 (no more 37 error)
 # ============================================================
 
 name: Build Titan Studio PRO APK
@@ -73,8 +74,17 @@ jobs:
           echo "Licenses accepted!"
 
           # Method 3: build-tools explicitly install karo
+          # ✅ FIX: build-tools;33.0.2 install kar rahe hain jisme aidl hoti hai
           yes | sdkmanager "build-tools;33.0.2" "build-tools;34.0.0" "platforms;android-33" || true
+
+          # ✅ FIX: build-tools;37.0.0 bhi install karo taaki license error na aaye
+          yes | sdkmanager "build-tools;37.0.0" || true
+
           echo "Build tools installed!"
+
+          # ✅ Verify karo ke aidl exist karti hai
+          echo "=== Checking aidl ==="
+          find $ANDROID_SDK_ROOT/build-tools -name "aidl" 2>/dev/null || echo "aidl not found yet"
 
       # ── Step 6: Buildozer ───────────────────────────────────
       - name: Install buildozer and cython
@@ -105,6 +115,11 @@ jobs:
         run: |
           # Buildozer ko bolo ki Android SDK already available hai
           echo "android.sdk_path = $ANDROID_SDK_ROOT" >> buildozer.spec
+
+          # ✅ MAIN FIX: buildozer ko force karo ke 33.0.2 use kare
+          # Yeh line buildozer ko rokti hai ke woh build-tools;37 download karne ki koshish na kare
+          echo "android.build_tools_version = 33.0.2" >> buildozer.spec
+
           echo "Android SDK path: $ANDROID_SDK_ROOT"
           ls $ANDROID_SDK_ROOT/build-tools/ 2>/dev/null || echo "build-tools listing failed"
 
