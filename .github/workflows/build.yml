@@ -1,6 +1,9 @@
 # ============================================================
 #  Titan Studio PRO - GitHub Actions Build Workflow
-#  Version: 14.0.4 - EXACT ERROR CAPTURE
+#  Version: 14.0.5 - BASH FIX
+#
+#  FIX: kivy/buildozer image bash command issue fixed
+#  Correct usage: buildozer command seedha pass karo
 # ============================================================
 
 name: Build Titan Studio PRO APK
@@ -26,14 +29,13 @@ jobs:
         run: |
           docker run --rm \
             -v ${{ github.workspace }}:/home/user/hostcwd \
-            -e ANDROID_SDK_ROOT=/home/user/.android/sdk \
             kivy/buildozer:latest \
-            bash -c "cd /home/user/hostcwd && buildozer android debug 2>&1 | tee /home/user/hostcwd/build_output.txt; exit \${PIPESTATUS[0]}"
+            android debug
 
-      - name: Show FULL build log
+      - name: Show build log
         if: always()
         run: |
-          echo "====== FULL BUILD LOG ======"
+          echo "====== BUILD LOG ======"
           cat build_output.txt 2>/dev/null || echo "Log file nahi mila"
 
       - name: Upload build log
@@ -44,6 +46,13 @@ jobs:
           path: build_output.txt
           retention-days: 7
           if-no-files-found: ignore
+
+      - name: Find and Upload APK
+        if: success()
+        run: |
+          echo "=== Searching APK ==="
+          find . -name "*.apk" 2>/dev/null
+          ls -lh bin/*.apk 2>/dev/null || echo "bin/ mein APK nahi"
 
       - name: Upload APK
         if: success()
