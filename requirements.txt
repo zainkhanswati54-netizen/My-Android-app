@@ -1,0 +1,47 @@
+# ============================================================
+#  Titan Studio PRO - requirements.txt
+#  Version 13.0.0
+# ============================================================
+#
+#  INSTALL (PC/dev environment):
+#    pip install -r requirements.txt
+#
+#  NOTE: For Android build, dependencies are listed in
+#        buildozer.spec under [app] requirements = ...
+#        This file is for your development environment only.
+# ============================================================
+
+# ── UI Framework ────────────────────────────────────────────
+kivy==2.3.0
+kivymd==1.2.0            # Optional - not used in current build
+
+# ── TTS Engine 1: Neural voices (primary) ───────────────────
+# Microsoft Edge neural TTS - sounds very natural
+# Requires internet. Supports 30+ languages with Male/Female.
+edge-tts>=6.1.9
+
+# ── TTS Engine 2: Google TTS (fallback) ─────────────────────
+# Used when edge-tts is unavailable or fails
+# Requires internet. Sounds more robotic than edge-tts.
+gTTS>=2.5.1
+
+# ── HTTP / Networking (required by edge-tts) ─────────────────
+aiohttp>=3.9.0
+aiofiles>=23.2.1
+requests>=2.31.0
+urllib3>=2.0.0
+certifi>=2024.2.2
+charset-normalizer>=3.3.0
+idna>=3.6
+
+# ── aiohttp dependencies ────────────────────────────────────
+multidict>=6.0.0
+yarl>=1.9.0
+frozenlist>=1.4.0
+async-timeout>=4.0.0
+attrs>=23.1.0
+
+# ── Buildozer (for building APK) ────────────────────────────
+# Install separately, not needed at runtime
+# pip install buildozer
+# buildozer>=1.5.0
