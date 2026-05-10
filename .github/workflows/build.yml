@@ -1,9 +1,13 @@
 # ============================================================
 #  Titan Studio PRO - GitHub Actions Build Workflow
-#  Version: 14.0.5 - BASH FIX
+#  Version: 14.0.6 - DEFINITIVE AIDL FIX
 #
-#  FIX: kivy/buildozer image bash command issue fixed
-#  Correct usage: buildozer command seedha pass karo
+#  ROOT CAUSE (confirmed): buildozer andar se build-tools;37.0.0
+#  download karne ki koshish karta hai lekin license accept nahi hoti
+#
+#  FIX: Docker ke andar jaake pehle license accept karo,
+#  build-tools;33.0.2 install karo, phir buildozer.spec mein
+#  version lock karo - TAB buildozer android debug chalao
 # ============================================================
 
 name: Build Titan Studio PRO APK
@@ -25,18 +29,47 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Patch buildozer.spec before build
+        run: |
+          # buildozer.spec mein build tools version lock karo
+          # Pehle check karo duplicate na ho
+          grep -q "android.build_tools_version" buildozer.spec || \
+            echo "android.build_tools_version = 33.0.2" >> buildozer.spec
+          echo "=== buildozer.spec tail ==="
+          tail -5 buildozer.spec
+
       - name: Build APK using Docker
         run: |
           docker run --rm \
             -v ${{ github.workspace }}:/home/user/hostcwd \
+            --entrypoint /bin/bash \
             kivy/buildozer:latest \
-            android debug
+            -c "
+              set -e
+              echo '=== Accepting SDK licenses ==='
+              mkdir -p /home/user/.buildozer/android/platform/android-sdk/licenses
+              echo '24333f8a63b6825ea9c5514f83c2829b004d1fee' > /home/user/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
+              echo 'd56f5187479451eabf01fb78af6dfcb131a6481e' >> /home/user/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
+              echo '84831b9409646a918e30573bab4c9c91346d8abd' > /home/user/.buildozer/android/platform/android-sdk/licenses/android-sdk-preview-license
+
+              echo '=== Installing build-tools 33.0.2 ==='
+              yes | sdkmanager 'build-tools;33.0.2' 'platforms;android-33' || true
+
+              echo '=== Fixing aidl ==='
+              AIDL=\$(find /home/user/.buildozer -name 'aidl' 2>/dev/null | head -1)
+              if [ -n \"\$AIDL\" ]; then
+                ln -sf \"\$AIDL\" /usr/local/bin/aidl
+                echo \"aidl linked from: \$AIDL\"
+              fi
+
+              echo '=== Starting buildozer ==='
+              cd /home/user/hostcwd
+              buildozer android debug 2>&1 | tee build_output.txt
+            "
 
       - name: Show build log
         if: always()
-        run: |
-          echo "====== BUILD LOG ======"
-          cat build_output.txt 2>/dev/null || echo "Log file nahi mila"
+        run: tail -80 build_output.txt 2>/dev/null || echo "No log"
 
       - name: Upload build log
         if: always()
@@ -46,13 +79,6 @@ jobs:
           path: build_output.txt
           retention-days: 7
           if-no-files-found: ignore
-
-      - name: Find and Upload APK
-        if: success()
-        run: |
-          echo "=== Searching APK ==="
-          find . -name "*.apk" 2>/dev/null
-          ls -lh bin/*.apk 2>/dev/null || echo "bin/ mein APK nahi"
 
       - name: Upload APK
         if: success()
