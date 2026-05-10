@@ -1,12 +1,11 @@
 # ============================================================
 #  Titan Studio PRO - GitHub Actions Build Workflow
 #  File: .github/workflows/build.yml
-#  Version: 13.0.3 FIXED
+#  Version: 13.0.4 AIDL FINAL FIX
 #
-#  FIX: Android SDK licenses auto-accept
-#  FIX: build-tools properly installed
-#  FIX: aidl not found resolved  <-- MAIN FIX
-#  FIX: build-tools version locked to 33.0.2 (no more 37 error)
+#  FIX: aidl not found - manually PATH mein add kiya
+#  FIX: aidl symlink banaya /usr/local/bin mein
+#  FIX: build-tools version locked
 # ============================================================
 
 name: Build Titan Studio PRO APK
@@ -51,48 +50,65 @@ jobs:
             zlib1g-dev libncurses5-dev libncursesw5-dev \
             libssl-dev libffi-dev cmake build-essential
 
-      # ── Step 5: Android SDK setup + LICENSE FIX ─────────────
-      # FIXED: Saari Android licenses automatically accept ho jaati hain
+      # ── Step 5: Android SDK + Licenses + Build Tools ────────
       - name: Setup Android SDK and accept licenses
         uses: android-actions/setup-android@v3
 
-      - name: Accept all Android SDK licenses
+      - name: Accept licenses and install build-tools
         run: |
-          # Method 1: sdkmanager se accept
+          # Saari licenses accept karo
           yes | sdkmanager --licenses || true
-          yes | sdkmanager --update || true
 
-          # Method 2: License folders manually banao (most reliable fix)
+          # License files manually likhna (backup method)
           mkdir -p $ANDROID_SDK_ROOT/licenses
           echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" > $ANDROID_SDK_ROOT/licenses/android-sdk-license
           echo "d56f5187479451eabf01fb78af6dfcb131a6481e" >> $ANDROID_SDK_ROOT/licenses/android-sdk-license
-          echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" >> $ANDROID_SDK_ROOT/licenses/android-sdk-license
           echo "84831b9409646a918e30573bab4c9c91346d8abd" > $ANDROID_SDK_ROOT/licenses/android-sdk-preview-license
           echo "601085b94cd77f0b54ff86406957099ebe79c4d6" > $ANDROID_SDK_ROOT/licenses/android-googletv-license
           echo "33b6a2b64607f11b759f320ef9dff4ae5c47d97a" > $ANDROID_SDK_ROOT/licenses/google-gdk-license
           echo "e9acab5b5fbb560a72cfaecce8946896ff6aab9d" > $ANDROID_SDK_ROOT/licenses/mips-android-sysimage-license
-          echo "Licenses accepted!"
 
-          # Method 3: build-tools explicitly install karo
-          # ✅ FIX: build-tools;33.0.2 install kar rahe hain jisme aidl hoti hai
-          yes | sdkmanager "build-tools;33.0.2" "build-tools;34.0.0" "platforms;android-33" || true
+          # Build tools install karo
+          yes | sdkmanager "platforms;android-33" || true
+          yes | sdkmanager "build-tools;33.0.2" || true
+          yes | sdkmanager "build-tools;34.0.0" || true
 
-          # ✅ FIX: build-tools;37.0.0 bhi install karo taaki license error na aaye
-          yes | sdkmanager "build-tools;37.0.0" || true
+          echo "=== Installed packages ==="
+          sdkmanager --list_installed || true
 
-          echo "Build tools installed!"
+      # ── Step 6: AIDL FIX - Yeh sabse important step hai ────
+      - name: Fix aidl PATH (MAIN FIX)
+        run: |
+          echo "=== Finding aidl in all build-tools ==="
+          find $ANDROID_SDK_ROOT/build-tools -name "aidl" 2>/dev/null
 
-          # ✅ Verify karo ke aidl exist karti hai
-          echo "=== Checking aidl ==="
-          find $ANDROID_SDK_ROOT/build-tools -name "aidl" 2>/dev/null || echo "aidl not found yet"
+          # Best available build-tools version dhundo
+          BEST_BT=$(ls $ANDROID_SDK_ROOT/build-tools/ | sort -V | tail -1)
+          echo "Best build-tools version: $BEST_BT"
+          AIDL_PATH="$ANDROID_SDK_ROOT/build-tools/$BEST_BT/aidl"
 
-      # ── Step 6: Buildozer ───────────────────────────────────
+          if [ -f "$AIDL_PATH" ]; then
+            echo "aidl found at: $AIDL_PATH"
+            # System PATH mein symlink banao taaki buildozer dhundh sake
+            sudo ln -sf "$AIDL_PATH" /usr/local/bin/aidl
+            echo "Symlink created: /usr/local/bin/aidl"
+          else
+            echo "ERROR: aidl not found in $BEST_BT"
+            ls $ANDROID_SDK_ROOT/build-tools/$BEST_BT/ || true
+            exit 1
+          fi
+
+          # Verify
+          which aidl
+          aidl --version || echo "aidl is available"
+
+      # ── Step 7: Buildozer + Cython ──────────────────────────
       - name: Install buildozer and cython
         run: |
           pip install --upgrade pip
           pip install buildozer==1.5.0 cython==0.29.37
 
-      # ── Step 7: Cache global ────────────────────────────────
+      # ── Step 8: Cache global ────────────────────────────────
       - name: Cache ~/.buildozer
         uses: actions/cache@v4
         with:
@@ -100,7 +116,7 @@ jobs:
           key: buildozer-home-${{ hashFiles('buildozer.spec') }}
           restore-keys: buildozer-home-
 
-      # ── Step 8: Cache local ─────────────────────────────────
+      # ── Step 9: Cache local ─────────────────────────────────
       - name: Cache .buildozer
         uses: actions/cache@v4
         with:
@@ -110,25 +126,35 @@ jobs:
             buildozer-local-${{ hashFiles('buildozer.spec') }}-
             buildozer-local-
 
-      # ── Step 9: buildozer.spec mein SDK path set karo ───────
-      - name: Configure buildozer to use system Android SDK
+      # ── Step 10: buildozer.spec configure karo ──────────────
+      - name: Configure buildozer spec
         run: |
-          # Buildozer ko bolo ki Android SDK already available hai
+          # System Android SDK use karo
           echo "android.sdk_path = $ANDROID_SDK_ROOT" >> buildozer.spec
 
-          # ✅ MAIN FIX: buildozer ko force karo ke 33.0.2 use kare
-          # Yeh line buildozer ko rokti hai ke woh build-tools;37 download karne ki koshish na kare
+          # IMPORTANT: build-tools version lock karo 33.0.2 pe
           echo "android.build_tools_version = 33.0.2" >> buildozer.spec
 
-          echo "Android SDK path: $ANDROID_SDK_ROOT"
-          ls $ANDROID_SDK_ROOT/build-tools/ 2>/dev/null || echo "build-tools listing failed"
+          echo "=== Updated buildozer.spec (last 5 lines) ==="
+          tail -5 buildozer.spec
 
-      # ── Step 10: Build APK ──────────────────────────────────
+          echo "=== Available build-tools ==="
+          ls $ANDROID_SDK_ROOT/build-tools/
+
+          echo "=== aidl check ==="
+          ls $ANDROID_SDK_ROOT/build-tools/33.0.2/aidl 2>/dev/null || echo "aidl not in 33.0.2 folder"
+          which aidl || echo "aidl not in PATH"
+
+      # ── Step 11: Build APK ──────────────────────────────────
       - name: Build Debug APK
         run: |
           set -o pipefail
-          # ANDROID_HOME env variable bhi set karo
           export ANDROID_HOME=$ANDROID_SDK_ROOT
+
+          # Build-tools PATH explicitly set karo
+          export PATH=$ANDROID_SDK_ROOT/build-tools/33.0.2:$PATH
+          echo "PATH = $PATH"
+
           buildozer -v android debug 2>&1 | tee build_output.txt
           BUILD_RESULT=${PIPESTATUS[0]}
           echo "BUILD_EXIT_CODE=${BUILD_RESULT}" >> $GITHUB_ENV
@@ -140,7 +166,7 @@ jobs:
             echo "BUILD_STATUS=SUCCESS" >> $GITHUB_ENV
           fi
 
-      # ── Step 11: APK dhundo ─────────────────────────────────
+      # ── Step 12: APK dhundo ─────────────────────────────────
       - name: Find and copy APK
         if: success()
         run: |
@@ -162,7 +188,7 @@ jobs:
           fi
           ls -lh bin/
 
-      # ── Step 12: APK Upload ─────────────────────────────────
+      # ── Step 13: APK Upload ─────────────────────────────────
       - name: Upload APK
         if: success()
         uses: actions/upload-artifact@v4
@@ -172,7 +198,7 @@ jobs:
           retention-days: 30
           if-no-files-found: error
 
-      # ── Step 13: Log hamesha upload ho ─────────────────────
+      # ── Step 14: Log upload ─────────────────────────────────
       - name: Upload build log
         if: always()
         uses: actions/upload-artifact@v4
@@ -182,7 +208,7 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
-      # ── Step 14: Summary ────────────────────────────────────
+      # ── Step 15: Summary ────────────────────────────────────
       - name: Build Summary
         if: always()
         run: |
