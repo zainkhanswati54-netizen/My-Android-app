@@ -1,11 +1,12 @@
 # ============================================================
 #  Titan Studio PRO - GitHub Actions Build Workflow
 #  File: .github/workflows/build.yml
-#  Version: 13.0.4 AIDL FINAL FIX
+#  Version: 14.0.0 - DOCKER SOLUTION (SABSE RELIABLE)
 #
-#  FIX: aidl not found - manually PATH mein add kiya
-#  FIX: aidl symlink banaya /usr/local/bin mein
-#  FIX: build-tools version locked
+#  Yeh approach use karta hai:
+#  kivy/buildozer Docker image - isme SABB pehle se installed hai
+#  Android SDK, NDK, aidl, build-tools - sab ready
+#  Koi manual install nahi, koi license issue nahi
 # ============================================================
 
 name: Build Titan Studio PRO APK
@@ -19,7 +20,7 @@ on:
 
 jobs:
   build:
-    name: Build APK
+    name: Build APK (Docker)
     runs-on: ubuntu-22.04
 
     steps:
@@ -28,167 +29,39 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # ── Step 2: Python ──────────────────────────────────────
-      - name: Setup Python 3.10
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.10'
-
-      # ── Step 3: Java ────────────────────────────────────────
-      - name: Setup Java 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '17'
-
-      # ── Step 4: System packages ─────────────────────────────
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y \
-            git zip unzip autoconf libtool pkg-config \
-            zlib1g-dev libncurses5-dev libncursesw5-dev \
-            libssl-dev libffi-dev cmake build-essential
-
-      # ── Step 5: Android SDK + Licenses + Build Tools ────────
-      - name: Setup Android SDK and accept licenses
-        uses: android-actions/setup-android@v3
-
-      - name: Accept licenses and install build-tools
-        run: |
-          # Saari licenses accept karo
-          yes | sdkmanager --licenses || true
-
-          # License files manually likhna (backup method)
-          mkdir -p $ANDROID_SDK_ROOT/licenses
-          echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" > $ANDROID_SDK_ROOT/licenses/android-sdk-license
-          echo "d56f5187479451eabf01fb78af6dfcb131a6481e" >> $ANDROID_SDK_ROOT/licenses/android-sdk-license
-          echo "84831b9409646a918e30573bab4c9c91346d8abd" > $ANDROID_SDK_ROOT/licenses/android-sdk-preview-license
-          echo "601085b94cd77f0b54ff86406957099ebe79c4d6" > $ANDROID_SDK_ROOT/licenses/android-googletv-license
-          echo "33b6a2b64607f11b759f320ef9dff4ae5c47d97a" > $ANDROID_SDK_ROOT/licenses/google-gdk-license
-          echo "e9acab5b5fbb560a72cfaecce8946896ff6aab9d" > $ANDROID_SDK_ROOT/licenses/mips-android-sysimage-license
-
-          # Build tools install karo
-          yes | sdkmanager "platforms;android-33" || true
-          yes | sdkmanager "build-tools;33.0.2" || true
-          yes | sdkmanager "build-tools;34.0.0" || true
-
-          echo "=== Installed packages ==="
-          sdkmanager --list_installed || true
-
-      # ── Step 6: AIDL FIX - Yeh sabse important step hai ────
-      - name: Fix aidl PATH (MAIN FIX)
-        run: |
-          echo "=== Finding aidl in all build-tools ==="
-          find $ANDROID_SDK_ROOT/build-tools -name "aidl" 2>/dev/null
-
-          # Best available build-tools version dhundo
-          BEST_BT=$(ls $ANDROID_SDK_ROOT/build-tools/ | sort -V | tail -1)
-          echo "Best build-tools version: $BEST_BT"
-          AIDL_PATH="$ANDROID_SDK_ROOT/build-tools/$BEST_BT/aidl"
-
-          if [ -f "$AIDL_PATH" ]; then
-            echo "aidl found at: $AIDL_PATH"
-            # System PATH mein symlink banao taaki buildozer dhundh sake
-            sudo ln -sf "$AIDL_PATH" /usr/local/bin/aidl
-            echo "Symlink created: /usr/local/bin/aidl"
-          else
-            echo "ERROR: aidl not found in $BEST_BT"
-            ls $ANDROID_SDK_ROOT/build-tools/$BEST_BT/ || true
-            exit 1
-          fi
-
-          # Verify
-          which aidl
-          aidl --version || echo "aidl is available"
-
-      # ── Step 7: Buildozer + Cython ──────────────────────────
-      - name: Install buildozer and cython
-        run: |
-          pip install --upgrade pip
-          pip install buildozer==1.5.0 cython==0.29.37
-
-      # ── Step 8: Cache global ────────────────────────────────
-      - name: Cache ~/.buildozer
-        uses: actions/cache@v4
-        with:
-          path: ~/.buildozer
-          key: buildozer-home-${{ hashFiles('buildozer.spec') }}
-          restore-keys: buildozer-home-
-
-      # ── Step 9: Cache local ─────────────────────────────────
+      # ── Step 2: Cache ────────────────────────────────────────
       - name: Cache .buildozer
         uses: actions/cache@v4
         with:
           path: .buildozer
-          key: buildozer-local-${{ hashFiles('buildozer.spec') }}-${{ hashFiles('main.py') }}
+          key: buildozer-docker-${{ hashFiles('buildozer.spec') }}-${{ hashFiles('main.py') }}
           restore-keys: |
-            buildozer-local-${{ hashFiles('buildozer.spec') }}-
-            buildozer-local-
+            buildozer-docker-${{ hashFiles('buildozer.spec') }}-
+            buildozer-docker-
 
-      # ── Step 10: buildozer.spec configure karo ──────────────
-      - name: Configure buildozer spec
+      # ── Step 3: BUILD (Docker ke andar sab hoga) ─────────────
+      # kivy/buildozer image mein yeh sab PEHLE SE hai:
+      # - Python 3
+      # - Android SDK (build-tools, platforms, aidl)
+      # - Android NDK
+      # - Buildozer
+      # - Cython
+      # - Saari system libraries
+      - name: Build APK using Docker
         run: |
-          # System Android SDK use karo
-          echo "android.sdk_path = $ANDROID_SDK_ROOT" >> buildozer.spec
+          docker run --rm \
+            -v ${{ github.workspace }}:/home/user/hostcwd \
+            kivy/buildozer:latest \
+            android debug
 
-          # IMPORTANT: build-tools version lock karo 33.0.2 pe
-          echo "android.build_tools_version = 33.0.2" >> buildozer.spec
-
-          echo "=== Updated buildozer.spec (last 5 lines) ==="
-          tail -5 buildozer.spec
-
-          echo "=== Available build-tools ==="
-          ls $ANDROID_SDK_ROOT/build-tools/
-
-          echo "=== aidl check ==="
-          ls $ANDROID_SDK_ROOT/build-tools/33.0.2/aidl 2>/dev/null || echo "aidl not in 33.0.2 folder"
-          which aidl || echo "aidl not in PATH"
-
-      # ── Step 11: Build APK ──────────────────────────────────
-      - name: Build Debug APK
+      # ── Step 4: APK dhundo ───────────────────────────────────
+      - name: Find APK
         run: |
-          set -o pipefail
-          export ANDROID_HOME=$ANDROID_SDK_ROOT
-
-          # Build-tools PATH explicitly set karo
-          export PATH=$ANDROID_SDK_ROOT/build-tools/33.0.2:$PATH
-          echo "PATH = $PATH"
-
-          buildozer -v android debug 2>&1 | tee build_output.txt
-          BUILD_RESULT=${PIPESTATUS[0]}
-          echo "BUILD_EXIT_CODE=${BUILD_RESULT}" >> $GITHUB_ENV
-          if [ $BUILD_RESULT -ne 0 ]; then
-            echo "BUILD_STATUS=FAILED" >> $GITHUB_ENV
-            echo "::error::Build failed with exit code: $BUILD_RESULT"
-            exit $BUILD_RESULT
-          else
-            echo "BUILD_STATUS=SUCCESS" >> $GITHUB_ENV
-          fi
-
-      # ── Step 12: APK dhundo ─────────────────────────────────
-      - name: Find and copy APK
-        if: success()
-        run: |
-          echo "=== Searching for APK ==="
+          echo "=== Searching APK ==="
           find . -name "*.apk" 2>/dev/null
+          ls -lh bin/*.apk 2>/dev/null || echo "APK not in bin/"
 
-          if ls bin/*.apk 1>/dev/null 2>&1; then
-            echo "APK found in bin/"
-          else
-            APK_FOUND=$(find .buildozer -name "*.apk" 2>/dev/null | head -1)
-            if [ -n "$APK_FOUND" ]; then
-              mkdir -p bin
-              cp "$APK_FOUND" bin/
-              echo "APK copied from: $APK_FOUND"
-            else
-              echo "::error::APK not found!"
-              exit 1
-            fi
-          fi
-          ls -lh bin/
-
-      # ── Step 13: APK Upload ─────────────────────────────────
+      # ── Step 5: APK Upload ───────────────────────────────────
       - name: Upload APK
         if: success()
         uses: actions/upload-artifact@v4
@@ -198,24 +71,13 @@ jobs:
           retention-days: 30
           if-no-files-found: error
 
-      # ── Step 14: Log upload ─────────────────────────────────
-      - name: Upload build log
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-log
-          path: build_output.txt
-          retention-days: 7
-          if-no-files-found: ignore
-
-      # ── Step 15: Summary ────────────────────────────────────
+      # ── Step 6: Summary ──────────────────────────────────────
       - name: Build Summary
         if: always()
         run: |
           echo "==============================="
           echo "  Titan Studio PRO Build Done"
           echo "==============================="
-          echo "Status : ${{ env.BUILD_STATUS }}"
           echo "Branch : ${{ github.ref_name }}"
           echo "Commit : ${{ github.sha }}"
           if ls bin/*.apk 1>/dev/null 2>&1; then
@@ -223,5 +85,4 @@ jobs:
             echo "Size   : $(du -h bin/*.apk | cut -f1)"
           else
             echo "APK    : NOT BUILT"
-            echo "Dekho  : build-log artifact"
           fi
