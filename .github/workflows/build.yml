@@ -1,11 +1,6 @@
 # ============================================================
 #  Titan Studio PRO - GitHub Actions Build Workflow
-#  Version: 14.0.9 - SDKMANAGER PRE-INSTALL FIX
-#
-#  ROOT CAUSE (from log): sdkmanager not found in Docker image
-#  Buildozer apna SDK khud download karna chahta tha
-#  FIX: Pehle cmdline-tools install karo, SDK setup karo,
-#       PHIR buildozer ko woh path do
+#  Version: 14.1.0 - CURL FIX (wget nahi tha Docker mein)
 # ============================================================
 
 name: Build Titan Studio PRO APK
@@ -37,17 +32,17 @@ jobs:
             -c "
               set -e
 
-              # ── Step A: cmdline-tools install karo ──────────
+              # ── Step A: cmdline-tools install ────────────────
               echo '=== Installing Android cmdline-tools ==='
               mkdir -p /root/.buildozer/android/platform/android-sdk/cmdline-tools
               cd /tmp
-              wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O cmdtools.zip
+              curl -s https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -o cmdtools.zip
               unzip -q cmdtools.zip
               mv cmdline-tools /root/.buildozer/android/platform/android-sdk/cmdline-tools/latest
               export PATH=/root/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin:\$PATH
-              echo 'sdkmanager version:' && sdkmanager --version
+              echo 'sdkmanager OK:' && sdkmanager --version
 
-              # ── Step B: Licenses accept karo ────────────────
+              # ── Step B: Licenses ─────────────────────────────
               echo '=== Accepting licenses ==='
               mkdir -p /root/.buildozer/android/platform/android-sdk/licenses
               echo '24333f8a63b6825ea9c5514f83c2829b004d1fee' > /root/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
@@ -55,15 +50,14 @@ jobs:
               echo '84831b9409646a918e30573bab4c9c91346d8abd' > /root/.buildozer/android/platform/android-sdk/licenses/android-sdk-preview-license
               yes | sdkmanager --sdk_root=/root/.buildozer/android/platform/android-sdk --licenses || true
 
-              # ── Step C: build-tools + platform install ───────
+              # ── Step C: build-tools install ──────────────────
               echo '=== Installing build-tools 33.0.2 ==='
               sdkmanager --sdk_root=/root/.buildozer/android/platform/android-sdk \
                 'build-tools;33.0.2' \
                 'platforms;android-33' \
                 'platform-tools'
 
-              # ── Step D: tools/bin/sdkmanager symlink banao ───
-              # Buildozer purani jagah dhundta hai: tools/bin/sdkmanager
+              # ── Step D: sdkmanager symlink (purani jagah) ────
               mkdir -p /root/.buildozer/android/platform/android-sdk/tools/bin
               ln -sf /root/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin/sdkmanager \
                 /root/.buildozer/android/platform/android-sdk/tools/bin/sdkmanager
@@ -71,8 +65,7 @@ jobs:
 
               # ── Step E: aidl verify ──────────────────────────
               echo '=== aidl check ==='
-              ls /root/.buildozer/android/platform/android-sdk/build-tools/33.0.2/aidl
-              echo 'aidl is READY!'
+              ls /root/.buildozer/android/platform/android-sdk/build-tools/33.0.2/aidl && echo 'aidl READY!'
 
               # ── Step F: buildozer.spec patch ─────────────────
               cd /home/user/hostcwd
@@ -81,7 +74,7 @@ jobs:
               grep -q 'android.sdk_path' buildozer.spec || \
                 echo 'android.sdk_path = /root/.buildozer/android/platform/android-sdk' >> buildozer.spec
 
-              # ── Step G: BUILD! ────────────────────────────────
+              # ── Step G: BUILD ─────────────────────────────────
               echo '=== STARTING BUILD ==='
               export BUILDOZER_WARN_ON_ROOT=0
               buildozer android debug 2>&1 | tee build_output.txt
