@@ -1,98 +1,71 @@
 # ============================================================
 #  Titan Studio PRO - GitHub Actions Build Workflow
 #  File location: .github/workflows/build.yml
+#  Version: 13.0.1 FIXED
 #
-#  Kab chalta hai:
-#    - Jab bhi main branch pe code push ho
-#    - Manually bhi chala sakte ho (Actions tab se)
-#
-#  Result:
-#    - APK build hoti hai (25-35 min)
-#    - Actions tab mein Artifacts section mein milti hai
-#    - Download karke phone pe install karo
+#  FIX: Build exit code properly captured
+#  FIX: APK path auto-detected (bin/ ya .buildozer/ dono)
+#  FIX: Build log hamesha upload hota hai (success + failure)
 # ============================================================
 
 name: Build Titan Studio PRO APK
 
 on:
-  # Jab bhi main ya master branch pe push ho
   push:
     branches:
       - main
       - master
-
-  # Manually Actions tab se bhi chala sako
   workflow_dispatch:
-    inputs:
-      build_type:
-        description: 'Build type'
-        required: true
-        default: 'debug'
-        type: choice
-        options:
-          - debug
-          - release
 
 jobs:
   build:
     name: Build APK
-    runs-on: ubuntu-22.04  # Ubuntu 22.04 - best compatibility with buildozer
+    runs-on: ubuntu-22.04
 
     steps:
 
-      # ── Step 1: Code download karo ─────────────────────────
+      # ── Step 1: Code ────────────────────────────────────────
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # ── Step 2: Python setup ────────────────────────────────
+      # ── Step 2: Python ──────────────────────────────────────
       - name: Setup Python 3.10
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
 
-      # ── Step 3: Java setup (Android build ke liye) ──────────
+      # ── Step 3: Java ────────────────────────────────────────
       - name: Setup Java 17
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
 
-      # ── Step 4: System dependencies ─────────────────────────
+      # ── Step 4: System packages ─────────────────────────────
       - name: Install system dependencies
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y \
-            git \
-            zip \
-            unzip \
-            autoconf \
-            libtool \
-            pkg-config \
-            zlib1g-dev \
-            libncurses5-dev \
-            libncursesw5-dev \
-            libssl-dev \
-            libffi-dev \
-            cmake \
-            build-essential
+            git zip unzip autoconf libtool pkg-config \
+            zlib1g-dev libncurses5-dev libncursesw5-dev \
+            libssl-dev libffi-dev cmake build-essential
 
-      # ── Step 5: Python tools ────────────────────────────────
+      # ── Step 5: Buildozer ───────────────────────────────────
       - name: Install buildozer and cython
         run: |
           pip install --upgrade pip
           pip install buildozer==1.5.0 cython==0.29.37
 
-      # ── Step 6: Cache - pehle se downloaded SDK/NDK reuse ───
-      # Yeh step bahut important hai - cache se build 10-15 min fast hoti hai
-      - name: Cache buildozer global directory
+      # ── Step 6: Cache global ────────────────────────────────
+      - name: Cache ~/.buildozer
         uses: actions/cache@v4
         with:
           path: ~/.buildozer
-          key: buildozer-global-${{ hashFiles('buildozer.spec') }}
-          restore-keys: |
-            buildozer-global-
+          key: buildozer-home-${{ hashFiles('buildozer.spec') }}
+          restore-keys: buildozer-home-
 
-      - name: Cache buildozer local directory
+      # ── Step 7: Cache local ─────────────────────────────────
+      - name: Cache .buildozer
         uses: actions/cache@v4
         with:
           path: .buildozer
@@ -101,66 +74,91 @@ jobs:
             buildozer-local-${{ hashFiles('buildozer.spec') }}-
             buildozer-local-
 
-      # ── Step 7: APK Build karo ──────────────────────────────
+      # ── Step 8: Build APK ───────────────────────────────────
+      # FIXED: set -o pipefail se actual exit code milta hai
       - name: Build Debug APK
-        if: ${{ github.event.inputs.build_type != 'release' }}
         run: |
+          set -o pipefail
           buildozer -v android debug 2>&1 | tee build_output.txt
-          echo "Build exit code: $?"
+          BUILD_RESULT=$?
+          echo "BUILD_EXIT_CODE=${BUILD_RESULT}" >> $GITHUB_ENV
+          if [ $BUILD_RESULT -ne 0 ]; then
+            echo "BUILD_STATUS=FAILED" >> $GITHUB_ENV
+            echo "::error::Build failed! Exit code: $BUILD_RESULT"
+            exit $BUILD_RESULT
+          else
+            echo "BUILD_STATUS=SUCCESS" >> $GITHUB_ENV
+          fi
 
-      - name: Build Release APK
-        if: ${{ github.event.inputs.build_type == 'release' }}
+      # ── Step 9: APK dhundo ──────────────────────────────────
+      # FIXED: bin/ aur .buildozer/ dono jagah dhundta hai
+      - name: Find and copy APK
+        if: success()
         run: |
-          buildozer -v android release 2>&1 | tee build_output.txt
+          echo "=== Searching for APK ==="
+          find . -name "*.apk" 2>/dev/null
 
-      # ── Step 8: APK file dhundo ─────────────────────────────
-      - name: Find APK
-        if: always()
-        run: |
-          echo "=== bin/ folder contents ==="
-          ls -la bin/ 2>/dev/null || echo "bin/ folder nahi mila"
-          echo ""
-          echo "=== All APK files ==="
-          find . -name "*.apk" 2>/dev/null || echo "Koi APK nahi mila"
+          # bin/ mein check karo
+          if ls bin/*.apk 1>/dev/null 2>&1; then
+            echo "APK found in bin/"
+            echo "APK_PATH=bin/" >> $GITHUB_ENV
+          else
+            # .buildozer ke andar dhundo
+            APK_FOUND=$(find .buildozer -name "*.apk" 2>/dev/null | head -1)
+            if [ -n "$APK_FOUND" ]; then
+              echo "APK found at: $APK_FOUND"
+              mkdir -p bin
+              cp "$APK_FOUND" bin/
+              echo "APK_PATH=bin/" >> $GITHUB_ENV
+              echo "Copied to bin/"
+            else
+              echo "::error::APK not found anywhere!"
+              exit 1
+            fi
+          fi
 
-      # ── Step 9: APK upload karo (download ke liye) ──────────
-      - name: Upload APK (Debug)
+          echo "=== Final bin/ contents ==="
+          ls -lh bin/
+
+      # ── Step 10: APK Upload ─────────────────────────────────
+      - name: Upload APK
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: TitanStudioPRO-v13.0.0-debug
+          name: TitanStudioPRO-v13-debug
           path: bin/*.apk
-          retention-days: 30       # 30 din tak download kar sakte ho
+          retention-days: 30
           if-no-files-found: error
 
-      # ── Step 10: Agar build fail ho toh log upload karo ─────
-      - name: Upload build log on failure
-        if: failure()
+      # ── Step 11: Build log hamesha upload ho ────────────────
+      # SUCCESS aur FAILURE dono mein log milega
+      - name: Upload build log
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: build-error-log
+          name: build-log
           path: build_output.txt
           retention-days: 7
+          if-no-files-found: ignore
 
-      # ── Step 11: Build summary ──────────────────────────────
+      # ── Step 12: Summary ────────────────────────────────────
       - name: Build Summary
         if: always()
         run: |
-          echo "================================"
-          echo "  Titan Studio PRO - Build Done"
-          echo "================================"
-          echo "Branch: ${{ github.ref_name }}"
-          echo "Commit: ${{ github.sha }}"
-          echo "Time: $(date)"
+          echo "==============================="
+          echo "  Titan Studio PRO Build Done"
+          echo "==============================="
+          echo "Status : ${{ env.BUILD_STATUS }}"
+          echo "Branch : ${{ github.ref_name }}"
+          echo "Commit : ${{ github.sha }}"
           echo ""
           if ls bin/*.apk 1>/dev/null 2>&1; then
-            echo "STATUS: SUCCESS"
-            echo "APK size: $(du -h bin/*.apk | cut -f1)"
+            echo "APK    : $(ls bin/*.apk)"
+            echo "Size   : $(du -h bin/*.apk | cut -f1)"
             echo ""
-            echo "APK download karne ke liye:"
-            echo "GitHub → Actions tab → Is workflow run pe click karo"
-            echo "→ Artifacts section mein milega"
+            echo "Actions tab > Is run pe click > Artifacts > Download"
           else
-            echo "STATUS: FAILED"
-            echo "Error log artifact mein dekho"
+            echo "APK    : NOT FOUND"
+            echo ""
+            echo "build-log artifact mein error dekho"
           fi
