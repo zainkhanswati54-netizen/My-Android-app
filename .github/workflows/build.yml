@@ -1,7 +1,6 @@
 # ============================================================
 #  Titan Studio PRO - GitHub Actions Build Workflow
-#  File: .github/workflows/build.yml
-#  Version: 14.0.2 - FINAL CLEAN BUILD
+#  Version: 14.0.3 - FULL LOG VERSION
 # ============================================================
 
 name: Build Titan Studio PRO APK
@@ -29,22 +28,13 @@ jobs:
             -v ${{ github.workspace }}:/home/user/hostcwd \
             -e ANDROID_SDK_ROOT=/home/user/.android/sdk \
             kivy/buildozer:latest \
-            bash -c "cd /home/user/hostcwd && buildozer android debug"
+            bash -c "cd /home/user/hostcwd && buildozer android debug 2>&1 | tee build_output.txt; exit \${PIPESTATUS[0]}" || true
 
-      - name: Find APK
-        if: success()
+      - name: Show last 100 lines of log
+        if: always()
         run: |
-          find . -name "*.apk" 2>/dev/null
-          ls -lh bin/*.apk 2>/dev/null || echo "APK not in bin/"
-
-      - name: Upload APK
-        if: success()
-        uses: actions/upload-artifact@v4
-        with:
-          name: TitanStudioPRO-v13-debug
-          path: bin/*.apk
-          retention-days: 30
-          if-no-files-found: error
+          echo "====== LAST 100 LINES OF BUILD LOG ======"
+          tail -100 build_output.txt 2>/dev/null || echo "No log file found"
 
       - name: Upload build log
         if: always()
@@ -55,15 +45,11 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
-      - name: Build Summary
-        if: always()
-        run: |
-          echo "==============================="
-          echo "  Titan Studio PRO Build Done"
-          echo "==============================="
-          if ls bin/*.apk 1>/dev/null 2>&1; then
-            echo "APK    : $(ls bin/*.apk)"
-            echo "Size   : $(du -h bin/*.apk | cut -f1)"
-          else
-            echo "APK    : NOT BUILT"
-          fi
+      - name: Upload APK
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: TitanStudioPRO-v13-debug
+          path: bin/*.apk
+          retention-days: 30
+          if-no-files-found: error
