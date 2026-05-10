@@ -1,0 +1,37 @@
+# ── Buildozer ───────────────────────────────────────────────
+.buildozer/
+bin/
+
+# ── Python ──────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+venv/
+.venv/
+env/
+
+# ── Kivy ────────────────────────────────────────────────────
+*.pyc
+.kivy/
+
+# ── App data (generated at runtime) ─────────────────────────
+history_v3.json
+settings_v3.json
+batch_queue_v3.json
+tts_preview.mp3
+
+# ── OS ──────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# ── IDE ─────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
