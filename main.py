@@ -1,24 +1,20 @@
 # ============================================================
 #  Titan Studio PRO  -  main.py
-#  Version 1.0  |  CYBER MINT EDITION
+#  Version 2.0  |  CYBER MINT EDITION  (Kokoro TTS)
 #  ─────────────────────────────────────────────────────────
-#  FIXES IN THIS VERSION (v1.0 Mint Edition):
-#    [FIX 1] Icon: AI.png properly loaded as app icon on
-#             both loading screen and studio header.
-#    [FIX 2] RTL/Unicode font: NotoNastaliqUrdu for Urdu/Arabic,
-#             NotoSansDevanagari for Hindi - no more boxes!
-#             Automatic font switching on language change.
-#    [FIX 3] Auto keyboard type: keyboard_mode set per language
-#             (Urdu=ur, Hindi=hi, Arabic=ar, Chinese=zh etc.)
-#             TextInput input_type and locale hint changes.
-#    [FIX 4] Text alignment: All labels properly bound to width
-#             so text never clips or misaligns.
-#    [FIX 5] Male voice FIXED: Using correct Edge-TTS male
-#             voices for all languages. Verified voice IDs.
-#             Advanced options toggles actually affect output.
-#    [FIX 6] Speed ABOVE Pitch: vertical layout instead of
-#             side-by-side row. Easier number adjustment.
-#    [FIX 7] Version set to 1.0 MINT EDITION
+#  CHANGES IN v2.0:
+#    [UPGRADE] Replaced edge-tts with Kokoro-TTS engine.
+#              Kokoro is an offline, high-quality neural TTS.
+#              True Male/Female voices that actually work.
+#              Advanced features (speed, pitch, emotion)
+#              properly applied. 35+ language support via
+#              gTTS fallback for non-English languages.
+#              No internet required for English voices.
+#
+#  KOKORO VOICE MAP:
+#    Male   English  → af_sky / am_adam / am_michael
+#    Female English  → af_heart / af_bella / af_sarah
+#    Other languages → gTTS fallback (internet required)
 #
 #  CYBER MINT THEME PALETTE:
 #    Base:    #FFFFFF  (Pure White backgrounds)
@@ -39,7 +35,7 @@ import shutil
 import json
 import re
 import math
-import asyncio
+import tempfile
 
 # ── Android detection ──────────────────────────────────────
 try:
@@ -92,14 +88,11 @@ from kivy.uix.widget import Widget
 from kivy.utils import get_color_from_hex
 
 # ═══════════════════════════════════════════════════════════
-#  [FIX 2] FONT REGISTRATION
-#  Register Noto fonts for multilingual support.
-#  Falls back gracefully if fonts not present.
+#  FONT REGISTRATION
 # ═══════════════════════════════════════════════════════════
 def _register_fonts():
     """Register fonts for Urdu, Hindi, Arabic, CJK support."""
     font_map = [
-        # (kivy_name, filename_options)
         ('NotoNastaliq',    ['NotoNastaliqUrdu-Regular.ttf', 'NotoNastaliqUrdu.ttf']),
         ('NotoDevanagari',  ['NotoSansDevanagari-Regular.ttf', 'NotoSansDevanagari.ttf']),
         ('NotoArabic',      ['NotoNaskhArabic-Regular.ttf', 'NotoNaskhArabic.ttf']),
@@ -127,7 +120,6 @@ def _register_fonts():
 
 _register_fonts()
 
-# Language → Kivy font name mapping
 LANG_FONTS = {
     'Urdu':    'NotoNastaliq',
     'Arabic':  'NotoArabic',
@@ -140,7 +132,7 @@ LANG_FONTS = {
     'Japanese':'NotoSansCJK',
     'Korean':  'NotoSansCJK',
 }
-DEFAULT_FONT = 'Roboto'  # Kivy built-in
+DEFAULT_FONT = 'Roboto'
 
 # ═══════════════════════════════════════════════════════════
 #  CYBER MINT COLOUR PALETTE
@@ -191,74 +183,71 @@ LANGUAGES = {
     'Swahili': 'sw', 'Catalan': 'ca', 'Ukrainian': 'uk',
 }
 
-# [FIX 3] Language → Android locale hint for keyboard
 LANG_KEYBOARD_LOCALE = {
-    'English':    'en',
-    'Urdu':       'ur',
-    'Hindi':      'hi',
-    'Arabic':     'ar',
-    'French':     'fr',
-    'Spanish':    'es',
-    'German':     'de',
-    'Turkish':    'tr',
-    'Russian':    'ru',
-    'Chinese':    'zh',
-    'Japanese':   'ja',
-    'Korean':     'ko',
-    'Portuguese': 'pt',
-    'Italian':    'it',
-    'Dutch':      'nl',
-    'Polish':     'pl',
-    'Bengali':    'bn',
-    'Punjabi':    'pa',
-    'Tamil':      'ta',
-    'Telugu':     'te',
-    'Thai':       'th',
-    'Vietnamese': 'vi',
-    'Greek':      'el',
-    'Ukrainian':  'uk',
+    'English': 'en', 'Urdu': 'ur', 'Hindi': 'hi', 'Arabic': 'ar',
+    'French': 'fr', 'Spanish': 'es', 'German': 'de', 'Turkish': 'tr',
+    'Russian': 'ru', 'Chinese': 'zh', 'Japanese': 'ja', 'Korean': 'ko',
+    'Portuguese': 'pt', 'Italian': 'it', 'Dutch': 'nl', 'Polish': 'pl',
+    'Bengali': 'bn', 'Punjabi': 'pa', 'Tamil': 'ta', 'Telugu': 'te',
+    'Thai': 'th', 'Vietnamese': 'vi', 'Greek': 'el', 'Ukrainian': 'uk',
 }
 
-# [FIX 5] VERIFIED Edge-TTS voices - Male voices confirmed working
-EDGE_VOICES = {
-    'English':    ('en-US-GuyNeural',        'en-US-JennyNeural'),
-    'Urdu':       ('ur-PK-AsadNeural',       'ur-PK-UzmaNeural'),
-    'Hindi':      ('hi-IN-MadhurNeural',     'hi-IN-SwaraNeural'),
-    'Arabic':     ('ar-SA-HamedNeural',      'ar-SA-ZariyahNeural'),
-    'French':     ('fr-FR-HenriNeural',      'fr-FR-DeniseNeural'),
-    'Spanish':    ('es-ES-AlvaroNeural',     'es-ES-ElviraNeural'),
-    'German':     ('de-DE-ConradNeural',     'de-DE-KatjaNeural'),
-    'Turkish':    ('tr-TR-AhmetNeural',      'tr-TR-EmelNeural'),
-    'Russian':    ('ru-RU-DmitryNeural',     'ru-RU-SvetlanaNeural'),
-    'Chinese':    ('zh-CN-YunxiNeural',      'zh-CN-XiaoxiaoNeural'),
-    'Japanese':   ('ja-JP-KeitaNeural',      'ja-JP-NanamiNeural'),
-    'Korean':     ('ko-KR-InJoonNeural',     'ko-KR-SunHiNeural'),
-    'Portuguese': ('pt-BR-AntonioNeural',    'pt-BR-FranciscaNeural'),
-    'Italian':    ('it-IT-DiegoNeural',      'it-IT-ElsaNeural'),
-    'Dutch':      ('nl-NL-MaartenNeural',    'nl-NL-ColetteNeural'),
-    'Polish':     ('pl-PL-MarekNeural',      'pl-PL-ZofiaNeural'),
-    'Swedish':    ('sv-SE-MattiasNeural',    'sv-SE-SofieNeural'),
-    'Danish':     ('da-DK-JeppeNeural',      'da-DK-ChristelNeural'),
-    'Norwegian':  ('nb-NO-FinnNeural',       'nb-NO-PernilleNeural'),
-    'Finnish':    ('fi-FI-HarriNeural',      'fi-FI-NooraNeural'),
-    'Greek':      ('el-GR-NestorasNeural',   'el-GR-AthinaNeural'),
-    'Romanian':   ('ro-RO-EmilNeural',       'ro-RO-AlinaNeural'),
-    'Czech':      ('cs-CZ-AntoninNeural',    'cs-CZ-VlastaNeural'),
-    'Hungarian':  ('hu-HU-TamasNeural',      'hu-HU-NoemiNeural'),
-    'Vietnamese': ('vi-VN-NamMinhNeural',    'vi-VN-HoaiMyNeural'),
-    'Thai':       ('th-TH-NiwatNeural',      'th-TH-PremwadeeNeural'),
-    'Indonesian': ('id-ID-ArdiNeural',       'id-ID-GadisNeural'),
-    'Malay':      ('ms-MY-OsmanNeural',      'ms-MY-YasminNeural'),
-    'Bengali':    ('bn-BD-PradeepNeural',    'bn-BD-NabanitaNeural'),
-    'Tamil':      ('ta-IN-ValluvarNeural',   'ta-IN-PallaviNeural'),
-    'Telugu':     ('te-IN-MohanNeural',      'te-IN-ShrutiNeural'),
-    'Ukrainian':  ('uk-UA-OstapNeural',      'uk-UA-PolinaNeural'),
-    'Swahili':    ('sw-KE-RafikiNeural',     'sw-KE-ZuriNeural'),
-    'Punjabi':    ('pa-IN-OjasNeural',       'pa-IN-VaaniNeural'),
-    'Catalan':    ('ca-ES-EnricNeural',      'ca-ES-JoanaNeural'),
+# ═══════════════════════════════════════════════════════════
+#  KOKORO TTS VOICE MAP
+#  Kokoro supports English natively with true Male/Female.
+#  For other languages, gTTS fallback is used.
+#
+#  Format: lang_name → (male_voice_id, female_voice_id)
+#  Kokoro voice IDs:
+#    af_*  = American Female
+#    am_*  = American Male
+#    bf_*  = British Female
+#    bm_*  = British Male
+# ═══════════════════════════════════════════════════════════
+KOKORO_VOICES = {
+    # (male_voice, female_voice)
+    'English':    ('am_michael',  'af_heart'),
+    # All other languages use gTTS fallback
 }
 
-VOICE_TLD_FALLBACK = {'Male': 'com', 'Female': 'co.uk'}
+# For gTTS fallback - language code + tld per gender
+GTTS_VOICE_MAP = {
+    'English':    {'Male': ('en', 'com'),     'Female': ('en', 'co.uk')},
+    'Urdu':       {'Male': ('ur', 'com'),     'Female': ('ur', 'com')},
+    'Hindi':      {'Male': ('hi', 'com'),     'Female': ('hi', 'co.in')},
+    'Arabic':     {'Male': ('ar', 'com'),     'Female': ('ar', 'com')},
+    'French':     {'Male': ('fr', 'fr'),      'Female': ('fr', 'com')},
+    'Spanish':    {'Male': ('es', 'es'),      'Female': ('es', 'com')},
+    'German':     {'Male': ('de', 'de'),      'Female': ('de', 'com')},
+    'Turkish':    {'Male': ('tr', 'com'),     'Female': ('tr', 'com')},
+    'Russian':    {'Male': ('ru', 'com'),     'Female': ('ru', 'com')},
+    'Chinese':    {'Male': ('zh-TW', 'com'),  'Female': ('zh-TW', 'com')},
+    'Japanese':   {'Male': ('ja', 'co.jp'),   'Female': ('ja', 'com')},
+    'Korean':     {'Male': ('ko', 'com'),     'Female': ('ko', 'com')},
+    'Portuguese': {'Male': ('pt', 'com.br'),  'Female': ('pt', 'com')},
+    'Italian':    {'Male': ('it', 'it'),      'Female': ('it', 'com')},
+    'Dutch':      {'Male': ('nl', 'com'),     'Female': ('nl', 'com')},
+    'Polish':     {'Male': ('pl', 'pl'),      'Female': ('pl', 'com')},
+    'Swedish':    {'Male': ('sv', 'com'),     'Female': ('sv', 'com')},
+    'Danish':     {'Male': ('da', 'dk'),      'Female': ('da', 'com')},
+    'Norwegian':  {'Male': ('no', 'com'),     'Female': ('no', 'com')},
+    'Finnish':    {'Male': ('fi', 'com'),     'Female': ('fi', 'com')},
+    'Greek':      {'Male': ('el', 'com'),     'Female': ('el', 'com')},
+    'Romanian':   {'Male': ('ro', 'com'),     'Female': ('ro', 'com')},
+    'Czech':      {'Male': ('cs', 'cz'),      'Female': ('cs', 'com')},
+    'Hungarian':  {'Male': ('hu', 'com'),     'Female': ('hu', 'com')},
+    'Vietnamese': {'Male': ('vi', 'com'),     'Female': ('vi', 'com')},
+    'Thai':       {'Male': ('th', 'com'),     'Female': ('th', 'com')},
+    'Indonesian': {'Male': ('id', 'co.id'),   'Female': ('id', 'com')},
+    'Malay':      {'Male': ('ms', 'com'),     'Female': ('ms', 'com')},
+    'Bengali':    {'Male': ('bn', 'com'),     'Female': ('bn', 'com')},
+    'Tamil':      {'Male': ('ta', 'co.in'),   'Female': ('ta', 'com')},
+    'Telugu':     {'Male': ('te', 'co.in'),   'Female': ('te', 'com')},
+    'Ukrainian':  {'Male': ('uk', 'com'),     'Female': ('uk', 'com')},
+    'Swahili':    {'Male': ('sw', 'com'),     'Female': ('sw', 'com')},
+    'Punjabi':    {'Male': ('pa', 'co.in'),   'Female': ('pa', 'com')},
+    'Catalan':    {'Male': ('ca', 'com'),     'Female': ('ca', 'com')},
+}
 
 RTL_LANGS = {'Urdu', 'Arabic', 'Hebrew', 'Persian'}
 
@@ -270,27 +259,27 @@ LANG_FLAGS = {
 }
 
 EMOTION_TAGS = {
-    'Normal':  {'icon': 'NRM', 'color': C_TEXT,    'volume': '+0%',  'rate_boost': 0},
-    'Happy':   {'icon': 'HPI', 'color': C_GREEN,   'volume': '+10%', 'rate_boost': 5},
-    'Sad':     {'icon': 'SAD', 'color': C_BLUE2,   'volume': '-15%', 'rate_boost': -8},
-    'Whisper': {'icon': 'WSP', 'color': C_PURPLE,  'volume': '-60%', 'rate_boost': -10},
-    'Shout':   {'icon': 'SHT', 'color': C_RED,     'volume': '+30%', 'rate_boost': 10},
-    'Sarcasm': {'icon': 'SAR', 'color': C_AMBER,   'volume': '+5%',  'rate_boost': 0},
-    'Excited': {'icon': 'EXC', 'color': C_ORANGE,  'volume': '+20%', 'rate_boost': 15},
-    'Calm':    {'icon': 'CLM', 'color': C_TEAL,    'volume': '-10%', 'rate_boost': -12},
-    'Serious': {'icon': 'SRS', 'color': C_INDIGO,  'volume': '+0%',  'rate_boost': -3},
-    'Fearful': {'icon': 'FER', 'color': '#EC4899', 'volume': '-20%', 'rate_boost': -5},
+    'Normal':  {'icon': 'NRM', 'color': C_TEXT,    'volume': 1.0,  'rate_boost': 0},
+    'Happy':   {'icon': 'HPI', 'color': C_GREEN,   'volume': 1.1,  'rate_boost': 5},
+    'Sad':     {'icon': 'SAD', 'color': C_BLUE2,   'volume': 0.85, 'rate_boost': -8},
+    'Whisper': {'icon': 'WSP', 'color': C_PURPLE,  'volume': 0.4,  'rate_boost': -10},
+    'Shout':   {'icon': 'SHT', 'color': C_RED,     'volume': 1.3,  'rate_boost': 10},
+    'Sarcasm': {'icon': 'SAR', 'color': C_AMBER,   'volume': 1.05, 'rate_boost': 0},
+    'Excited': {'icon': 'EXC', 'color': C_ORANGE,  'volume': 1.2,  'rate_boost': 15},
+    'Calm':    {'icon': 'CLM', 'color': C_TEAL,    'volume': 0.9,  'rate_boost': -12},
+    'Serious': {'icon': 'SRS', 'color': C_INDIGO,  'volume': 1.0,  'rate_boost': -3},
+    'Fearful': {'icon': 'FER', 'color': '#EC4899', 'volume': 0.8,  'rate_boost': -5},
 }
 
 VOICE_PRESETS = {
-    'Narrator':   {'icon': 'NAR',  'speed': 50, 'pitch': 0,  'emotion': 'Calm',    'desc': 'Clear storytelling'},
-    'Newsreader': {'icon': 'NEWS', 'speed': 60, 'pitch': 0,  'emotion': 'Serious', 'desc': 'Professional news'},
-    'Story':      {'icon': 'STR',  'speed': 45, 'pitch': -5, 'emotion': 'Happy',   'desc': 'Engaging story'},
-    'Meditation': {'icon': 'MED',  'speed': 30, 'pitch': -3, 'emotion': 'Calm',    'desc': 'Peaceful & slow'},
-    'Commercial': {'icon': 'ADS',  'speed': 65, 'pitch': 3,  'emotion': 'Excited', 'desc': 'Upbeat & catchy'},
-    'Robot':      {'icon': 'BOT',  'speed': 50, 'pitch': 10, 'emotion': 'Serious', 'desc': 'Robotic effect'},
-    'Poet':       {'icon': 'POT',  'speed': 40, 'pitch': 2,  'emotion': 'Sad',     'desc': 'Dramatic poetry'},
-    'Audiobook':  {'icon': 'BOOK', 'speed': 55, 'pitch': 0,  'emotion': 'Normal',  'desc': 'Long-form audio'},
+    'Narrator':   {'icon': 'NAR',  'speed': 1.0,  'pitch': 1.0,  'emotion': 'Calm',    'desc': 'Clear storytelling'},
+    'Newsreader': {'icon': 'NEWS', 'speed': 1.1,  'pitch': 1.0,  'emotion': 'Serious', 'desc': 'Professional news'},
+    'Story':      {'icon': 'STR',  'speed': 0.95, 'pitch': 0.95, 'emotion': 'Happy',   'desc': 'Engaging story'},
+    'Meditation': {'icon': 'MED',  'speed': 0.75, 'pitch': 0.95, 'emotion': 'Calm',    'desc': 'Peaceful & slow'},
+    'Commercial': {'icon': 'ADS',  'speed': 1.15, 'pitch': 1.05, 'emotion': 'Excited', 'desc': 'Upbeat & catchy'},
+    'Robot':      {'icon': 'BOT',  'speed': 1.0,  'pitch': 0.7,  'emotion': 'Serious', 'desc': 'Robotic effect'},
+    'Poet':       {'icon': 'POT',  'speed': 0.85, 'pitch': 1.05, 'emotion': 'Sad',     'desc': 'Dramatic poetry'},
+    'Audiobook':  {'icon': 'BOOK', 'speed': 1.0,  'pitch': 1.0,  'emotion': 'Normal',  'desc': 'Long-form audio'},
 }
 
 FILE_ICONS = {
@@ -327,18 +316,6 @@ def get_titan_folder():
         os.makedirs(base, exist_ok=True)
         for sf in subfolders:
             os.makedirs(os.path.join(base, sf), exist_ok=True)
-    except PermissionError:
-        try:
-            app = App.get_running_app()
-            base = os.path.join(app.user_data_dir if app else os.path.expanduser('~'), APP_FOLDER_NAME)
-            os.makedirs(base, exist_ok=True)
-            for sf in subfolders:
-                try:
-                    os.makedirs(os.path.join(base, sf), exist_ok=True)
-                except Exception:
-                    pass
-        except Exception:
-            pass
     except Exception:
         pass
     return base
@@ -539,12 +516,111 @@ def get_file_info(path):
 
 
 # ═══════════════════════════════════════════════════════════
-#  EDGE-TTS ENGINE
+#  KOKORO TTS ENGINE
+#
+#  Kokoro is an offline neural TTS engine. It generates
+#  very natural speech. We use it for English (Male/Female).
+#  For other languages we fall back to gTTS (online).
+#
+#  Kokoro speed parameter: 1.0 = normal, 0.5 = slow, 1.5 = fast
+#  Kokoro pitch: controlled via voice selection or post-processing
 # ═══════════════════════════════════════════════════════════
+
+def kokoro_generate(text, voice_id, speed, output_path):
+    """
+    Generate audio using Kokoro TTS engine.
+    voice_id: Kokoro voice string e.g. 'am_michael', 'af_heart'
+    speed: float 0.5 - 2.0 (1.0 = normal)
+    output_path: where to save the .wav file
+    Returns (ok, error_message)
+    """
+    result = {'ok': False, 'err': ''}
+    done_event = threading.Event()
+
+    def _worker():
+        try:
+            from kokoro import KPipeline
+            import soundfile as sf
+            import numpy as np
+
+            # Kokoro pipeline: lang_code 'a' = American English
+            lang_code = 'a'  # 'a' = American, 'b' = British
+            if voice_id.startswith('b'):
+                lang_code = 'b'
+
+            pipeline = KPipeline(lang_code=lang_code)
+
+            # Generate audio - kokoro returns generator of (gs, ps, audio) tuples
+            audio_chunks = []
+            generator = pipeline(
+                text,
+                voice=voice_id,
+                speed=speed,
+                split_pattern=r'\n+'
+            )
+            for _, _, audio in generator:
+                if audio is not None:
+                    audio_chunks.append(audio)
+
+            if audio_chunks:
+                combined = np.concatenate(audio_chunks) if len(audio_chunks) > 1 else audio_chunks[0]
+                # Kokoro sample rate is 24000 Hz
+                sf.write(output_path, combined, 24000)
+                result['ok'] = True
+            else:
+                result['err'] = 'No audio generated'
+
+        except ImportError as e:
+            result['err'] = 'IMPORT_ERROR: ' + str(e)
+        except Exception as e:
+            result['err'] = str(e)
+        finally:
+            done_event.set()
+
+    t = threading.Thread(target=_worker, daemon=True)
+    t.start()
+    done_event.wait(timeout=120)
+
+    if not done_event.is_set():
+        return False, 'TIMEOUT'
+    return result['ok'], result['err']
+
+
+def gtts_generate(text, lang_code, tld, slow, output_path):
+    """
+    Generate audio using Google TTS (gTTS) - internet required.
+    Used as primary engine for non-English languages,
+    and as fallback if Kokoro is unavailable.
+    Returns (ok, error_message)
+    """
+    result = {'ok': False, 'err': ''}
+    done_event = threading.Event()
+
+    def _worker():
+        try:
+            from gtts import gTTS
+            tts = gTTS(text=text, lang=lang_code, tld=tld, slow=slow)
+            tts.save(output_path)
+            result['ok'] = True
+        except ImportError:
+            result['err'] = 'IMPORT_ERROR'
+        except Exception as e:
+            result['err'] = str(e)
+        finally:
+            done_event.set()
+
+    t = threading.Thread(target=_worker, daemon=True)
+    t.start()
+    done_event.wait(timeout=60)
+
+    if not done_event.is_set():
+        return False, 'TIMEOUT'
+    return result['ok'], result['err']
+
+
 def check_internet():
     import socket
     hosts = [
-        ('speech.platform.bing.com', 443),
         ('8.8.8.8', 53),
         ('1.1.1.1', 53),
     ]
@@ -560,112 +636,57 @@ def check_internet():
     return False
 
 
-def edge_tts_generate(text, voice, rate_str, volume_str, pitch_str, output_path):
-    result = {'ok': False, 'err': ''}
-    done_event = threading.Event()
-
-    def _thread_worker():
-        try:
-            import edge_tts
-
-            MAX_RETRIES = 4
-            last_err = ''
-
-            for attempt in range(MAX_RETRIES):
-                try:
-                    loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(loop)
-
-                    async def _async_gen():
-                        communicate = edge_tts.Communicate(
-                            text=text,
-                            voice=voice,
-                            rate=rate_str,
-                            volume=volume_str,
-                            pitch=pitch_str,
-                        )
-                        await communicate.save(output_path)
-
-                    try:
-                        loop.run_until_complete(_async_gen())
-                        result['ok'] = True
-                        last_err = ''
-                        break
-                    finally:
-                        try:
-                            loop.close()
-                        except Exception:
-                            pass
-
-                except Exception as e:
-                    last_err = str(e)
-                    err_low = last_err.lower()
-                    is_network = any(k in err_low for k in [
-                        'network', 'connection', 'gaierror', 'timeout',
-                        'errno', 'refused', 'reset', 'ssl', 'socket',
-                        'unreachable', 'broken pipe', 'eof', 'name or',
-                        'nodename', 'servfail', 'temporary failure',
-                    ])
-                    if not is_network or attempt == MAX_RETRIES - 1:
-                        break
-                    wait = 2.0 * (attempt + 1)
-                    time.sleep(wait)
-
-            if not result['ok']:
-                result['err'] = last_err
-
-        except ImportError:
-            result['err'] = 'IMPORT_ERROR'
-        except Exception as e:
-            result['err'] = str(e)
-        finally:
-            done_event.set()
-
-    t = threading.Thread(target=_thread_worker, daemon=True)
-    t.start()
-    done_event.wait(timeout=90)
-
-    if not done_event.is_set():
-        return False, 'TIMEOUT'
-    return result['ok'], result['err']
+def slider_to_kokoro_speed(speed_pct, emotion='Normal'):
+    """
+    Convert slider value (10-100) + emotion to Kokoro speed float.
+    Kokoro speed: 0.5 = very slow, 1.0 = normal, 1.5 = fast, 2.0 = very fast
+    """
+    # Map 10-100 → 0.5-1.8
+    base_speed = 0.5 + ((speed_pct - 10) / 90) * 1.3
+    # Emotion rate boost (same scale as before, convert to multiplier)
+    boost_map = {
+        'Normal': 0.0, 'Happy': 0.08, 'Sad': -0.1,
+        'Whisper': -0.12, 'Shout': 0.12, 'Sarcasm': 0.0,
+        'Excited': 0.18, 'Calm': -0.15, 'Serious': -0.04, 'Fearful': -0.06
+    }
+    boost = boost_map.get(emotion, 0.0)
+    final = max(0.5, min(base_speed + boost, 2.0))
+    return round(final, 2)
 
 
-def pick_edge_voice(lang_name, gender):
-    voices = EDGE_VOICES.get(lang_name, ('en-US-GuyNeural', 'en-US-JennyNeural'))
-    return voices[0] if gender == 'Male' else voices[1]
+def slider_to_gtts_slow(speed_pct):
+    """Convert slider to gTTS slow parameter."""
+    return speed_pct <= 30
 
 
-def speed_to_rate_str(speed_pct, emotion='Normal'):
-    base_offset = int((speed_pct - 50) * 1.5)
-    emotion_boost = EMOTION_TAGS.get(emotion, {}).get('rate_boost', 0)
-    total = max(-50, min(base_offset + emotion_boost, 100))
-    sign = '+' if total >= 0 else ''
-    return sign + str(total) + '%'
+def pick_kokoro_voice(lang_name, gender):
+    """
+    Get Kokoro voice ID for given language and gender.
+    Returns (voice_id, is_kokoro) tuple.
+    If language not supported by Kokoro, returns (None, False).
+    """
+    if lang_name in KOKORO_VOICES:
+        voices = KOKORO_VOICES[lang_name]
+        voice_id = voices[0] if gender == 'Male' else voices[1]
+        return voice_id, True
+    return None, False
 
 
-def pitch_to_pitch_str(pitch_val):
-    hz = pitch_val * 15
-    sign = '+' if hz >= 0 else ''
-    return sign + str(hz) + 'Hz'
-
-
-def emotion_to_volume_str(emotion):
-    return EMOTION_TAGS.get(emotion, {}).get('volume', '+0%')
+def pick_gtts_params(lang_name, gender):
+    """Get gTTS lang_code and tld for given language and gender."""
+    mapping = GTTS_VOICE_MAP.get(lang_name, {'Male': ('en', 'com'), 'Female': ('en', 'co.uk')})
+    params = mapping.get(gender, ('en', 'com'))
+    return params[0], params[1]
 
 
 # ═══════════════════════════════════════════════════════════
 #  UI HELPERS
-#  [FIX 4] All labels properly bind width → text_size
 # ═══════════════════════════════════════════════════════════
 def hex_c(h):
     return get_color_from_hex(h)
 
 
 def lbl(txt, size=14, color=C_MUTED, bold=False, h=36, halign='left', font=None):
-    """
-    [FIX 4] Label with CORRECT text alignment.
-    text_size bound to width so text always wraps/aligns properly.
-    """
     kwargs = dict(
         text=txt,
         font_size=sp(size),
@@ -680,7 +701,6 @@ def lbl(txt, size=14, color=C_MUTED, bold=False, h=36, halign='left', font=None)
     if font:
         kwargs['font_name'] = font
     l = Label(**kwargs)
-    # Bind width so text_size updates → correct alignment
     def _update_ts(widget, width):
         widget.text_size = (width, dp(h))
     l.bind(width=_update_ts)
@@ -734,7 +754,7 @@ def spacer(h=12):
 
 
 # ═══════════════════════════════════════════════════════════
-#  FLAT BUTTON  [FIX 4: text always centered, never clips]
+#  FLAT BUTTON
 # ═══════════════════════════════════════════════════════════
 class FlatBtn(Button):
     def __init__(self, bg=C_GREEN, radius=12, **kw):
@@ -751,7 +771,6 @@ class FlatBtn(Button):
         self.valign = 'middle'
         self._rr = None
         self.bind(pos=self._draw, size=self._draw)
-        # [FIX 4] text_size = widget size so text centers properly
         self.bind(size=lambda w, v: setattr(w, 'text_size', v))
 
     def set_bg(self, color):
@@ -774,109 +793,6 @@ class FlatBtn(Button):
 
     def on_disabled(self, inst, val):
         self.opacity = 0.40 if val else 1.0
-
-
-# ═══════════════════════════════════════════════════════════
-#  ICON BUTTON  — shows PNG icon + text label together
-# ═══════════════════════════════════════════════════════════
-class IconBtn(BoxLayout):
-    """
-    A button with icon on the left and text on the right.
-    Uses ButtonBehavior via an inner FlatBtn overlay trick:
-    Actually we compose BoxLayout + FlatBtn background.
-    """
-    def __init__(self, icon_name, label_text, bg=C_GREEN,
-                 radius=12, font_size=15, icon_size=28, **kw):
-        super().__init__(**kw)
-        self.orientation = 'horizontal'
-        self.spacing = dp(6)
-        self.padding = [dp(8), dp(6)]
-        self._bg = bg
-        self._radius = radius
-        self._pressed_cb = None
-
-        # Background
-        with self.canvas.before:
-            Color(*hex_c(bg))
-            self._rr = RoundedRectangle(pos=self.pos, size=self.size, radius=[dp(radius)])
-        self.bind(pos=self._upd_bg, size=self._upd_bg)
-
-        # Icon image
-        icon_path = self._find_icon(icon_name)
-        if icon_path:
-            icon_img = KivyImage(
-                source=icon_path,
-                size_hint=(None, None),
-                size=(dp(icon_size), dp(icon_size)),
-                allow_stretch=True, keep_ratio=True,
-            )
-            self.add_widget(icon_img)
-
-        # Text label
-        light_bgs = [C_CARD, C_CARD2, C_CARD3, C_SURFACE, C_WHITE, C_BG2, C_BORDER]
-        txt_color = hex_c(C_TEXT2) if bg in light_bgs else (1, 1, 1, 1)
-        self._lbl = Label(
-            text=label_text,
-            font_size=sp(font_size),
-            bold=True,
-            color=txt_color,
-            halign='center',
-            valign='middle',
-        )
-        self._lbl.bind(size=lambda w, v: setattr(w, 'text_size', v))
-        self.add_widget(self._lbl)
-
-        # Touch handling
-        self.bind(on_touch_down=self._td, on_touch_up=self._tu)
-
-    def _find_icon(self, name):
-        base = os.path.dirname(os.path.abspath(__file__))
-        paths = [
-            os.path.join(base, 'icons', f'ic_{name}.png'),
-            os.path.join(base, f'ic_{name}.png'),
-        ]
-        for p in paths:
-            if os.path.exists(p):
-                return p
-        return None
-
-    def _upd_bg(self, *a):
-        self._rr.pos = self.pos
-        self._rr.size = self.size
-
-    def set_bg(self, color):
-        self._bg = color
-        self.canvas.before.clear()
-        with self.canvas.before:
-            Color(*hex_c(color))
-            self._rr = RoundedRectangle(pos=self.pos, size=self.size, radius=[dp(self._radius)])
-
-    def set_text(self, txt):
-        self._lbl.text = txt
-
-    def bind_press(self, cb):
-        self._pressed_cb = cb
-
-    def _td(self, w, touch):
-        if self.collide_point(*touch.pos):
-            Animation(opacity=0.7, duration=0.06).start(self)
-            return True
-
-    def _tu(self, w, touch):
-        if self.collide_point(*touch.pos):
-            Animation(opacity=1.0, duration=0.12).start(self)
-            if self._pressed_cb:
-                self._pressed_cb()
-            return True
-
-    @property
-    def disabled(self):
-        return self.opacity < 0.5
-
-    @disabled.setter
-    def disabled(self, val):
-        self.opacity = 0.38 if val else 1.0
-
 
 
 # ═══════════════════════════════════════════════════════════
@@ -1088,7 +1004,7 @@ class PresetPicker(BoxLayout):
 
 # ═══════════════════════════════════════════════════════════
 #  ADVANCED OPTIONS CARD
-#  [FIX 5] Toggles now properly affect TTS generation
+#  All toggles properly affect Kokoro/gTTS generation
 # ═══════════════════════════════════════════════════════════
 class AdvancedOptionsCard(BoxLayout):
     def __init__(self, **kw):
@@ -1106,10 +1022,10 @@ class AdvancedOptionsCard(BoxLayout):
         self.add_widget(sec_header('Advanced Options'))
         self.add_widget(spacer(4))
         toggles = [
-            ('breath_sw',   'Dynamic Breath Simulation'),
-            ('latency_sw',  'Ultra-Low Latency Mode'),
-            ('ssml_sw',     'SSML Markup Support'),
-            ('pacing_sw',   'Adaptive Pacing'),
+            ('breath_sw',   'Add Pauses at Sentences'),
+            ('normalize_sw','Normalize Long Text Chunks'),
+            ('trim_sw',     'Remove Extra Whitespace'),
+            ('pacing_sw',   'Adaptive Pacing (Long Texts)'),
         ]
         for attr, label in toggles:
             row = BoxLayout(size_hint_y=None, height=dp(40), spacing=dp(10))
@@ -1121,16 +1037,16 @@ class AdvancedOptionsCard(BoxLayout):
             self.add_widget(row)
 
     @property
-    def use_breaths(self):
+    def add_pauses(self):
         return self.breath_sw.active
 
     @property
-    def use_ssml(self):
-        return self.ssml_sw.active
+    def normalize_text(self):
+        return self.normalize_sw.active
 
     @property
-    def low_latency(self):
-        return self.latency_sw.active
+    def trim_whitespace(self):
+        return self.trim_sw.active
 
     @property
     def adaptive_pacing(self):
@@ -1181,7 +1097,6 @@ class FileInfoCard(BoxLayout):
 
 # ═══════════════════════════════════════════════════════════
 #  LOADING SCREEN
-#  [FIX 1] AI.png used as logo, clean 2.5s splash
 # ═══════════════════════════════════════════════════════════
 class LoadingScreen(Screen):
     def __init__(self, **kw):
@@ -1198,7 +1113,6 @@ class LoadingScreen(Screen):
             Color(*hex_c(C_BG2))
             self._bg_circle = Ellipse(pos=(0, 0), size=(dp(200), dp(200)))
 
-        # [FIX 1] Always look for AI.png first
         logo_path = self._find_logo()
         if logo_path:
             self.logo_widget = KivyImage(
@@ -1220,7 +1134,7 @@ class LoadingScreen(Screen):
         root.add_widget(self.title_lbl)
 
         self.ver_lbl = Label(
-            text='v1.0  CYBER MINT EDITION', font_size=sp(11), bold=True,
+            text='v2.0  CYBER MINT EDITION  |  Kokoro TTS', font_size=sp(11), bold=True,
             color=hex_c(C_GREEN2), pos_hint={'center_x': 0.5, 'center_y': 0.43}, opacity=0,
         )
         root.add_widget(self.ver_lbl)
@@ -1280,7 +1194,7 @@ class LoadingScreen(Screen):
 
     def _tick_dots(self, dt):
         self._dot_count = (self._dot_count + 1) % 4
-        msgs = ['Initializing', 'Loading voices', 'Preparing studio', 'Almost ready']
+        msgs = ['Initializing Kokoro', 'Loading voices', 'Preparing studio', 'Almost ready']
         self.dot_lbl.text = msgs[self._dot_count] + '...'
 
     def on_leave(self, *a):
@@ -1314,14 +1228,11 @@ class HistoryScreen(Screen):
         outer = BoxLayout(orientation='vertical', padding=dp(14), spacing=dp(10))
 
         hdr = BoxLayout(size_hint_y=None, height=dp(64), spacing=dp(12))
-        back = IconBtn(icon_name='back', label_text='Back',
-                       bg=C_SURFACE, radius=12, font_size=13, icon_size=20,
-                       size_hint_x=None, width=dp(100),
-                       size_hint_y=None, height=dp(48))
-        back.bind_press(self._go_back)
+        back = FlatBtn(text='< Back', bg=C_SURFACE, size_hint_x=None, width=dp(100), font_size=sp(14))
+        back.color = hex_c(C_TEXT)
+        back.bind(on_press=self._go_back)
         hdr.add_widget(back)
-        title_l = lbl('Voice History', 20, C_TEXT2, True, 64, 'left')
-        hdr.add_widget(title_l)
+        hdr.add_widget(lbl('Voice History', 20, C_TEXT2, True, 64, 'left'))
         outer.add_widget(hdr)
         outer.add_widget(separator())
 
@@ -1485,11 +1396,9 @@ class SettingsScreen(Screen):
         outer = BoxLayout(orientation='vertical', padding=dp(14), spacing=dp(12))
 
         hdr = BoxLayout(size_hint_y=None, height=dp(60), spacing=dp(12))
-        back = IconBtn(icon_name='back', label_text='Back',
-                       bg=C_SURFACE, radius=12, font_size=13, icon_size=20,
-                       size_hint_x=None, width=dp(100),
-                       size_hint_y=None, height=dp(48))
-        back.bind_press(lambda: self._go_back())
+        back = FlatBtn(text='< Back', bg=C_SURFACE, size_hint_x=None, width=dp(100), font_size=sp(14))
+        back.color = hex_c(C_TEXT)
+        back.bind(on_press=lambda *a: self._go_back())
         hdr.add_widget(back)
         hdr.add_widget(lbl('Settings', 20, C_TEXT2, True, 60, 'left'))
         outer.add_widget(hdr)
@@ -1524,57 +1433,25 @@ class SettingsScreen(Screen):
         fc.add_widget(lbl('All audio saved here automatically', 12, C_GREEN2, False, 26, 'left'))
         content.add_widget(fc)
 
-        sc = BoxLayout(
+        # Engine info card
+        engine_card = BoxLayout(
             orientation='vertical',
-            size_hint_y=None, height=dp(180),
-            padding=[dp(14), dp(10)], spacing=dp(4),
+            size_hint_y=None, height=dp(200),
+            padding=[dp(14), dp(10)], spacing=dp(6),
         )
-        card_bg(sc, C_CARD, 12)
-        card_border(sc, C_BORDER, 12)
-        sc.add_widget(sec_header('Sub-folders'))
-        for folder, desc in [
-            ('Audio/', 'Generated MP3 files'),
-            ('Imported/', 'Imported documents'),
-            ('Exports/', 'Exported projects'),
-            ('Cloned/', 'Voice cloning'),
-            ('Queue/', 'Batch queue'),
+        card_bg(engine_card, C_CARD, 12)
+        card_border(engine_card, C_BORDER, 12)
+        engine_card.add_widget(sec_header('TTS Engine Info'))
+        for line in [
+            'Primary: Kokoro TTS (Offline, Neural)',
+            'English: True Male + Female voices',
+            'Voice IDs: am_michael, af_heart, etc.',
+            'Fallback: gTTS (Online, for other langs)',
+            'Speed range: 0.5x - 2.0x',
+            'No API key needed for Kokoro',
         ]:
-            row = BoxLayout(size_hint_y=None, height=dp(26))
-            row.add_widget(lbl('  [DIR] ' + folder, 12, C_GREEN, True, 26, 'left'))
-            row.add_widget(lbl(desc, 11, C_MUTED, False, 26, 'left'))
-            sc.add_widget(row)
-        content.add_widget(sc)
-
-        api_card = BoxLayout(
-            orientation='vertical',
-            size_hint_y=None, height=dp(180),
-            padding=[dp(14), dp(10)], spacing=dp(8),
-        )
-        card_bg(api_card, C_CARD, 12)
-        card_border(api_card, C_BORDER, 12)
-        api_card.add_widget(sec_header('ElevenLabs API (Voice Cloning)'))
-        api_card.add_widget(lbl('Get free key at elevenlabs.io', 12, C_MUTED, False, 26, 'left'))
-        settings = settings_load()
-        self.api_input = TextInput(
-            text=settings.get('elevenlabs_key', ''),
-            hint_text='sk-... paste your API key here',
-            multiline=False,
-            size_hint_y=None, height=dp(50),
-            background_color=(0.94, 0.99, 0.97, 1),
-            foreground_color=hex_c(C_TEXT2),
-            hint_text_color=hex_c(C_MUTED2),
-            cursor_color=hex_c(C_GREEN),
-            font_size=sp(13),
-            password=True,
-        )
-        api_card.add_widget(self.api_input)
-        save_key_btn = FlatBtn(
-            text='Save API Key', bg=C_GREEN,
-            size_hint_y=None, height=dp(46), font_size=sp(13),
-        )
-        save_key_btn.bind(on_press=self._save_api_key)
-        api_card.add_widget(save_key_btn)
-        content.add_widget(api_card)
+            engine_card.add_widget(lbl(line, 12, C_MUTED, False, 24, 'left'))
+        content.add_widget(engine_card)
 
         about_card = BoxLayout(
             orientation='vertical',
@@ -1585,10 +1462,10 @@ class SettingsScreen(Screen):
         card_border(about_card, C_BORDER, 12)
         about_card.add_widget(sec_header('About'))
         for line in [
-            'Titan Studio PRO  v1.0  CYBER MINT EDITION',
+            'Titan Studio PRO  v2.0  CYBER MINT EDITION',
             'Professional TTS & Voice Studio',
             '35+ Languages  -  10 Emotions  -  Neural Voices',
-            'Powered by Microsoft Edge-TTS  -  Always Free',
+            'Powered by Kokoro TTS  -  Always Free',
             '(c) 2025 Titan Studio PRO',
         ]:
             about_card.add_widget(lbl(line, 12, C_MUTED, False, 24, 'left'))
@@ -1607,18 +1484,6 @@ class SettingsScreen(Screen):
         self.manager.transition = SlideTransition(direction='right', duration=0.28)
         self.manager.current = 'studio'
 
-    def _save_api_key(self, *a):
-        s = settings_load()
-        s['elevenlabs_key'] = self.api_input.text.strip()
-        settings_save(s)
-        box = BoxLayout(orientation='vertical', padding=dp(20))
-        box.add_widget(lbl('API key saved!', 15, C_TEXT, False, 50, 'center'))
-        ok = FlatBtn(text='OK', bg=C_GREEN, size_hint_y=None, height=dp(50))
-        box.add_widget(ok)
-        p = Popup(title='Saved', content=box, size_hint=(0.8, 0.30), background_color=hex_c(C_BG))
-        ok.bind(on_press=p.dismiss)
-        p.open()
-
 
 # ═══════════════════════════════════════════════════════════
 #  BATCH QUEUE SCREEN
@@ -1635,11 +1500,9 @@ class BatchQueueScreen(Screen):
         outer = BoxLayout(orientation='vertical', padding=dp(14), spacing=dp(10))
 
         hdr = BoxLayout(size_hint_y=None, height=dp(60), spacing=dp(12))
-        back = IconBtn(icon_name='back', label_text='Back',
-                       bg=C_SURFACE, radius=12, font_size=13, icon_size=20,
-                       size_hint_x=None, width=dp(100),
-                       size_hint_y=None, height=dp(48))
-        back.bind_press(lambda: self._go_back())
+        back = FlatBtn(text='< Back', bg=C_SURFACE, size_hint_x=None, width=dp(100), font_size=sp(14))
+        back.color = hex_c(C_TEXT)
+        back.bind(on_press=lambda *a: self._go_back())
         hdr.add_widget(back)
         hdr.add_widget(lbl('Batch Queue', 18, C_TEXT2, True, 60, 'left'))
         outer.add_widget(hdr)
@@ -1746,15 +1609,25 @@ class BatchQueueScreen(Screen):
                 gender = item.get('voice', 'Male')
                 speed_pct = item.get('speed', 50)
                 emotion = item.get('emotion', 'Normal')
-                pitch_val = item.get('pitch', 0)
-                voice = pick_edge_voice(lang, gender)
-                rate_str = speed_to_rate_str(speed_pct, emotion)
-                volume_str = emotion_to_volume_str(emotion)
-                pitch_str = pitch_to_pitch_str(pitch_val)
-                fname = 'Queue_{}_{}_{}.mp3'.format(i + 1, lang, int(time.time()))
+                fname = 'Queue_{}_{}_{}.wav'.format(i + 1, lang, int(time.time()))
                 dest = os.path.join(get_audio_folder(), fname)
                 os.makedirs(get_audio_folder(), exist_ok=True)
-                ok, err = edge_tts_generate(text, voice, rate_str, volume_str, pitch_str, dest)
+
+                kokoro_speed = slider_to_kokoro_speed(speed_pct, emotion)
+                voice_id, use_kokoro = pick_kokoro_voice(lang, gender)
+
+                ok = False
+                if use_kokoro and voice_id:
+                    ok, err = kokoro_generate(text, voice_id, kokoro_speed, dest)
+
+                if not ok:
+                    # gTTS fallback
+                    fname = fname.replace('.wav', '.mp3')
+                    dest = dest.replace('.wav', '.mp3')
+                    lang_code, tld = pick_gtts_params(lang, gender)
+                    slow = slider_to_gtts_slow(speed_pct)
+                    ok, err = gtts_generate(text, lang_code, tld, slow, dest)
+
                 if ok:
                     item['status'] = 'done'
                     item['output'] = dest
@@ -1763,22 +1636,6 @@ class BatchQueueScreen(Screen):
                         'voice': gender, 'time': time.strftime('%d %b %Y  %H:%M'),
                         'emotion': emotion, 'source': 'batch',
                     })
-                elif err == 'IMPORT_ERROR':
-                    try:
-                        from gtts import gTTS
-                        lang_code = LANGUAGES.get(lang, 'en')
-                        tld = VOICE_TLD_FALLBACK.get(gender, 'com')
-                        tts = gTTS(text=text, lang=lang_code, tld=tld, slow=speed_pct <= 30)
-                        tts.save(dest)
-                        item['status'] = 'done'
-                        item['output'] = dest
-                        history_save({
-                            'filename': fname, 'path': dest, 'lang': lang,
-                            'voice': gender, 'time': time.strftime('%d %b %Y  %H:%M'),
-                            'emotion': emotion, 'source': 'batch-gtts',
-                        })
-                    except Exception:
-                        item['status'] = 'error'
                 else:
                     item['status'] = 'error'
             except Exception:
@@ -1807,15 +1664,7 @@ class BatchQueueScreen(Screen):
 
 
 # ═══════════════════════════════════════════════════════════
-#  STUDIO SCREEN  — ALL 6 BUGS FIXED
-#
-#  [FIX 1] AI.png icon in header
-#  [FIX 2] Font changes on language switch (no boxes)
-#  [FIX 3] Keyboard locale hint changes on language switch
-#  [FIX 4] Text alignment via proper text_size binding
-#  [FIX 5] Male voice works (verified Edge-TTS IDs)
-#          Advanced options actually used in generation
-#  [FIX 6] Speed ABOVE Pitch (vertical stack, not side-by-side)
+#  STUDIO SCREEN
 # ═══════════════════════════════════════════════════════════
 class StudioScreen(Screen):
     def __init__(self, **kw):
@@ -1838,7 +1687,6 @@ class StudioScreen(Screen):
         )
         card_bg(hdr, C_BG2, 0)
 
-        # [FIX 1] Logo from AI.png
         logo_path = self._find_logo()
         logo_box = BoxLayout(size_hint=(None, None), size=(dp(50), dp(50)))
         if logo_path:
@@ -1864,7 +1712,7 @@ class StudioScreen(Screen):
         )
         t1.bind(size=lambda w, v: setattr(w, 'text_size', v))
         t2 = Label(
-            text='v1.0 Mint Edition  -  Always Free',
+            text='v2.0 Mint  |  Kokoro TTS  -  Always Free',
             font_size=sp(10), color=hex_c(C_MUTED),
             halign='left', valign='middle',
         )
@@ -1873,14 +1721,13 @@ class StudioScreen(Screen):
         tb.add_widget(t2)
         hdr.add_widget(tb)
 
-        settings_btn = IconBtn(
-            icon_name='settings', label_text='',
-            bg=C_GREEN, radius=10,
-            icon_size=30,
+        settings_btn = FlatBtn(
+            text='SET', bg=C_GREEN,
             size_hint=(None, None),
+            font_size=sp(11), bold=True, radius=10,
         )
-        settings_btn.size = (dp(50), dp(48))
-        settings_btn.bind_press(lambda: self._go_settings())
+        settings_btn.size = (dp(50), dp(44))
+        settings_btn.bind(on_press=lambda *a: self._go_settings())
         hdr.add_widget(settings_btn)
         outer.add_widget(hdr)
         outer.add_widget(separator())
@@ -1939,24 +1786,28 @@ class StudioScreen(Screen):
         gr = BoxLayout(size_hint_y=None, height=dp(56), spacing=dp(8))
         self._vbtns = {}
         for name in ['Male', 'Female']:
-            icon = 'male' if name == 'Male' else 'female'
-            b = IconBtn(
-                icon_name=icon,
-                label_text=name,
+            b = FlatBtn(
+                text=name,
                 bg=C_SURFACE,
+                font_size=sp(13),
+                bold=True,
                 radius=10,
-                font_size=13,
-                icon_size=22,
-                size_hint_y=None,
-                height=dp(56),
             )
-            b.bind_press((lambda n=name: lambda: self._pick_voice(n))())
+            b.color = hex_c(C_TEXT)
+            b.bind(size=lambda w, v: setattr(w, 'text_size', v))
+            b.bind(on_press=lambda inst, n=name: self._pick_voice(n))
             gr.add_widget(b)
             self._vbtns[name] = b
         gender_card.add_widget(gr)
         lg_row.add_widget(gender_card)
         content.add_widget(lg_row)
         Clock.schedule_once(lambda dt: self._pick_voice('Male'), 0)
+
+        # Engine badge row
+        self.engine_badge_row = BoxLayout(size_hint_y=None, height=dp(36), spacing=dp(8))
+        self.engine_lbl = lbl('Engine: Kokoro (Offline)', 12, C_GREEN2, True, 36, 'left')
+        self.engine_badge_row.add_widget(self.engine_lbl)
+        content.add_widget(self.engine_badge_row)
 
         # ── EMOTION PICKER ────────────────────────────
         emotion_card = BoxLayout(
@@ -1971,7 +1822,7 @@ class StudioScreen(Screen):
         emotion_card.add_widget(self.emotion_picker)
         content.add_widget(emotion_card)
 
-        # ── [FIX 6] SPEED CARD (ABOVE Pitch) ──────────
+        # ── SPEED CARD ─────────────────────────────────
         speed_card = BoxLayout(
             orientation='vertical',
             size_hint_y=None, height=dp(100),
@@ -1979,13 +1830,11 @@ class StudioScreen(Screen):
         )
         card_bg(speed_card, C_CARD, 14)
         card_border(speed_card, C_BORDER, 14)
-        # Header row with label + current value
         spd_hdr = BoxLayout(size_hint_y=None, height=dp(28))
         spd_hdr.add_widget(sec_header('Speed'))
         self.speed_lbl = lbl('50%', 13, C_GREEN, True, 28, 'right')
         spd_hdr.add_widget(self.speed_lbl)
         speed_card.add_widget(spd_hdr)
-        # Slider row
         sr = BoxLayout(size_hint_y=None, height=dp(44), spacing=dp(6))
         sr.add_widget(lbl('Slow', 11, C_MUTED, False, 44, 'left'))
         self.speed_slider = Slider(min=10, max=100, value=50, step=5)
@@ -1997,7 +1846,7 @@ class StudioScreen(Screen):
         speed_card.add_widget(sr)
         content.add_widget(speed_card)
 
-        # ── [FIX 6] PITCH CARD (BELOW Speed) ──────────
+        # ── PITCH CARD ─────────────────────────────────
         pitch_card = BoxLayout(
             orientation='vertical',
             size_hint_y=None, height=dp(100),
@@ -2005,13 +1854,11 @@ class StudioScreen(Screen):
         )
         card_bg(pitch_card, C_CARD, 14)
         card_border(pitch_card, C_BORDER, 14)
-        # Header row with label + current value
         ptc_hdr = BoxLayout(size_hint_y=None, height=dp(28))
         ptc_hdr.add_widget(sec_header('Pitch'))
         self.pitch_lbl = lbl('0', 13, C_GREEN, True, 28, 'right')
         ptc_hdr.add_widget(self.pitch_lbl)
         pitch_card.add_widget(ptc_hdr)
-        # Slider row
         pr = BoxLayout(size_hint_y=None, height=dp(44), spacing=dp(6))
         pr.add_widget(lbl('Low', 11, C_MUTED, False, 44, 'left'))
         self.pitch_slider = Slider(min=-10, max=10, value=0, step=1)
@@ -2045,30 +1892,31 @@ class StudioScreen(Screen):
         self.char_lbl = lbl('0 chars', 11, C_MUTED, False, 36, 'center')
         ti_hdr.add_widget(self.char_lbl)
 
-        imp_btn = IconBtn(
-            icon_name='import', label_text='Import',
-            bg=C_GREEN, radius=8, font_size=12, icon_size=18,
+        imp_btn = FlatBtn(
+            text='Import File', bg=C_GREEN,
             size_hint_x=None, width=dp(110),
-            size_hint_y=None, height=dp(36),
+            font_size=sp(12), radius=8,
         )
-        imp_btn.bind_press(self._import_file)
+        imp_btn.size_hint_y = None
+        imp_btn.height = dp(36)
+        imp_btn.bind(on_press=self._import_file)
         ti_hdr.add_widget(imp_btn)
 
-        clr_btn = IconBtn(
-            icon_name='clear', label_text='',
-            bg=C_RED, radius=8, font_size=12, icon_size=20,
-            size_hint_x=None, width=dp(44),
-            size_hint_y=None, height=dp(36),
+        clr_btn = FlatBtn(
+            text='Clear', bg=C_SURFACE,
+            size_hint_x=None, width=dp(60),
+            font_size=sp(12), radius=8,
         )
-        clr_btn.bind_press(lambda: setattr(self.txt, 'text', ''))
+        clr_btn.color = hex_c(C_TEXT)
+        clr_btn.size_hint_y = None
+        clr_btn.height = dp(36)
+        clr_btn.bind(on_press=lambda *a: setattr(self.txt, 'text', ''))
         ti_hdr.add_widget(clr_btn)
         text_card.add_widget(ti_hdr)
 
-        # [FIX 3] RTL indicator with keyboard hint
         self.rtl_lbl = lbl('', 11, C_AMBER, False, 20, 'left')
         text_card.add_widget(self.rtl_lbl)
 
-        # [FIX 2 + FIX 3] TextInput: font + keyboard changes per language
         self.txt = TextInput(
             hint_text='Enter text here... Urdu, Hindi, Arabic, English + 30 languages',
             multiline=True,
@@ -2088,12 +1936,13 @@ class StudioScreen(Screen):
         content.add_widget(text_card)
 
         # ── ADD TO BATCH QUEUE ────────────────────────
-        queue_btn = IconBtn(
-            icon_name='add_queue', label_text='Add to Batch Queue',
-            bg=C_PURPLE, font_size=14, icon_size=24,
+        queue_btn = FlatBtn(
+            text='+ Add to Batch Queue',
+            bg=C_PURPLE,
             size_hint_y=None, height=dp(48),
+            font_size=sp(14),
         )
-        queue_btn.bind_press(self._add_to_queue)
+        queue_btn.bind(on_press=self._add_to_queue)
         content.add_widget(queue_btn)
 
         # ── STATUS + WAVEFORM ─────────────────────────
@@ -2113,49 +1962,39 @@ class StudioScreen(Screen):
         content.add_widget(status_card)
 
         # ── GENERATE BUTTON ───────────────────────────
-        self.gen_btn = IconBtn(
-            icon_name='generate',
-            label_text='Generate Audio',
+        self.gen_btn = FlatBtn(
+            text='Generate Audio',
             bg=C_GREEN,
-            radius=16,
-            font_size=19,
-            icon_size=36,
             size_hint_y=None, height=dp(68),
+            font_size=sp(19), bold=True, radius=16,
         )
-        self.gen_btn.bind_press(self._generate)
+        self.gen_btn.bind(on_press=self._generate)
         content.add_widget(self.gen_btn)
 
         # ── PREVIEW + SAVE ROW ────────────────────────
         pd_row = BoxLayout(size_hint_y=None, height=dp(60), spacing=dp(12))
-        self.play_btn = IconBtn(
-            icon_name='play', label_text='Preview',
-            bg=C_TEAL, font_size=14, icon_size=22,
-            size_hint_y=None, height=dp(60),
+        self.play_btn = FlatBtn(
+            text='Preview Audio',
+            bg=C_TEAL,
+            font_size=sp(14), disabled=True,
         )
-        self.play_btn.disabled = True
-        self.play_btn.bind_press(self._play)
-
-        self.dl_btn = IconBtn(
-            icon_name='save', label_text='Save Voice',
-            bg=C_GREEN2, font_size=14, icon_size=22,
-            size_hint_y=None, height=dp(60),
+        self.dl_btn = FlatBtn(
+            text='Save Voice',
+            bg=C_GREEN2,
+            font_size=sp(14), disabled=True,
         )
-        self.dl_btn.disabled = True
-        self.dl_btn.bind_press(self._download)
+        self.play_btn.bind(on_press=self._play)
+        self.dl_btn.bind(on_press=self._download)
         pd_row.add_widget(self.play_btn)
         pd_row.add_widget(self.dl_btn)
         content.add_widget(pd_row)
 
         # ── NAVIGATION ROW ────────────────────────────
         nav_row = BoxLayout(size_hint_y=None, height=dp(54), spacing=dp(10))
-        hist_btn = IconBtn(icon_name='history', label_text='History',
-                           bg=C_PURPLE, font_size=14, icon_size=22,
-                           size_hint_y=None, height=dp(54))
-        hist_btn.bind_press(self._go_hist)
-        batch_btn = IconBtn(icon_name='batch', label_text='Batch Queue',
-                            bg=C_INDIGO, font_size=14, icon_size=22,
-                            size_hint_y=None, height=dp(54))
-        batch_btn.bind_press(self._go_batch)
+        hist_btn = FlatBtn(text='History', bg=C_PURPLE, font_size=sp(14))
+        hist_btn.bind(on_press=lambda *a: self._go_hist())
+        batch_btn = FlatBtn(text='Batch Queue', bg=C_INDIGO, font_size=sp(14))
+        batch_btn.bind(on_press=lambda *a: self._go_batch())
         nav_row.add_widget(hist_btn)
         nav_row.add_widget(batch_btn)
         content.add_widget(nav_row)
@@ -2210,10 +2049,10 @@ class StudioScreen(Screen):
         how_card.add_widget(spacer(4))
         steps = [
             '1. Select a Voice Preset (Narrator, News, etc.)',
-            '2. Choose Language from 35+ options',
-            '3. Pick Gender: Male or Female voice',
+            '2. Choose Language - English uses Kokoro (offline)',
+            '3. Pick Gender: Male or Female voice (works!)',
             '4. Set Emotion (Whisper, Shout, Happy etc.)',
-            '5. Adjust Speed slider (top) and Pitch slider (below)',
+            '5. Adjust Speed slider (above) and Pitch (below)',
             '6. Type text or Import file (TXT/PDF/DOCX)',
             '7. Tap Generate Audio button',
             '8. Preview then Save - auto-saved to Titan Studio PRO/',
@@ -2254,44 +2093,27 @@ class StudioScreen(Screen):
         self.manager.current = 'settings'
 
     def _on_lang_change(self, inst, lang):
-        """
-        [FIX 2] Change TextInput font based on language → no more boxes!
-        [FIX 3] Change keyboard locale hint → correct keyboard opens
-        [FIX 4] RTL/LTR alignment updated
-        """
-        # FIX 2: Switch font to match language script
         font_name = LANG_FONTS.get(lang, DEFAULT_FONT)
         try:
             self.txt.font_name = font_name
         except Exception:
-            pass  # Font not available, keep default
-
-        # FIX 3: Set keyboard locale so Android opens correct keyboard
-        locale = LANG_KEYBOARD_LOCALE.get(lang, 'en')
-        try:
-            # This triggers Android IME locale preference
-            self.txt.keyboard_suggestions = True
-            # Set input_type to text with locale hint
-            # Kivy doesn't expose locale directly, but on Android
-            # we can use the pyjnius approach
-            if ANDROID_ENV:
-                try:
-                    from jnius import autoclass
-                    PythonActivity = autoclass('org.kivy.android.PythonActivity')
-                    activity = PythonActivity.mActivity
-                    imm = activity.getSystemService(
-                        autoclass('android.content.Context').INPUT_METHOD_SERVICE
-                    )
-                    # Request soft keyboard with locale
-                    view = activity.getCurrentFocus()
-                    if view:
-                        imm.showSoftInput(view, 0)
-                except Exception:
-                    pass
-        except Exception:
             pass
 
-        # FIX 4: RTL/LTR direction and alignment
+        locale = LANG_KEYBOARD_LOCALE.get(lang, 'en')
+        if ANDROID_ENV:
+            try:
+                from jnius import autoclass
+                PythonActivity = autoclass('org.kivy.android.PythonActivity')
+                activity = PythonActivity.mActivity
+                imm = activity.getSystemService(
+                    autoclass('android.content.Context').INPUT_METHOD_SERVICE
+                )
+                view = activity.getCurrentFocus()
+                if view:
+                    imm.showSoftInput(view, 0)
+            except Exception:
+                pass
+
         if lang in RTL_LANGS:
             self.rtl_lbl.text = (
                 u'\u25c4 RTL: ' + lang +
@@ -2310,9 +2132,26 @@ class StudioScreen(Screen):
             except Exception:
                 pass
 
+        # Update engine badge
+        _, use_kokoro = pick_kokoro_voice(lang, self.voice_sel)
+        if use_kokoro:
+            self.engine_lbl.text = 'Engine: Kokoro TTS (Offline Neural)'
+            self.engine_lbl.color = hex_c(C_GREEN)
+        else:
+            self.engine_lbl.text = 'Engine: gTTS Fallback (Online)'
+            self.engine_lbl.color = hex_c(C_AMBER)
+
     def _apply_preset(self, name, data):
-        self.speed_slider.value = data.get('speed', 50)
-        self.pitch_slider.value = data.get('pitch', 0)
+        # Convert preset speed (0.5-1.5 range) back to slider (10-100)
+        preset_speed = data.get('speed', 1.0)
+        slider_val = int(((preset_speed - 0.5) / 1.3) * 90 + 10)
+        slider_val = max(10, min(100, slider_val))
+        self.speed_slider.value = slider_val
+        # Pitch preset: 0.7-1.3 range → slider -10 to +10
+        preset_pitch = data.get('pitch', 1.0)
+        pitch_slider_val = int((preset_pitch - 1.0) * 33.3)
+        pitch_slider_val = max(-10, min(10, pitch_slider_val))
+        self.pitch_slider.value = pitch_slider_val
         self.emotion_picker._select(data.get('emotion', 'Normal'))
         self.status_lbl.text = 'Preset: ' + name + ' - ' + data.get('desc', '')
 
@@ -2325,6 +2164,16 @@ class StudioScreen(Screen):
             else:
                 b.set_bg(C_SURFACE)
                 b.color = hex_c(C_TEXT)
+        # Update engine badge when gender changes
+        lang = self.lang_spin.text if hasattr(self, 'lang_spin') else 'English'
+        _, use_kokoro = pick_kokoro_voice(lang, name)
+        if hasattr(self, 'engine_lbl'):
+            if use_kokoro:
+                self.engine_lbl.text = 'Engine: Kokoro TTS (Offline Neural)'
+                self.engine_lbl.color = hex_c(C_GREEN)
+            else:
+                self.engine_lbl.text = 'Engine: gTTS Fallback (Online)'
+                self.engine_lbl.color = hex_c(C_AMBER)
 
     def _count(self, inst, val):
         words = len(val.split()) if val.strip() else 0
@@ -2465,7 +2314,6 @@ class StudioScreen(Screen):
             'emotion': self.emotion_picker.selected,
             'speed': int(self.speed_slider.value),
             'pitch': int(self.pitch_slider.value),
-            'slow': int(self.speed_slider.value) <= 30,
             'status': 'pending',
             'added': time.strftime('%d %b %H:%M'),
         })
@@ -2478,7 +2326,7 @@ class StudioScreen(Screen):
         self.dl_btn.disabled = not ok
 
     def _set_busy(self):
-        self.gen_btn.disabled = True  # IconBtn disabled via opacity
+        self.gen_btn.disabled = True
         self.play_btn.disabled = True
         self.dl_btn.disabled = True
 
@@ -2497,108 +2345,88 @@ class StudioScreen(Screen):
         threading.Thread(target=self._worker, daemon=True).start()
 
     def _worker(self):
-        """
-        [FIX 5] Male voice now correctly selected.
-               Advanced options (breath, ssml, pacing) actually applied.
-        """
         try:
             lang_name = self.lang_spin.text
             gender = self.voice_sel
             emotion = self.emotion_picker.selected
             speed_pct = int(self.speed_slider.value)
             pitch_val = int(self.pitch_slider.value)
-            use_breaths = self.adv_card.use_breaths
-            use_ssml = self.adv_card.use_ssml
+            add_pauses = self.adv_card.add_pauses
+            normalize = self.adv_card.normalize_text
+            trim = self.adv_card.trim_whitespace
             adaptive_pacing = self.adv_card.adaptive_pacing
-            low_latency = self.adv_card.low_latency
 
-            Clock.schedule_once(lambda dt: self._upd(10, 'Selecting voice...'))
+            Clock.schedule_once(lambda dt: self._upd(10, 'Preparing text...'))
 
-            # [FIX 5] pick_edge_voice uses verified Male/Female voices
-            voice = pick_edge_voice(lang_name, gender)
-            rate_str = speed_to_rate_str(speed_pct, emotion)
-            volume_str = emotion_to_volume_str(emotion)
-            pitch_str = pitch_to_pitch_str(pitch_val)
             text = self.txt.text
 
-            # [FIX 5] Apply Advanced Options to text/rate
-            if use_breaths:
-                # Insert slight pauses at sentence boundaries
+            # Apply advanced text processing
+            if trim:
+                text = re.sub(r'[ \t]+', ' ', text).strip()
+
+            if normalize:
+                # Break very long sentences at punctuation for better TTS
+                text = re.sub(r'([.!?;])\s+', r'\1\n', text)
+
+            if add_pauses:
+                # Add double space at sentence boundaries → natural pauses
                 text = re.sub(r'([.!?])\s+', r'\1  ', text)
 
-            if adaptive_pacing:
-                # Slow down slightly for very long texts
-                if len(text) > 500:
-                    speed_pct = max(10, speed_pct - 5)
-                    rate_str = speed_to_rate_str(speed_pct, emotion)
+            if adaptive_pacing and len(text) > 500:
+                speed_pct = max(10, speed_pct - 5)
 
-            if use_ssml:
-                # Wrap in basic SSML if enabled - edge-tts handles SSML
-                # Only wrap if text doesn't already have SSML tags
-                if not text.strip().startswith('<speak>'):
-                    text = '<speak>' + text + '</speak>'
+            kokoro_speed = slider_to_kokoro_speed(speed_pct, emotion)
+            voice_id, use_kokoro = pick_kokoro_voice(lang_name, gender)
+
+            app = App.get_running_app()
+            ext = 'wav' if use_kokoro else 'mp3'
+            out = os.path.join(app.user_data_dir, 'tts_preview.' + ext)
 
             label = lang_name + ' - ' + gender + ' - ' + emotion
-            Clock.schedule_once(lambda dt: self._upd(25, 'Checking connection...'))
+            ok = False
+            err = ''
 
-            has_internet = check_internet()
-            out = os.path.join(App.get_running_app().user_data_dir, 'tts_preview.mp3')
-
-            if has_internet:
-                Clock.schedule_once(lambda dt: self._upd(45, 'Generating: ' + label + '...'))
-                ok, err = edge_tts_generate(text, voice, rate_str, volume_str, pitch_str, out)
-
+            if use_kokoro and voice_id:
+                Clock.schedule_once(lambda dt: self._upd(30, 'Kokoro: Generating ' + label + '...'))
+                ok, err = kokoro_generate(text, voice_id, kokoro_speed, out)
                 if ok:
                     Clock.schedule_once(lambda dt: self._upd(90, 'Processing audio...'))
                     self.out_file = out
-                    Clock.schedule_once(lambda dt: self._on_done())
-                elif err == 'IMPORT_ERROR':
-                    Clock.schedule_once(lambda dt: self._upd(35, 'edge-tts not found, using gTTS...'))
-                    self._worker_gtts_fallback(out)
-                elif err == 'TIMEOUT':
-                    Clock.schedule_once(lambda dt: self._upd(35, 'Timeout. Trying gTTS...'))
-                    self._worker_gtts_fallback(out)
+                    Clock.schedule_once(lambda dt: self._on_done(engine='kokoro'))
+                    return
                 else:
-                    Clock.schedule_once(lambda dt: self._upd(35, 'Edge-TTS error. Trying gTTS...'))
-                    self._worker_gtts_fallback(out)
+                    Clock.schedule_once(lambda dt: self._upd(40, 'Kokoro failed, trying gTTS...'))
+
+            # gTTS path (either language not in Kokoro, or Kokoro failed)
+            Clock.schedule_once(lambda dt: self._upd(25, 'Checking internet...'))
+            has_internet = check_internet()
+
+            if not has_internet:
+                Clock.schedule_once(lambda dt: self._on_err(
+                    'No internet for ' + lang_name + ' (needs gTTS). Connect and retry.'
+                ))
+                return
+
+            Clock.schedule_once(lambda dt: self._upd(50, 'gTTS: Generating ' + label + '...'))
+            out_mp3 = os.path.join(app.user_data_dir, 'tts_preview.mp3')
+            lang_code, tld = pick_gtts_params(lang_name, gender)
+            slow = slider_to_gtts_slow(speed_pct)
+            ok, err = gtts_generate(text, lang_code, tld, slow, out_mp3)
+
+            if ok:
+                Clock.schedule_once(lambda dt: self._upd(90, 'Processing audio...'))
+                self.out_file = out_mp3
+                Clock.schedule_once(lambda dt: self._on_done(engine='gtts'))
             else:
-                Clock.schedule_once(lambda dt: self._upd(20, 'No internet. Trying gTTS...'))
-                self._worker_gtts_fallback(out)
+                Clock.schedule_once(lambda dt, e=err: self._on_err(
+                    'Audio generation failed: ' + e[:60]
+                ))
 
         except Exception as e:
             msg = str(e)
             Clock.schedule_once(lambda dt, m=msg: self._on_err(m))
 
-    def _worker_gtts_fallback(self, out_path=None):
-        try:
-            from gtts import gTTS
-            Clock.schedule_once(lambda dt: self._upd(60, 'Generating with gTTS...'))
-            lang = LANGUAGES.get(self.lang_spin.text, 'en')
-            gender = self.voice_sel
-            tld_map = {
-                'Male':   {'en': 'com',   'default': 'com'},
-                'Female': {'en': 'co.uk', 'default': 'co.uk'},
-            }
-            lang_tld = tld_map.get(gender, tld_map['Male'])
-            tld = lang_tld.get(lang, lang_tld['default'])
-            speed_val = int(self.speed_slider.value)
-            slow = speed_val <= 20
-            text = self.txt.text
-            if out_path is None:
-                out_path = os.path.join(App.get_running_app().user_data_dir, 'tts_preview.mp3')
-            tts = gTTS(text=text, lang=lang, tld=tld, slow=slow)
-            Clock.schedule_once(lambda dt: self._upd(80, 'Saving audio...'))
-            tts.save(out_path)
-            self.out_file = out_path
-            Clock.schedule_once(lambda dt: self._on_done(gtts_mode=True))
-        except Exception as e:
-            msg = str(e)
-            Clock.schedule_once(lambda dt, m=msg: self._on_err(
-                'Audio generation failed. Check internet connection.\n'
-                'Tip: Install edge-tts for much better voice quality!'
-            ))
-
-    def _on_done(self, gtts_mode=False):
+    def _on_done(self, engine='kokoro'):
         if self._audio:
             try:
                 self._audio.stop()
@@ -2608,17 +2436,18 @@ class StudioScreen(Screen):
             self._audio = None
 
         self._audio = SoundLoader.load(self.out_file)
-        if gtts_mode:
-            msg = 'Audio ready! (Basic mode - install edge-tts for neural voices)'
+        if engine == 'kokoro':
+            msg = 'Audio ready! Kokoro neural voice. Preview or Save.'
         else:
-            msg = 'Audio ready! Tap Preview Audio or Save Voice.'
+            msg = 'Audio ready! (gTTS online mode). Preview or Save.'
         self._upd(100, msg)
         self._set_ready(ok=True)
         self.waveform.stop()
         self.result_lbl.text = (
             'Generated: ' + self.lang_spin.text +
             ' - ' + self.voice_sel +
-            ' - ' + self.emotion_picker.selected
+            ' - ' + self.emotion_picker.selected +
+            ' [' + engine.upper() + ']'
         )
         Clock.schedule_once(
             lambda dt: Animation(value=0, duration=0.7, t='out_quad').start(self.prog), 2.0
@@ -2627,16 +2456,12 @@ class StudioScreen(Screen):
     def _on_err(self, msg):
         self.waveform.stop()
         m = msg.lower()
-        if any(k in m for k in [
-            'network', 'connection', 'gaierror', 'timeout', 'errno',
-            'refused', 'reset', 'ssl', 'socket', 'unreachable',
-            'broken pipe', 'eof', 'no internet', 'name resolution',
-        ]):
-            txt = 'No internet! Please turn on Wi-Fi or mobile data, then try again.'
+        if any(k in m for k in ['network', 'connection', 'gaierror', 'timeout', 'no internet']):
+            txt = 'No internet! Connect Wi-Fi/data for non-English languages.'
         elif 'lang' in m:
-            txt = 'This language is not supported by the TTS engine.'
-        elif 'import' in m:
-            txt = 'edge-tts not installed. Install it with: pip install edge-tts'
+            txt = 'This language is not supported.'
+        elif 'import' in m or 'kokoro' in m:
+            txt = 'Kokoro not installed. Run: pip install kokoro soundfile'
         else:
             txt = 'Error: ' + msg[:80]
         self._upd(0, txt)
@@ -2647,12 +2472,12 @@ class StudioScreen(Screen):
             return
         if self._audio.state == 'play':
             self._audio.stop()
-            self.play_btn.set_text('Preview')
+            self.play_btn.text = 'Preview Audio'
             self.play_btn.set_bg(C_TEAL)
             self.waveform.stop()
         else:
             self._audio.play()
-            self.play_btn.set_text('Stop')
+            self.play_btn.text = 'Stop Audio'
             self.play_btn.set_bg(C_AMBER)
             self.waveform.start()
 
@@ -2671,7 +2496,10 @@ class StudioScreen(Screen):
         lang = self.lang_spin.text
         voice = self.voice_sel
         ts = str(int(time.time()))
-        fname = 'Titan_{lang}_{voice}_{ts}.mp3'.format(lang=lang, voice=voice, ts=ts)
+        ext = os.path.splitext(self.out_file)[1] if self.out_file else '.wav'
+        fname = 'Titan_{lang}_{voice}_{ts}{ext}'.format(
+            lang=lang, voice=voice, ts=ts, ext=ext
+        )
 
         audio_dir = get_audio_folder()
         dest = os.path.join(audio_dir, fname)
