@@ -24,7 +24,7 @@ version = 2.0.0
 #
 # soundfile on Android needs libsndfile.so - included via p4a recipe.
 # numpy is available as a p4a recipe.
-requirements = python3,kivy==2.3.0,gtts,requests,urllib3,certifi,charset-normalizer,idna,numpy,soundfile,kokoro
+requirements = python3,kivy==2.3.0,gtts,requests,urllib3,certifi,charset-normalizer,idna,numpy,soundfile,onnxruntime,kokoro
 
 # ── Orientation ─────────────────────────────────────────────
 orientation = portrait
@@ -41,8 +41,8 @@ android.permissions = INTERNET, WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE, M
 # ── Android API Levels ──────────────────────────────────────
 # minapi 21 = Android 5.0+
 # target 33 = Android 13
-android.minapi = 21
-android.ndk_api = 21
+android.minapi = 24
+android.ndk_api = 24
 android.api = 33
 
 # ── Architecture ────────────────────────────────────────────
