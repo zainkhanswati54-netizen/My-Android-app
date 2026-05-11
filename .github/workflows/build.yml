@@ -1,6 +1,10 @@
 # ============================================================
 #  Titan Studio PRO - GitHub Actions Build Workflow
-#  Version: 14.1.1 - APT-GET FIX (wget/curl dono install)
+#  Version: 15.0.0 - NDK r27c FIX (NumPy 2.x C++ build error)
+#
+#  ROOT CAUSE: kivy/buildozer:latest downloads NDK r25b which has
+#  a libc++ bug — <unordered_map> header missing — causing NumPy
+#  2.x to fail compilation. NDK r27c fixes this completely.
 # ============================================================
 
 name: Build Titan Studio PRO APK
@@ -71,14 +75,33 @@ jobs:
               echo '=== aidl check ==='
               ls /root/.buildozer/android/platform/android-sdk/build-tools/33.0.2/aidl && echo 'aidl READY!'
 
-              # ── Step G: buildozer.spec patch ─────────────────
+              # ── Step G: NDK r27c manually install ────────────
+              # FIX: Remove any old NDK r25b and pre-install NDK r27c
+              # NDK r25b has a libc++ bug that breaks NumPy 2.x compilation.
+              # By pre-installing r27c here, buildozer finds it already
+              # present and skips its own download of r25b.
+              echo '=== Installing NDK r27c (fixes NumPy 2.x build) ==='
+              rm -rf /root/.buildozer/android/platform/android-ndk-r25b
+              mkdir -p /root/.buildozer/android/platform
+              cd /tmp
+              wget -q https://dl.google.com/android/repository/android-ndk-r27c-linux.zip -O ndk.zip
+              echo 'NDK downloaded, extracting...'
+              unzip -q ndk.zip -d /root/.buildozer/android/platform/
+              echo 'NDK r27c installed at:' && ls /root/.buildozer/android/platform/ | grep ndk
+
+              # ── Step H: buildozer.spec patch ─────────────────
               cd /home/user/hostcwd
               grep -q 'android.build_tools_version' buildozer.spec || \
                 echo 'android.build_tools_version = 33.0.2' >> buildozer.spec
               grep -q 'android.sdk_path' buildozer.spec || \
                 echo 'android.sdk_path = /root/.buildozer/android/platform/android-sdk' >> buildozer.spec
 
-              # ── Step H: BUILD ─────────────────────────────────
+              # Patch NDK version in spec to match our installed r27c
+              sed -i 's/android.ndk = .*/android.ndk = 27c/' buildozer.spec
+              echo 'buildozer.spec NDK patched to 27c'
+              grep 'android.ndk' buildozer.spec
+
+              # ── Step I: BUILD ─────────────────────────────────
               echo '=== STARTING BUILD ==='
               export BUILDOZER_WARN_ON_ROOT=0
               buildozer android debug 2>&1 | tee build_output.txt
@@ -101,7 +124,7 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: TitanStudioPRO-v13-debug
+          name: TitanStudioPRO-debug
           path: bin/*.apk
           retention-days: 30
           if-no-files-found: error
