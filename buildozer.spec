@@ -25,9 +25,11 @@ version = 2.0.0
 # soundfile on Android needs libsndfile.so - included via p4a recipe.
 # numpy is available as a p4a recipe.
 #
-# FIX: numpy pinned to 1.26.4 — NumPy 2.x has a C++ unordered_map
-# header bug that causes build failure with Android NDK r25b.
-requirements = python3,kivy==2.3.0,gtts,requests,urllib3,certifi,charset-normalizer,idna,numpy==1.26.4,soundfile,onnxruntime,kokoro
+# NOTE: Do NOT pin numpy version here (e.g. numpy==1.26.4).
+# p4a uses its own numpy recipe from GitHub and does a git checkout
+# which fails if the version tag format doesn't match exactly.
+# Let p4a handle numpy version via its recipe automatically.
+requirements = python3,kivy==2.3.0,gtts,requests,urllib3,certifi,charset-normalizer,idna,numpy,soundfile,onnxruntime,kokoro
 
 # ── Orientation ─────────────────────────────────────────────
 orientation = portrait
@@ -71,8 +73,9 @@ fullscreen = 0
 log_level = 2
 
 # ── p4a (python-for-android) ────────────────────────────────
-# Use develop branch for latest numpy/soundfile recipe fixes
-# p4a.branch = develop
+# FIX: Use develop branch — it has updated numpy recipe that correctly
+# handles version tags and compiles with NDK r25b without C++ errors.
+p4a.branch = develop
 
 # ── Extra libs for soundfile (libsndfile) ───────────────────
 # android.add_libs_armeabi_v7a = libs/armeabi-v7a/libsndfile.so
