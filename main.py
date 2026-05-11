@@ -777,6 +777,109 @@ class FlatBtn(Button):
 
 
 # ═══════════════════════════════════════════════════════════
+#  ICON BUTTON  — shows PNG icon + text label together
+# ═══════════════════════════════════════════════════════════
+class IconBtn(BoxLayout):
+    """
+    A button with icon on the left and text on the right.
+    Uses ButtonBehavior via an inner FlatBtn overlay trick:
+    Actually we compose BoxLayout + FlatBtn background.
+    """
+    def __init__(self, icon_name, label_text, bg=C_GREEN,
+                 radius=12, font_size=15, icon_size=28, **kw):
+        super().__init__(**kw)
+        self.orientation = 'horizontal'
+        self.spacing = dp(6)
+        self.padding = [dp(8), dp(6)]
+        self._bg = bg
+        self._radius = radius
+        self._pressed_cb = None
+
+        # Background
+        with self.canvas.before:
+            Color(*hex_c(bg))
+            self._rr = RoundedRectangle(pos=self.pos, size=self.size, radius=[dp(radius)])
+        self.bind(pos=self._upd_bg, size=self._upd_bg)
+
+        # Icon image
+        icon_path = self._find_icon(icon_name)
+        if icon_path:
+            icon_img = KivyImage(
+                source=icon_path,
+                size_hint=(None, None),
+                size=(dp(icon_size), dp(icon_size)),
+                allow_stretch=True, keep_ratio=True,
+            )
+            self.add_widget(icon_img)
+
+        # Text label
+        light_bgs = [C_CARD, C_CARD2, C_CARD3, C_SURFACE, C_WHITE, C_BG2, C_BORDER]
+        txt_color = hex_c(C_TEXT2) if bg in light_bgs else (1, 1, 1, 1)
+        self._lbl = Label(
+            text=label_text,
+            font_size=sp(font_size),
+            bold=True,
+            color=txt_color,
+            halign='center',
+            valign='middle',
+        )
+        self._lbl.bind(size=lambda w, v: setattr(w, 'text_size', v))
+        self.add_widget(self._lbl)
+
+        # Touch handling
+        self.bind(on_touch_down=self._td, on_touch_up=self._tu)
+
+    def _find_icon(self, name):
+        base = os.path.dirname(os.path.abspath(__file__))
+        paths = [
+            os.path.join(base, 'icons', f'ic_{name}.png'),
+            os.path.join(base, f'ic_{name}.png'),
+        ]
+        for p in paths:
+            if os.path.exists(p):
+                return p
+        return None
+
+    def _upd_bg(self, *a):
+        self._rr.pos = self.pos
+        self._rr.size = self.size
+
+    def set_bg(self, color):
+        self._bg = color
+        self.canvas.before.clear()
+        with self.canvas.before:
+            Color(*hex_c(color))
+            self._rr = RoundedRectangle(pos=self.pos, size=self.size, radius=[dp(self._radius)])
+
+    def set_text(self, txt):
+        self._lbl.text = txt
+
+    def bind_press(self, cb):
+        self._pressed_cb = cb
+
+    def _td(self, w, touch):
+        if self.collide_point(*touch.pos):
+            Animation(opacity=0.7, duration=0.06).start(self)
+            return True
+
+    def _tu(self, w, touch):
+        if self.collide_point(*touch.pos):
+            Animation(opacity=1.0, duration=0.12).start(self)
+            if self._pressed_cb:
+                self._pressed_cb()
+            return True
+
+    @property
+    def disabled(self):
+        return self.opacity < 0.5
+
+    @disabled.setter
+    def disabled(self, val):
+        self.opacity = 0.38 if val else 1.0
+
+
+
+# ═══════════════════════════════════════════════════════════
 #  LIGHT PANEL
 # ═══════════════════════════════════════════════════════════
 class LightPanel(FloatLayout):
@@ -1211,9 +1314,11 @@ class HistoryScreen(Screen):
         outer = BoxLayout(orientation='vertical', padding=dp(14), spacing=dp(10))
 
         hdr = BoxLayout(size_hint_y=None, height=dp(64), spacing=dp(12))
-        back = FlatBtn(text='< Back', bg=C_SURFACE, size_hint_x=None, width=dp(100), font_size=sp(14))
-        back.color = hex_c(C_TEXT)
-        back.bind(on_press=self._go_back)
+        back = IconBtn(icon_name='back', label_text='Back',
+                       bg=C_SURFACE, radius=12, font_size=13, icon_size=20,
+                       size_hint_x=None, width=dp(100),
+                       size_hint_y=None, height=dp(48))
+        back.bind_press(self._go_back)
         hdr.add_widget(back)
         title_l = lbl('Voice History', 20, C_TEXT2, True, 64, 'left')
         hdr.add_widget(title_l)
@@ -1380,9 +1485,11 @@ class SettingsScreen(Screen):
         outer = BoxLayout(orientation='vertical', padding=dp(14), spacing=dp(12))
 
         hdr = BoxLayout(size_hint_y=None, height=dp(60), spacing=dp(12))
-        back = FlatBtn(text='< Back', bg=C_SURFACE, size_hint_x=None, width=dp(100), font_size=sp(14))
-        back.color = hex_c(C_TEXT)
-        back.bind(on_press=lambda *a: self._go_back())
+        back = IconBtn(icon_name='back', label_text='Back',
+                       bg=C_SURFACE, radius=12, font_size=13, icon_size=20,
+                       size_hint_x=None, width=dp(100),
+                       size_hint_y=None, height=dp(48))
+        back.bind_press(lambda: self._go_back())
         hdr.add_widget(back)
         hdr.add_widget(lbl('Settings', 20, C_TEXT2, True, 60, 'left'))
         outer.add_widget(hdr)
@@ -1528,9 +1635,11 @@ class BatchQueueScreen(Screen):
         outer = BoxLayout(orientation='vertical', padding=dp(14), spacing=dp(10))
 
         hdr = BoxLayout(size_hint_y=None, height=dp(60), spacing=dp(12))
-        back = FlatBtn(text='< Back', bg=C_SURFACE, size_hint_x=None, width=dp(100), font_size=sp(14))
-        back.color = hex_c(C_TEXT)
-        back.bind(on_press=lambda *a: self._go_back())
+        back = IconBtn(icon_name='back', label_text='Back',
+                       bg=C_SURFACE, radius=12, font_size=13, icon_size=20,
+                       size_hint_x=None, width=dp(100),
+                       size_hint_y=None, height=dp(48))
+        back.bind_press(lambda: self._go_back())
         hdr.add_widget(back)
         hdr.add_widget(lbl('Batch Queue', 18, C_TEXT2, True, 60, 'left'))
         outer.add_widget(hdr)
@@ -1764,13 +1873,14 @@ class StudioScreen(Screen):
         tb.add_widget(t2)
         hdr.add_widget(tb)
 
-        settings_btn = FlatBtn(
-            text='SET', bg=C_GREEN,
+        settings_btn = IconBtn(
+            icon_name='settings', label_text='',
+            bg=C_GREEN, radius=10,
+            icon_size=30,
             size_hint=(None, None),
-            font_size=sp(11), bold=True, radius=10,
         )
-        settings_btn.size = (dp(50), dp(44))
-        settings_btn.bind(on_press=lambda *a: self._go_settings())
+        settings_btn.size = (dp(50), dp(48))
+        settings_btn.bind_press(lambda: self._go_settings())
         hdr.add_widget(settings_btn)
         outer.add_widget(hdr)
         outer.add_widget(separator())
@@ -1829,16 +1939,18 @@ class StudioScreen(Screen):
         gr = BoxLayout(size_hint_y=None, height=dp(56), spacing=dp(8))
         self._vbtns = {}
         for name in ['Male', 'Female']:
-            b = FlatBtn(
-                text=name,
+            icon = 'male' if name == 'Male' else 'female'
+            b = IconBtn(
+                icon_name=icon,
+                label_text=name,
                 bg=C_SURFACE,
-                font_size=sp(13),
-                bold=True,
                 radius=10,
+                font_size=13,
+                icon_size=22,
+                size_hint_y=None,
+                height=dp(56),
             )
-            b.color = hex_c(C_TEXT)
-            b.bind(size=lambda w, v: setattr(w, 'text_size', v))
-            b.bind(on_press=lambda inst, n=name: self._pick_voice(n))
+            b.bind_press((lambda n=name: lambda: self._pick_voice(n))())
             gr.add_widget(b)
             self._vbtns[name] = b
         gender_card.add_widget(gr)
@@ -1933,25 +2045,22 @@ class StudioScreen(Screen):
         self.char_lbl = lbl('0 chars', 11, C_MUTED, False, 36, 'center')
         ti_hdr.add_widget(self.char_lbl)
 
-        imp_btn = FlatBtn(
-            text='Import File', bg=C_GREEN,
+        imp_btn = IconBtn(
+            icon_name='import', label_text='Import',
+            bg=C_GREEN, radius=8, font_size=12, icon_size=18,
             size_hint_x=None, width=dp(110),
-            font_size=sp(12), radius=8,
+            size_hint_y=None, height=dp(36),
         )
-        imp_btn.size_hint_y = None
-        imp_btn.height = dp(36)
-        imp_btn.bind(on_press=self._import_file)
+        imp_btn.bind_press(self._import_file)
         ti_hdr.add_widget(imp_btn)
 
-        clr_btn = FlatBtn(
-            text='Clear', bg=C_SURFACE,
-            size_hint_x=None, width=dp(60),
-            font_size=sp(12), radius=8,
+        clr_btn = IconBtn(
+            icon_name='clear', label_text='',
+            bg=C_RED, radius=8, font_size=12, icon_size=20,
+            size_hint_x=None, width=dp(44),
+            size_hint_y=None, height=dp(36),
         )
-        clr_btn.color = hex_c(C_TEXT)
-        clr_btn.size_hint_y = None
-        clr_btn.height = dp(36)
-        clr_btn.bind(on_press=lambda *a: setattr(self.txt, 'text', ''))
+        clr_btn.bind_press(lambda: setattr(self.txt, 'text', ''))
         ti_hdr.add_widget(clr_btn)
         text_card.add_widget(ti_hdr)
 
@@ -1979,13 +2088,12 @@ class StudioScreen(Screen):
         content.add_widget(text_card)
 
         # ── ADD TO BATCH QUEUE ────────────────────────
-        queue_btn = FlatBtn(
-            text='+ Add to Batch Queue',
-            bg=C_PURPLE,
+        queue_btn = IconBtn(
+            icon_name='add_queue', label_text='Add to Batch Queue',
+            bg=C_PURPLE, font_size=14, icon_size=24,
             size_hint_y=None, height=dp(48),
-            font_size=sp(14),
         )
-        queue_btn.bind(on_press=self._add_to_queue)
+        queue_btn.bind_press(self._add_to_queue)
         content.add_widget(queue_btn)
 
         # ── STATUS + WAVEFORM ─────────────────────────
@@ -2005,39 +2113,49 @@ class StudioScreen(Screen):
         content.add_widget(status_card)
 
         # ── GENERATE BUTTON ───────────────────────────
-        self.gen_btn = FlatBtn(
-            text='Generate Audio',
+        self.gen_btn = IconBtn(
+            icon_name='generate',
+            label_text='Generate Audio',
             bg=C_GREEN,
+            radius=16,
+            font_size=19,
+            icon_size=36,
             size_hint_y=None, height=dp(68),
-            font_size=sp(19), bold=True, radius=16,
         )
-        self.gen_btn.bind(on_press=self._generate)
+        self.gen_btn.bind_press(self._generate)
         content.add_widget(self.gen_btn)
 
         # ── PREVIEW + SAVE ROW ────────────────────────
         pd_row = BoxLayout(size_hint_y=None, height=dp(60), spacing=dp(12))
-        self.play_btn = FlatBtn(
-            text='Preview Audio',
-            bg=C_TEAL,
-            font_size=sp(14), disabled=True,
+        self.play_btn = IconBtn(
+            icon_name='play', label_text='Preview',
+            bg=C_TEAL, font_size=14, icon_size=22,
+            size_hint_y=None, height=dp(60),
         )
-        self.dl_btn = FlatBtn(
-            text='Save Voice',
-            bg=C_GREEN2,
-            font_size=sp(14), disabled=True,
+        self.play_btn.disabled = True
+        self.play_btn.bind_press(self._play)
+
+        self.dl_btn = IconBtn(
+            icon_name='save', label_text='Save Voice',
+            bg=C_GREEN2, font_size=14, icon_size=22,
+            size_hint_y=None, height=dp(60),
         )
-        self.play_btn.bind(on_press=self._play)
-        self.dl_btn.bind(on_press=self._download)
+        self.dl_btn.disabled = True
+        self.dl_btn.bind_press(self._download)
         pd_row.add_widget(self.play_btn)
         pd_row.add_widget(self.dl_btn)
         content.add_widget(pd_row)
 
         # ── NAVIGATION ROW ────────────────────────────
         nav_row = BoxLayout(size_hint_y=None, height=dp(54), spacing=dp(10))
-        hist_btn = FlatBtn(text='History', bg=C_PURPLE, font_size=sp(14))
-        hist_btn.bind(on_press=lambda *a: self._go_hist())
-        batch_btn = FlatBtn(text='Batch Queue', bg=C_INDIGO, font_size=sp(14))
-        batch_btn.bind(on_press=lambda *a: self._go_batch())
+        hist_btn = IconBtn(icon_name='history', label_text='History',
+                           bg=C_PURPLE, font_size=14, icon_size=22,
+                           size_hint_y=None, height=dp(54))
+        hist_btn.bind_press(self._go_hist)
+        batch_btn = IconBtn(icon_name='batch', label_text='Batch Queue',
+                            bg=C_INDIGO, font_size=14, icon_size=22,
+                            size_hint_y=None, height=dp(54))
+        batch_btn.bind_press(self._go_batch)
         nav_row.add_widget(hist_btn)
         nav_row.add_widget(batch_btn)
         content.add_widget(nav_row)
@@ -2360,7 +2478,7 @@ class StudioScreen(Screen):
         self.dl_btn.disabled = not ok
 
     def _set_busy(self):
-        self.gen_btn.disabled = True
+        self.gen_btn.disabled = True  # IconBtn disabled via opacity
         self.play_btn.disabled = True
         self.dl_btn.disabled = True
 
@@ -2529,12 +2647,12 @@ class StudioScreen(Screen):
             return
         if self._audio.state == 'play':
             self._audio.stop()
-            self.play_btn.text = 'Preview Audio'
+            self.play_btn.set_text('Preview')
             self.play_btn.set_bg(C_TEAL)
             self.waveform.stop()
         else:
             self._audio.play()
-            self.play_btn.text = 'Stop Audio'
+            self.play_btn.set_text('Stop')
             self.play_btn.set_bg(C_AMBER)
             self.waveform.start()
 
