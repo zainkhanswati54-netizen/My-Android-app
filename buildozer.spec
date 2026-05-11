@@ -7,7 +7,7 @@ package.domain = org.titanstudio
 
 # ── Source ──────────────────────────────────────────────────
 source.dir = .
-source.include_exts = py,png,jpg,jpeg,kv,atlas,mp3,ttf,json
+source.include_exts = py,png,jpg,kv,atlas,ttf
 source.exclude_dirs = tests, bin, build, .git, __pycache__, venv, .venv
 
 # ── Version ─────────────────────────────────────────────────
