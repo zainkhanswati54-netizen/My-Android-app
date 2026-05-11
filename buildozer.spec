@@ -29,7 +29,8 @@ version = 2.0.0
 # p4a uses its own numpy recipe from GitHub and does a git checkout
 # which fails if the version tag format doesn't match exactly.
 # Let p4a handle numpy version via its recipe automatically.
-requirements = python3,kivy==2.3.1,gtts,requests,urllib3,certifi,charset-normalizer,idna,numpy,soundfile,onnxruntime,kokoro-onnx
+# edge-tts: Microsoft Edge neural TTS - free, 35+ languages, true Male/Female Neural voices
+requirements = python3,kivy==2.3.1,edge-tts,requests,urllib3,certifi,charset-normalizer,idna
 
 # ── Orientation ─────────────────────────────────────────────
 orientation = portrait
