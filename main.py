@@ -1,20 +1,18 @@
 # ============================================================
 #  Titan Studio PRO  -  main.py
-#  Version 2.1  |  CYBER MINT EDITION  (kokoro-onnx TTS)
+#  Version 2.1  |  CYBER MINT EDITION  (Edge TTS)
 #  ─────────────────────────────────────────────────────────
-#  CHANGES IN v2.0:
-#    [UPGRADE] Replaced edge-tts with Kokoro-TTS engine.
-#              Kokoro is an offline, high-quality neural TTS.
-#              True Male/Female voices that actually work.
-#              Advanced features (speed, pitch, emotion)
-#              properly applied. 35+ language support via
-#              gTTS fallback for non-English languages.
-#              No internet required for English voices.
+#  CHANGES IN v2.1:
+#    [FIXED]   Replaced Kokoro (Android incompatible) with
+#              Microsoft Edge TTS — natural neural voices.
+#              True Male/Female voices for 35+ languages.
+#              Speed (+/-) and Pitch (+/-) properly applied.
+#              Emotion presets control rate & pitch via SSML.
+#              Internet required (Edge TTS is online).
 #
-#  KOKORO VOICE MAP:
-#    Male   English  → af_sky / am_adam / am_michael
-#    Female English  → af_heart / af_bella / af_sarah
-#    Other languages → gTTS fallback (internet required)
+#  EDGE TTS VOICES:
+#    Each language has dedicated Male + Female neural voice
+#    Speed: -50% to +100% | Pitch: -10Hz to +10Hz
 #
 #  CYBER MINT THEME PALETTE:
 #    Base:    #FFFFFF  (Pure White backgrounds)
@@ -194,84 +192,54 @@ LANG_KEYBOARD_LOCALE = {
 }
 
 # ═══════════════════════════════════════════════════════════
-#  KOKORO TTS VOICE MAP
-#  Kokoro supports English natively with true Male/Female.
-#  For other languages, gTTS fallback is used.
-#
-#  Format: lang_name → (male_voice_id, female_voice_id)
-#  Kokoro voice IDs:
-#    af_*  = American Female
-#    am_*  = American Male
-#    bf_*  = British Female
-#    bm_*  = British Male
+#  EDGE TTS VOICE MAP
+#  Microsoft Edge TTS — True Neural Male/Female per language
+#  Format: lang → {'Male': voice_id, 'Female': voice_id}
+#  All voices are Neural (natural, not robotic)
 # ═══════════════════════════════════════════════════════════
-KOKORO_VOICES = {
-    # (male_voice_id, female_voice_id)
-    # kokoro-onnx supports these lang_codes:
-    #   'a' = American English, 'b' = British English
-    #   'e' = Spanish, 'f' = French, 'h' = Hindi
-    #   'i' = Italian, 'j' = Japanese (requires misaki[ja])
-    #   'p' = Brazilian Portuguese, 'z' = Mandarin Chinese (requires misaki[zh])
-    'English':    ('am_michael',  'af_heart'),
-    'English-UK': ('bm_george',   'bf_emma'),
-    'Spanish':    ('em_alex',     'ef_dora'),
-    'French':     ('fm_remi',     'ff_siwis'),
-    'Hindi':      ('hm_omega',    'hf_alpha'),
-    'Italian':    ('im_nicola',   'if_sara'),
-    'Portuguese': ('pm_alex',     'pf_dora'),
-    # Japanese & Chinese need extra deps (misaki) - use gTTS for now
-    # All other languages use gTTS fallback
+EDGE_VOICE_MAP = {
+    'English':    {'Male': 'en-US-GuyNeural',         'Female': 'en-US-JennyNeural'},
+    'English-UK': {'Male': 'en-GB-RyanNeural',         'Female': 'en-GB-SoniaNeural'},
+    'Urdu':       {'Male': 'ur-PK-AsadNeural',         'Female': 'ur-PK-UzmaNeural'},
+    'Hindi':      {'Male': 'hi-IN-MadhurNeural',       'Female': 'hi-IN-SwaraNeural'},
+    'Arabic':     {'Male': 'ar-SA-HamedNeural',        'Female': 'ar-SA-ZariyahNeural'},
+    'French':     {'Male': 'fr-FR-HenriNeural',        'Female': 'fr-FR-DeniseNeural'},
+    'Spanish':    {'Male': 'es-ES-AlvaroNeural',       'Female': 'es-ES-ElviraNeural'},
+    'German':     {'Male': 'de-DE-ConradNeural',       'Female': 'de-DE-KatjaNeural'},
+    'Turkish':    {'Male': 'tr-TR-AhmetNeural',        'Female': 'tr-TR-EmelNeural'},
+    'Russian':    {'Male': 'ru-RU-DmitryNeural',       'Female': 'ru-RU-SvetlanaNeural'},
+    'Chinese':    {'Male': 'zh-CN-YunxiNeural',        'Female': 'zh-CN-XiaoxiaoNeural'},
+    'Japanese':   {'Male': 'ja-JP-KeitaNeural',        'Female': 'ja-JP-NanamiNeural'},
+    'Korean':     {'Male': 'ko-KR-InJoonNeural',       'Female': 'ko-KR-SunHiNeural'},
+    'Portuguese': {'Male': 'pt-BR-AntonioNeural',      'Female': 'pt-BR-FranciscaNeural'},
+    'Italian':    {'Male': 'it-IT-DiegoNeural',        'Female': 'it-IT-ElsaNeural'},
+    'Dutch':      {'Male': 'nl-NL-MaartenNeural',      'Female': 'nl-NL-ColetteNeural'},
+    'Polish':     {'Male': 'pl-PL-MarekNeural',        'Female': 'pl-PL-ZofiaNeural'},
+    'Swedish':    {'Male': 'sv-SE-MattiasNeural',      'Female': 'sv-SE-SofieNeural'},
+    'Danish':     {'Male': 'da-DK-JeppeNeural',        'Female': 'da-DK-ChristelNeural'},
+    'Norwegian':  {'Male': 'nb-NO-FinnNeural',         'Female': 'nb-NO-PernilleNeural'},
+    'Finnish':    {'Male': 'fi-FI-HarriNeural',        'Female': 'fi-FI-NooraNeural'},
+    'Greek':      {'Male': 'el-GR-NestorasNeural',     'Female': 'el-GR-AthinaNeural'},
+    'Romanian':   {'Male': 'ro-RO-EmilNeural',         'Female': 'ro-RO-AlinaNeural'},
+    'Czech':      {'Male': 'cs-CZ-AntoninNeural',      'Female': 'cs-CZ-VlastaNeural'},
+    'Hungarian':  {'Male': 'hu-HU-TamasNeural',        'Female': 'hu-HU-NoemiNeural'},
+    'Vietnamese': {'Male': 'vi-VN-NamMinhNeural',      'Female': 'vi-VN-HoaiMyNeural'},
+    'Thai':       {'Male': 'th-TH-NiwatNeural',        'Female': 'th-TH-PremwadeeNeural'},
+    'Indonesian': {'Male': 'id-ID-ArdiNeural',         'Female': 'id-ID-GadisNeural'},
+    'Malay':      {'Male': 'ms-MY-OsmanNeural',        'Female': 'ms-MY-YasminNeural'},
+    'Bengali':    {'Male': 'bn-BD-PradeepNeural',      'Female': 'bn-BD-NabanitaNeural'},
+    'Tamil':      {'Male': 'ta-IN-ValluvarNeural',     'Female': 'ta-IN-PallaviNeural'},
+    'Telugu':     {'Male': 'te-IN-MohanNeural',        'Female': 'te-IN-ShrutiNeural'},
+    'Ukrainian':  {'Male': 'uk-UA-OstapNeural',        'Female': 'uk-UA-PolinaNeural'},
+    'Swahili':    {'Male': 'sw-KE-RafikiNeural',       'Female': 'sw-KE-ZuriNeural'},
+    'Punjabi':    {'Male': 'pa-IN-OjasNeural',         'Female': 'pa-IN-VaaniNeural'},
+    'Catalan':    {'Male': 'ca-ES-EnricNeural',        'Female': 'ca-ES-JoanaNeural'},
 }
 
-# kokoro-onnx lang_code per language
-KOKORO_LANG_CODE = {
-    'English':    'a',
-    'English-UK': 'b',
-    'Spanish':    'e',
-    'French':     'f',
-    'Hindi':      'h',
-    'Italian':    'i',
-    'Portuguese': 'p',
-}
-
-# For gTTS fallback - language code + tld per gender
-GTTS_VOICE_MAP = {
-    'English':    {'Male': ('en', 'com'),     'Female': ('en', 'co.uk')},
-    'Urdu':       {'Male': ('ur', 'com'),     'Female': ('ur', 'com')},
-    'Hindi':      {'Male': ('hi', 'com'),     'Female': ('hi', 'co.in')},
-    'Arabic':     {'Male': ('ar', 'com'),     'Female': ('ar', 'com')},
-    'French':     {'Male': ('fr', 'fr'),      'Female': ('fr', 'com')},
-    'Spanish':    {'Male': ('es', 'es'),      'Female': ('es', 'com')},
-    'German':     {'Male': ('de', 'de'),      'Female': ('de', 'com')},
-    'Turkish':    {'Male': ('tr', 'com'),     'Female': ('tr', 'com')},
-    'Russian':    {'Male': ('ru', 'com'),     'Female': ('ru', 'com')},
-    'Chinese':    {'Male': ('zh-TW', 'com'),  'Female': ('zh-TW', 'com')},
-    'Japanese':   {'Male': ('ja', 'co.jp'),   'Female': ('ja', 'com')},
-    'Korean':     {'Male': ('ko', 'com'),     'Female': ('ko', 'com')},
-    'Portuguese': {'Male': ('pt', 'com.br'),  'Female': ('pt', 'com')},
-    'Italian':    {'Male': ('it', 'it'),      'Female': ('it', 'com')},
-    'Dutch':      {'Male': ('nl', 'com'),     'Female': ('nl', 'com')},
-    'Polish':     {'Male': ('pl', 'pl'),      'Female': ('pl', 'com')},
-    'Swedish':    {'Male': ('sv', 'com'),     'Female': ('sv', 'com')},
-    'Danish':     {'Male': ('da', 'dk'),      'Female': ('da', 'com')},
-    'Norwegian':  {'Male': ('no', 'com'),     'Female': ('no', 'com')},
-    'Finnish':    {'Male': ('fi', 'com'),     'Female': ('fi', 'com')},
-    'Greek':      {'Male': ('el', 'com'),     'Female': ('el', 'com')},
-    'Romanian':   {'Male': ('ro', 'com'),     'Female': ('ro', 'com')},
-    'Czech':      {'Male': ('cs', 'cz'),      'Female': ('cs', 'com')},
-    'Hungarian':  {'Male': ('hu', 'com'),     'Female': ('hu', 'com')},
-    'Vietnamese': {'Male': ('vi', 'com'),     'Female': ('vi', 'com')},
-    'Thai':       {'Male': ('th', 'com'),     'Female': ('th', 'com')},
-    'Indonesian': {'Male': ('id', 'co.id'),   'Female': ('id', 'com')},
-    'Malay':      {'Male': ('ms', 'com'),     'Female': ('ms', 'com')},
-    'Bengali':    {'Male': ('bn', 'com'),     'Female': ('bn', 'com')},
-    'Tamil':      {'Male': ('ta', 'co.in'),   'Female': ('ta', 'com')},
-    'Telugu':     {'Male': ('te', 'co.in'),   'Female': ('te', 'com')},
-    'Ukrainian':  {'Male': ('uk', 'com'),     'Female': ('uk', 'com')},
-    'Swahili':    {'Male': ('sw', 'com'),     'Female': ('sw', 'com')},
-    'Punjabi':    {'Male': ('pa', 'co.in'),   'Female': ('pa', 'com')},
-    'Catalan':    {'Male': ('ca', 'com'),     'Female': ('ca', 'com')},
-}
+def pick_edge_voice(lang_name, gender):
+    """Get Edge TTS voice ID for language + gender."""
+    lang_map = EDGE_VOICE_MAP.get(lang_name, EDGE_VOICE_MAP['English'])
+    return lang_map.get(gender, lang_map['Female'])
 
 RTL_LANGS = {'Urdu', 'Arabic', 'Hebrew', 'Persian'}
 
@@ -540,24 +508,21 @@ def get_file_info(path):
 
 
 # ═══════════════════════════════════════════════════════════
-#  KOKORO TTS ENGINE
+#  EDGE TTS ENGINE
 #
-#  Kokoro is an offline neural TTS engine. It generates
-#  very natural speech. We use it for English (Male/Female).
-#  For other languages we fall back to gTTS (online).
-#
-#  Kokoro speed parameter: 1.0 = normal, 0.5 = slow, 1.5 = fast
-#  Kokoro pitch: controlled via voice selection or post-processing
+#  Microsoft Edge TTS — free, natural neural voices.
+#  Supports speed (+/-%), pitch (+/-Hz), 35+ languages,
+#  true Male/Female per language.
+#  Requires internet. Uses asyncio + edge-tts package.
 # ═══════════════════════════════════════════════════════════
 
-def kokoro_generate(text, voice_id, lang_code, speed, pitch, output_path):
+def edge_tts_generate(text, voice, speed_pct, pitch_val, output_path):
     """
-    Generate audio using kokoro-onnx TTS engine.
-    voice_id  : e.g. 'am_michael', 'af_heart', 'em_alex'
-    lang_code : 'a'=American English, 'b'=British, 'e'=Spanish, etc.
-    speed     : float 0.5-2.0 (1.0=normal)
-    pitch     : float -10 to +10 (0=normal), applied via resampling
-    output_path: where to save the .wav file
+    Generate audio using Microsoft Edge TTS.
+    voice      : Edge TTS voice string e.g. 'en-US-JennyNeural'
+    speed_pct  : slider value 10-100 mapped to -50% to +100%
+    pitch_val  : slider value -10 to +10 mapped to -10Hz to +10Hz
+    output_path: where to save the .mp3 file
     Returns (ok, error_message)
     """
     result = {'ok': False, 'err': ''}
@@ -565,34 +530,37 @@ def kokoro_generate(text, voice_id, lang_code, speed, pitch, output_path):
 
     def _worker():
         try:
-            from kokoro_onnx import Kokoro
-            import soundfile as sf
-            import numpy as np
+            import asyncio
+            import edge_tts
 
-            # Initialize kokoro-onnx
-            # kokoro-onnx looks for kokoro-v0_19.onnx and voices.bin in package
-            kokoro = Kokoro()
+            # Map speed slider 10-100 → edge rate string "-50%" to "+100%"
+            # 55 = 0% (normal), below=negative, above=positive
+            rate_pct = int(((speed_pct - 55) / 45) * 100)
+            rate_pct = max(-50, min(100, rate_pct))
+            rate_str = ('+' if rate_pct >= 0 else '') + str(rate_pct) + '%'
 
-            # Generate audio samples
-            samples, sample_rate = kokoro.create(
-                text,
-                voice=voice_id,
-                speed=speed,
-                lang=lang_code,
-            )
+            # Map pitch slider -10..+10 → "-10Hz" to "+10Hz"
+            pitch_str = ('+' if pitch_val >= 0 else '') + str(int(pitch_val)) + 'Hz'
 
-            # Apply pitch shift via resampling if pitch != 0
-            if pitch != 0 and len(samples) > 0:
-                # pitch shift: +1 = semitone up, -1 = semitone down
-                # Achieved by resampling: pitch up = speed up then resample back
-                pitch_factor = 2 ** (pitch / 12.0)  # semitones to ratio
-                original_len = len(samples)
-                # Stretch/compress
-                new_len = max(1, int(original_len / pitch_factor))
-                indices = np.linspace(0, original_len - 1, new_len)
-                samples = np.interp(indices, np.arange(original_len), samples).astype(np.float32)
+            async def _run():
+                communicate = edge_tts.Communicate(
+                    text,
+                    voice,
+                    rate=rate_str,
+                    pitch=pitch_str,
+                )
+                await communicate.save(output_path)
 
-            sf.write(output_path, samples, sample_rate)
+            # Run async in thread-safe way
+            try:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                loop.run_until_complete(_run())
+                loop.close()
+            except Exception as e:
+                result['err'] = str(e)
+                return
+
             result['ok'] = True
 
         except ImportError as e:
@@ -604,39 +572,7 @@ def kokoro_generate(text, voice_id, lang_code, speed, pitch, output_path):
 
     t = threading.Thread(target=_worker, daemon=True)
     t.start()
-    done_event.wait(timeout=120)
-
-    if not done_event.is_set():
-        return False, 'TIMEOUT'
-    return result['ok'], result['err']
-
-
-def gtts_generate(text, lang_code, tld, slow, output_path):
-    """
-    Generate audio using Google TTS (gTTS) - internet required.
-    Used as primary engine for non-English languages,
-    and as fallback if Kokoro is unavailable.
-    Returns (ok, error_message)
-    """
-    result = {'ok': False, 'err': ''}
-    done_event = threading.Event()
-
-    def _worker():
-        try:
-            from gtts import gTTS
-            tts = gTTS(text=text, lang=lang_code, tld=tld, slow=slow)
-            tts.save(output_path)
-            result['ok'] = True
-        except ImportError:
-            result['err'] = 'IMPORT_ERROR'
-        except Exception as e:
-            result['err'] = str(e)
-        finally:
-            done_event.set()
-
-    t = threading.Thread(target=_worker, daemon=True)
-    t.start()
-    done_event.wait(timeout=60)
+    done_event.wait(timeout=90)
 
     if not done_event.is_set():
         return False, 'TIMEOUT'
@@ -644,10 +580,7 @@ def gtts_generate(text, lang_code, tld, slow, output_path):
 
 
 def check_internet():
-    hosts = [
-        ('8.8.8.8', 53),
-        ('1.1.1.1', 53),
-    ]
+    hosts = [('8.8.8.8', 53), ('1.1.1.1', 53)]
     for host, port in hosts:
         try:
             socket.setdefaulttimeout(5)
@@ -660,48 +593,18 @@ def check_internet():
     return False
 
 
-def slider_to_kokoro_speed(speed_pct, emotion='Normal'):
+def slider_to_edge_speed(speed_pct, emotion='Normal'):
     """
-    Convert slider value (10-100) + emotion to Kokoro speed float.
-    Kokoro speed: 0.5 = very slow, 1.0 = normal, 1.5 = fast, 2.0 = very fast
+    Return speed_pct adjusted for emotion.
+    slider 10-100, with emotion boost applied.
     """
-    # Map 10-100 → 0.5-1.8
-    base_speed = 0.5 + ((speed_pct - 10) / 90) * 1.3
-    # Emotion rate boost (same scale as before, convert to multiplier)
     boost_map = {
-        'Normal': 0.0, 'Happy': 0.08, 'Sad': -0.1,
-        'Whisper': -0.12, 'Shout': 0.12, 'Sarcasm': 0.0,
-        'Excited': 0.18, 'Calm': -0.15, 'Serious': -0.04, 'Fearful': -0.06
+        'Normal': 0,  'Happy': 8,   'Sad': -10,
+        'Whisper': -12, 'Shout': 12, 'Sarcasm': 3,
+        'Excited': 18, 'Calm': -15, 'Serious': -5, 'Fearful': -6
     }
-    boost = boost_map.get(emotion, 0.0)
-    final = max(0.5, min(base_speed + boost, 2.0))
-    return round(final, 2)
-
-
-def slider_to_gtts_slow(speed_pct):
-    """Convert slider to gTTS slow parameter."""
-    return speed_pct <= 30
-
-
-def pick_kokoro_voice(lang_name, gender):
-    """
-    Get Kokoro voice ID and lang_code for given language and gender.
-    Returns (voice_id, lang_code, is_kokoro) tuple.
-    If language not supported by Kokoro, returns (None, None, False).
-    """
-    if lang_name in KOKORO_VOICES:
-        voices = KOKORO_VOICES[lang_name]
-        voice_id = voices[0] if gender == 'Male' else voices[1]
-        lang_code = KOKORO_LANG_CODE.get(lang_name, 'a')
-        return voice_id, lang_code, True
-    return None, None, False
-
-
-def pick_gtts_params(lang_name, gender):
-    """Get gTTS lang_code and tld for given language and gender."""
-    mapping = GTTS_VOICE_MAP.get(lang_name, {'Male': ('en', 'com'), 'Female': ('en', 'co.uk')})
-    params = mapping.get(gender, ('en', 'com'))
-    return params[0], params[1]
+    boost = boost_map.get(emotion, 0)
+    return max(10, min(100, speed_pct + boost))
 
 
 # ═══════════════════════════════════════════════════════════
@@ -1159,7 +1062,7 @@ class LoadingScreen(Screen):
         root.add_widget(self.title_lbl)
 
         self.ver_lbl = Label(
-            text='v2.1  CYBER MINT EDITION  |  kokoro-onnx TTS', font_size=sp(11), bold=True,
+            text='v2.1  CYBER MINT EDITION  |  Edge TTS', font_size=sp(11), bold=True,
             color=hex_c(C_GREEN2), pos_hint={'center_x': 0.5, 'center_y': 0.43}, opacity=0,
         )
         root.add_widget(self.ver_lbl)
@@ -1468,7 +1371,7 @@ class SettingsScreen(Screen):
         card_border(engine_card, C_BORDER, 12)
         engine_card.add_widget(sec_header('TTS Engine Info'))
         for line in [
-            'Primary: kokoro-onnx TTS (Offline, Neural, Multilingual)',
+            'Primary: Microsoft Edge TTS (Neural)',
             'English: True Male + Female voices',
             'Voice IDs: am_michael, af_heart, etc.',
             'Fallback: gTTS (Online, for other langs)',
@@ -1490,7 +1393,7 @@ class SettingsScreen(Screen):
             'Titan Studio PRO  v2.0  CYBER MINT EDITION',
             'Professional TTS & Voice Studio',
             '35+ Languages  -  10 Emotions  -  Neural Voices',
-            'Powered by Kokoro TTS  -  Always Free',
+            'Powered by Edge TTS  -  Always Free',
             '(c) 2025 Titan Studio PRO',
         ]:
             about_card.add_widget(lbl(line, 12, C_MUTED, False, 24, 'left'))
@@ -1638,20 +1541,13 @@ class BatchQueueScreen(Screen):
                 dest = os.path.join(get_audio_folder(), fname)
                 os.makedirs(get_audio_folder(), exist_ok=True)
 
-                kokoro_speed = slider_to_kokoro_speed(speed_pct, emotion)
-                voice_id, kk_lang, use_kokoro = pick_kokoro_voice(lang, gender)
+                edge_speed = slider_to_edge_speed(speed_pct, emotion)
+                voice = pick_edge_voice(lang, gender)
+                fname = fname.replace('.wav', '.mp3')
+                dest = dest.replace('.wav', '.mp3')
 
                 ok = False
-                if use_kokoro and voice_id:
-                    ok, err = kokoro_generate(text, voice_id, kk_lang, kokoro_speed, 0, dest)
-
-                if not ok:
-                    # gTTS fallback
-                    fname = fname.replace('.wav', '.mp3')
-                    dest = dest.replace('.wav', '.mp3')
-                    lang_code, tld = pick_gtts_params(lang, gender)
-                    slow = slider_to_gtts_slow(speed_pct)
-                    ok, err = gtts_generate(text, lang_code, tld, slow, dest)
+                ok, err = edge_tts_generate(text, voice, edge_speed, 0, dest)
 
                 if ok:
                     item['status'] = 'done'
@@ -1737,7 +1633,7 @@ class StudioScreen(Screen):
         )
         t1.bind(size=lambda w, v: setattr(w, 'text_size', v))
         t2 = Label(
-            text='v2.0 Mint  |  Kokoro TTS  -  Always Free',
+            text='v2.1 Mint  |  Edge TTS  -  Always Free',
             font_size=sp(10), color=hex_c(C_MUTED),
             halign='left', valign='middle',
         )
@@ -1830,7 +1726,7 @@ class StudioScreen(Screen):
 
         # Engine badge row
         self.engine_badge_row = BoxLayout(size_hint_y=None, height=dp(36), spacing=dp(8))
-        self.engine_lbl = lbl('Engine: Kokoro (Offline)', 12, C_GREEN2, True, 36, 'left')
+        self.engine_lbl = lbl('Engine: Edge TTS (Neural)', 12, C_GREEN2, True, 36, 'left')
         self.engine_badge_row.add_widget(self.engine_lbl)
         content.add_widget(self.engine_badge_row)
 
@@ -2158,13 +2054,8 @@ class StudioScreen(Screen):
                 pass
 
         # Update engine badge
-        _, _kk_lang, use_kokoro = pick_kokoro_voice(lang, self.voice_sel)
-        if use_kokoro:
-            self.engine_lbl.text = 'Engine: kokoro-onnx (Offline Neural)'
-            self.engine_lbl.color = hex_c(C_GREEN)
-        else:
-            self.engine_lbl.text = 'Engine: gTTS Fallback (Online)'
-            self.engine_lbl.color = hex_c(C_AMBER)
+        self.engine_lbl.text = 'Engine: Edge TTS (Neural)'
+        self.engine_lbl.color = hex_c(C_GREEN)
 
     def _apply_preset(self, name, data):
         # Convert preset speed (0.5-1.5 range) back to slider (10-100)
@@ -2191,14 +2082,9 @@ class StudioScreen(Screen):
                 b.color = hex_c(C_TEXT)
         # Update engine badge when gender changes
         lang = self.lang_spin.text if hasattr(self, 'lang_spin') else 'English'
-        _, _kk_lang, use_kokoro = pick_kokoro_voice(lang, name)
         if hasattr(self, 'engine_lbl'):
-            if use_kokoro:
-                self.engine_lbl.text = 'Engine: kokoro-onnx (Offline Neural)'
-                self.engine_lbl.color = hex_c(C_GREEN)
-            else:
-                self.engine_lbl.text = 'Engine: gTTS Fallback (Online)'
-                self.engine_lbl.color = hex_c(C_AMBER)
+            self.engine_lbl.text = 'Engine: Edge TTS (Neural)'
+            self.engine_lbl.color = hex_c(C_GREEN)
 
     def _count(self, inst, val):
         words = len(val.split()) if val.strip() else 0
@@ -2400,58 +2286,40 @@ class StudioScreen(Screen):
             if adaptive_pacing and len(text) > 500:
                 speed_pct = max(10, speed_pct - 5)
 
-            kokoro_speed = slider_to_kokoro_speed(speed_pct, emotion)
-            voice_id, kk_lang, use_kokoro = pick_kokoro_voice(lang_name, gender)
+            edge_speed = slider_to_edge_speed(speed_pct, emotion)
+            voice = pick_edge_voice(lang_name, gender)
 
             app = App.get_running_app()
-            ext = 'wav' if use_kokoro else 'mp3'
-            out = os.path.join(app.user_data_dir, 'tts_preview.' + ext)
+            out = os.path.join(app.user_data_dir, 'tts_preview.mp3')
 
             label = lang_name + ' - ' + gender + ' - ' + emotion
             ok = False
             err = ''
 
-            if use_kokoro and voice_id:
-                Clock.schedule_once(lambda dt: self._upd(30, 'Kokoro: Generating ' + label + '...'))
-                ok, err = kokoro_generate(text, voice_id, kk_lang, kokoro_speed, pitch_val, out)
-                if ok:
-                    Clock.schedule_once(lambda dt: self._upd(90, 'Processing audio...'))
-                    self.out_file = out
-                    Clock.schedule_once(lambda dt: self._on_done(engine='kokoro'))
-                    return
-                else:
-                    Clock.schedule_once(lambda dt: self._upd(40, 'Kokoro failed, trying gTTS...'))
-
-            # gTTS path (either language not in Kokoro, or Kokoro failed)
-            Clock.schedule_once(lambda dt: self._upd(25, 'Checking internet...'))
-            has_internet = check_internet()
-
-            if not has_internet:
+            Clock.schedule_once(lambda dt: self._upd(20, 'Checking internet...'))
+            if not check_internet():
                 Clock.schedule_once(lambda dt: self._on_err(
-                    'No internet for ' + lang_name + ' (needs gTTS). Connect and retry.'
+                    'No internet. Edge TTS needs internet. Please connect and retry.'
                 ))
                 return
 
-            Clock.schedule_once(lambda dt: self._upd(50, 'gTTS: Generating ' + label + '...'))
-            out_mp3 = os.path.join(app.user_data_dir, 'tts_preview.mp3')
-            lang_code, tld = pick_gtts_params(lang_name, gender)
-            slow = slider_to_gtts_slow(speed_pct)
-            ok, err = gtts_generate(text, lang_code, tld, slow, out_mp3)
+            Clock.schedule_once(lambda dt: self._upd(40, 'Edge TTS: Generating ' + label + '...'))
+            ok, err = edge_tts_generate(text, voice, edge_speed, pitch_val, out)
 
             if ok:
                 Clock.schedule_once(lambda dt: self._upd(90, 'Processing audio...'))
-                self.out_file = out_mp3
-                Clock.schedule_once(lambda dt: self._on_done(engine='gtts'))
+                self.out_file = out
+                Clock.schedule_once(lambda dt: self._on_done(engine='edge'))
             else:
                 Clock.schedule_once(lambda dt, e=err: self._on_err(
-                    'Audio generation failed: ' + e[:60]
+                    'Edge TTS failed: ' + e[:80]
                 ))
 
         except Exception as e:
             msg = str(e)
             Clock.schedule_once(lambda dt, m=msg: self._on_err(m))
 
-    def _on_done(self, engine='kokoro'):
+    def _on_done(self, engine='edge'):
         if self._audio:
             try:
                 self._audio.stop()
@@ -2461,10 +2329,7 @@ class StudioScreen(Screen):
             self._audio = None
 
         self._audio = SoundLoader.load(self.out_file)
-        if engine == 'kokoro':
-            msg = 'Audio ready! kokoro-onnx neural voice. Preview or Save.'
-        else:
-            msg = 'Audio ready! (gTTS online mode). Preview or Save.'
+        msg = 'Audio ready! Edge TTS neural voice. Preview or Save.'
         self._upd(100, msg)
         self._set_ready(ok=True)
         self.waveform.stop()
@@ -2472,7 +2337,7 @@ class StudioScreen(Screen):
             'Generated: ' + self.lang_spin.text +
             ' - ' + self.voice_sel +
             ' - ' + self.emotion_picker.selected +
-            ' [' + engine.upper() + ']'
+            ' [Edge TTS]'
         )
         Clock.schedule_once(
             lambda dt: Animation(value=0, duration=0.7, t='out_quad').start(self.prog), 2.0
