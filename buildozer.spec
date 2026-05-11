@@ -14,10 +14,12 @@ source.exclude_dirs = tests, bin, build, .git, __pycache__, venv, .venv
 version = 1.0.0
 
 # ── Requirements ────────────────────────────────────────────
-# IMPORTANT: List every Python package your app imports.
-# edge-tts requires aiohttp + aiofiles which need special recipes.
-# If edge-tts causes build issues, remove it - gTTS will be used as fallback.
-requirements = python3,kivy==2.3.0,gtts,requests,urllib3,certifi,charset-normalizer,idna,edge-tts,aiohttp,aiofiles,multidict,yarl,frozenlist,async-timeout,attrs
+# FIX v1.2: aiohttp pinned to ==3.10.11 to fix Python 3.14 build errors:
+#   - 'ma_version_tag' missing in PyDictObject
+#   - 'ob_digit' missing in _longobject
+#   - _PyLong_AsByteArray argument mismatch
+# edge-tts pinned to ==6.1.9 for stability
+requirements = python3,kivy==2.3.0,gtts,requests,urllib3,certifi,charset-normalizer,idna,edge-tts==6.1.9,aiohttp==3.10.11,aiofiles,multidict,yarl,frozenlist,async-timeout,attrs
 
 # ── Orientation ─────────────────────────────────────────────
 orientation = portrait
