@@ -1,6 +1,6 @@
 # ============================================================
 #  Titan Studio PRO - requirements.txt
-#  Version 2.0.0  |  Kokoro TTS Edition
+#  Version 13.0.0
 # ============================================================
 #
 #  INSTALL (PC/dev environment):
@@ -9,42 +9,39 @@
 #  NOTE: For Android build, dependencies are listed in
 #        buildozer.spec under [app] requirements = ...
 #        This file is for your development environment only.
-#
-#  KOKORO MODELS (auto-downloaded on first run):
-#    Kokoro downloads voice models (~80MB) on first use.
-#    Make sure internet is available the first time.
-#    After that, English TTS works fully OFFLINE.
 # ============================================================
 
 # ── UI Framework ────────────────────────────────────────────
 kivy==2.3.0
+kivymd==1.2.0            # Optional - not used in current build
 
-# ── TTS Engine 1: Kokoro Neural TTS (PRIMARY) ───────────────
-# Offline, high-quality neural TTS engine.
-# True Male/Female voices for English.
-# Kokoro voice IDs: am_michael (Male), af_heart (Female)
-# Speed, pitch, emotion all properly supported.
-kokoro>=0.9.4
+# ── TTS Engine 1: Neural voices (primary) ───────────────────
+# Microsoft Edge neural TTS - sounds very natural
+# Requires internet. Supports 30+ languages with Male/Female.
+edge-tts>=6.1.9
 
-# ── Audio I/O (required by Kokoro) ──────────────────────────
-soundfile>=0.12.1
-sounddevice>=0.4.6
-
-# ── NumPy (required by Kokoro for audio arrays) ─────────────
-numpy>=1.24.0
-
-# ── TTS Engine 2: gTTS (FALLBACK for non-English) ───────────
-# Used for Urdu, Hindi, Arabic, French, etc.
-# Requires internet connection.
+# ── TTS Engine 2: Google TTS (fallback) ─────────────────────
+# Used when edge-tts is unavailable or fails
+# Requires internet. Sounds more robotic than edge-tts.
 gTTS>=2.5.1
 
-# ── HTTP / Networking (required by gTTS) ─────────────────────
+# ── HTTP / Networking (required by edge-tts) ─────────────────
+aiohttp>=3.9.0
+aiofiles>=23.2.1
 requests>=2.31.0
 urllib3>=2.0.0
 certifi>=2024.2.2
 charset-normalizer>=3.3.0
 idna>=3.6
 
+# ── aiohttp dependencies ────────────────────────────────────
+multidict>=6.0.0
+yarl>=1.9.0
+frozenlist>=1.4.0
+async-timeout>=4.0.0
+attrs>=23.1.0
+
 # ── Buildozer (for building APK) ────────────────────────────
-# Install separately:
+# Install separately, not needed at runtime
 # pip install buildozer
+# buildozer>=1.5.0
