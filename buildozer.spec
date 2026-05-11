@@ -14,8 +14,7 @@ source.exclude_dirs = tests, bin, build, .git, __pycache__, venv, .venv
 version = 2.0.0
 
 # ── Requirements ────────────────────────────────────────────
-# FIXED: numpy==1.26.4 (compatible with Android ARM)
-# kokoro TTS replaces edge-tts.
+# Kokoro TTS replaces edge-tts.
 # kokoro needs numpy, soundfile (libsndfile), and torch (or onnxruntime).
 # For Android, onnxruntime is lighter than torch.
 #
@@ -24,8 +23,10 @@ version = 2.0.0
 #   Change 'kokoro' to 'kokoro-onnx' below.
 #
 # soundfile on Android needs libsndfile.so - included via p4a recipe.
-# numpy 1.26.4 has pre-built wheels for Android ARM architectures (arm64-v8a, armeabi-v7a)
+# numpy is available as a p4a recipe.
 #
+# FIX: numpy pinned to 1.26.4 — NumPy 2.x has a C++ unordered_map
+# header bug that causes build failure with Android NDK r25b.
 requirements = python3,kivy==2.3.0,gtts,requests,urllib3,certifi,charset-normalizer,idna,numpy==1.26.4,soundfile,onnxruntime,kokoro
 
 # ── Orientation ─────────────────────────────────────────────
@@ -56,14 +57,6 @@ android.archs = arm64-v8a, armeabi-v7a
 android.ndk = 25b
 android.sdk = 33
 
-# ── Android Build Tools ─────────────────────────────────────
-# FIXED: Explicitly set build tools version for consistency
-android.build_tools_version = 33.0.2
-
-# ── Android SDK Path ────────────────────────────────────────
-# FIXED: Set SDK path for CI/CD environments
-android.sdk_path = /root/.buildozer/android/platform/android-sdk
-
 # ── Android Features ────────────────────────────────────────
 android.allow_backup = True
 android.wakelock = False
@@ -80,10 +73,6 @@ log_level = 2
 # ── p4a (python-for-android) ────────────────────────────────
 # Use develop branch for latest numpy/soundfile recipe fixes
 # p4a.branch = develop
-
-# ── Skip p4a update (avoids network issues) ─────────────────
-# FIXED: Prevents rebuilding recipes unnecessarily
-android.skip_update = False
 
 # ── Extra libs for soundfile (libsndfile) ───────────────────
 # android.add_libs_armeabi_v7a = libs/armeabi-v7a/libsndfile.so
