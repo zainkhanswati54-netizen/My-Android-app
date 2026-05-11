@@ -29,6 +29,7 @@
 # ============================================================
 
 import os
+import socket
 import threading
 import time
 import shutil
@@ -550,7 +551,8 @@ def kokoro_generate(text, voice_id, speed, output_path):
 
             pipeline = KPipeline(lang_code=lang_code)
 
-            # Generate audio - kokoro returns generator of (gs, ps, audio) tuples
+            # Generate audio - kokoro returns generator
+            # API varies by version: handle both (gs, ps, audio) and (audio,) forms
             audio_chunks = []
             generator = pipeline(
                 text,
@@ -558,7 +560,12 @@ def kokoro_generate(text, voice_id, speed, output_path):
                 speed=speed,
                 split_pattern=r'\n+'
             )
-            for _, _, audio in generator:
+            for chunk in generator:
+                # Support both tuple unpacking styles across kokoro versions
+                if isinstance(chunk, (list, tuple)):
+                    audio = chunk[-1]  # audio is always the last element
+                else:
+                    audio = chunk
                 if audio is not None:
                     audio_chunks.append(audio)
 
@@ -619,7 +626,6 @@ def gtts_generate(text, lang_code, tld, slow, output_path):
 
 
 def check_internet():
-    import socket
     hosts = [
         ('8.8.8.8', 53),
         ('1.1.1.1', 53),
