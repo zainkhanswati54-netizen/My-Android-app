@@ -75,7 +75,15 @@ jobs:
               echo '=== aidl check ==='
               ls /root/.buildozer/android/platform/android-sdk/build-tools/33.0.2/aidl && echo 'aidl READY!'
 
-              # ── Step G: NDK r27c manually install ────────────
+              # ── Step G: Old Kivy cache saaf karo ─────────────
+              # FIX: Kivy 2.3.0 Cython C files are incompatible with Python 3.14.
+              # Kivy 2.3.1 has the fix. Remove old cached build so it recompiles.
+              echo '=== Cleaning old Kivy + NumPy build cache ==='
+              rm -rf /home/user/hostcwd/.buildozer/android/platform/build-arm64-v8a_armeabi-v7a/build/other_builds/kivy-sdl2 || true
+              rm -rf /home/user/hostcwd/.buildozer/android/platform/build-arm64-v8a_armeabi-v7a/build/other_builds/numpy || true
+              echo 'Cache cleared!'
+
+              # ── Step H: NDK r27c manually install ────────────
               # FIX: Remove any old NDK r25b and pre-install NDK r27c
               # NDK r25b has a libc++ bug that breaks NumPy 2.x compilation.
               # By pre-installing r27c here, buildozer finds it already
@@ -98,8 +106,10 @@ jobs:
 
               # Patch NDK version in spec to match our installed r27c
               sed -i 's/android.ndk = .*/android.ndk = 27c/' buildozer.spec
-              echo 'buildozer.spec NDK patched to 27c'
-              grep 'android.ndk' buildozer.spec
+              # Patch Kivy version to 2.3.1 (Python 3.14 compatible)
+              sed -i 's/kivy==2\.3\.0/kivy==2.3.1/' buildozer.spec
+              echo 'buildozer.spec patched — NDK=27c, Kivy=2.3.1'
+              grep 'android.ndk\|kivy==' buildozer.spec
 
               # ── Step I: BUILD ─────────────────────────────────
               echo '=== STARTING BUILD ==='
