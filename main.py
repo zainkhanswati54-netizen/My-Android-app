@@ -1,6 +1,6 @@
 # ============================================================
 #  Titan Studio PRO  -  main.py
-#  Version 2.0  |  CYBER MINT EDITION  (Kokoro TTS)
+#  Version 2.1  |  CYBER MINT EDITION  (kokoro-onnx TTS)
 #  ─────────────────────────────────────────────────────────
 #  CHANGES IN v2.0:
 #    [UPGRADE] Replaced edge-tts with Kokoro-TTS engine.
@@ -206,9 +206,32 @@ LANG_KEYBOARD_LOCALE = {
 #    bm_*  = British Male
 # ═══════════════════════════════════════════════════════════
 KOKORO_VOICES = {
-    # (male_voice, female_voice)
+    # (male_voice_id, female_voice_id)
+    # kokoro-onnx supports these lang_codes:
+    #   'a' = American English, 'b' = British English
+    #   'e' = Spanish, 'f' = French, 'h' = Hindi
+    #   'i' = Italian, 'j' = Japanese (requires misaki[ja])
+    #   'p' = Brazilian Portuguese, 'z' = Mandarin Chinese (requires misaki[zh])
     'English':    ('am_michael',  'af_heart'),
+    'English-UK': ('bm_george',   'bf_emma'),
+    'Spanish':    ('em_alex',     'ef_dora'),
+    'French':     ('fm_remi',     'ff_siwis'),
+    'Hindi':      ('hm_omega',    'hf_alpha'),
+    'Italian':    ('im_nicola',   'if_sara'),
+    'Portuguese': ('pm_alex',     'pf_dora'),
+    # Japanese & Chinese need extra deps (misaki) - use gTTS for now
     # All other languages use gTTS fallback
+}
+
+# kokoro-onnx lang_code per language
+KOKORO_LANG_CODE = {
+    'English':    'a',
+    'English-UK': 'b',
+    'Spanish':    'e',
+    'French':     'f',
+    'Hindi':      'h',
+    'Italian':    'i',
+    'Portuguese': 'p',
 }
 
 # For gTTS fallback - language code + tld per gender
@@ -527,11 +550,13 @@ def get_file_info(path):
 #  Kokoro pitch: controlled via voice selection or post-processing
 # ═══════════════════════════════════════════════════════════
 
-def kokoro_generate(text, voice_id, speed, output_path):
+def kokoro_generate(text, voice_id, lang_code, speed, pitch, output_path):
     """
-    Generate audio using Kokoro TTS engine.
-    voice_id: Kokoro voice string e.g. 'am_michael', 'af_heart'
-    speed: float 0.5 - 2.0 (1.0 = normal)
+    Generate audio using kokoro-onnx TTS engine.
+    voice_id  : e.g. 'am_michael', 'af_heart', 'em_alex'
+    lang_code : 'a'=American English, 'b'=British, 'e'=Spanish, etc.
+    speed     : float 0.5-2.0 (1.0=normal)
+    pitch     : float -10 to +10 (0=normal), applied via resampling
     output_path: where to save the .wav file
     Returns (ok, error_message)
     """
@@ -540,42 +565,35 @@ def kokoro_generate(text, voice_id, speed, output_path):
 
     def _worker():
         try:
-            from kokoro import KPipeline
+            from kokoro_onnx import Kokoro
             import soundfile as sf
             import numpy as np
 
-            # Kokoro pipeline: lang_code 'a' = American English
-            lang_code = 'a'  # 'a' = American, 'b' = British
-            if voice_id.startswith('b'):
-                lang_code = 'b'
+            # Initialize kokoro-onnx
+            # kokoro-onnx looks for kokoro-v0_19.onnx and voices.bin in package
+            kokoro = Kokoro()
 
-            pipeline = KPipeline(lang_code=lang_code)
-
-            # Generate audio - kokoro returns generator
-            # API varies by version: handle both (gs, ps, audio) and (audio,) forms
-            audio_chunks = []
-            generator = pipeline(
+            # Generate audio samples
+            samples, sample_rate = kokoro.create(
                 text,
                 voice=voice_id,
                 speed=speed,
-                split_pattern=r'\n+'
+                lang=lang_code,
             )
-            for chunk in generator:
-                # Support both tuple unpacking styles across kokoro versions
-                if isinstance(chunk, (list, tuple)):
-                    audio = chunk[-1]  # audio is always the last element
-                else:
-                    audio = chunk
-                if audio is not None:
-                    audio_chunks.append(audio)
 
-            if audio_chunks:
-                combined = np.concatenate(audio_chunks) if len(audio_chunks) > 1 else audio_chunks[0]
-                # Kokoro sample rate is 24000 Hz
-                sf.write(output_path, combined, 24000)
-                result['ok'] = True
-            else:
-                result['err'] = 'No audio generated'
+            # Apply pitch shift via resampling if pitch != 0
+            if pitch != 0 and len(samples) > 0:
+                # pitch shift: +1 = semitone up, -1 = semitone down
+                # Achieved by resampling: pitch up = speed up then resample back
+                pitch_factor = 2 ** (pitch / 12.0)  # semitones to ratio
+                original_len = len(samples)
+                # Stretch/compress
+                new_len = max(1, int(original_len / pitch_factor))
+                indices = np.linspace(0, original_len - 1, new_len)
+                samples = np.interp(indices, np.arange(original_len), samples).astype(np.float32)
+
+            sf.write(output_path, samples, sample_rate)
+            result['ok'] = True
 
         except ImportError as e:
             result['err'] = 'IMPORT_ERROR: ' + str(e)
@@ -667,15 +685,16 @@ def slider_to_gtts_slow(speed_pct):
 
 def pick_kokoro_voice(lang_name, gender):
     """
-    Get Kokoro voice ID for given language and gender.
-    Returns (voice_id, is_kokoro) tuple.
-    If language not supported by Kokoro, returns (None, False).
+    Get Kokoro voice ID and lang_code for given language and gender.
+    Returns (voice_id, lang_code, is_kokoro) tuple.
+    If language not supported by Kokoro, returns (None, None, False).
     """
     if lang_name in KOKORO_VOICES:
         voices = KOKORO_VOICES[lang_name]
         voice_id = voices[0] if gender == 'Male' else voices[1]
-        return voice_id, True
-    return None, False
+        lang_code = KOKORO_LANG_CODE.get(lang_name, 'a')
+        return voice_id, lang_code, True
+    return None, None, False
 
 
 def pick_gtts_params(lang_name, gender):
@@ -1140,7 +1159,7 @@ class LoadingScreen(Screen):
         root.add_widget(self.title_lbl)
 
         self.ver_lbl = Label(
-            text='v2.0  CYBER MINT EDITION  |  Kokoro TTS', font_size=sp(11), bold=True,
+            text='v2.1  CYBER MINT EDITION  |  kokoro-onnx TTS', font_size=sp(11), bold=True,
             color=hex_c(C_GREEN2), pos_hint={'center_x': 0.5, 'center_y': 0.43}, opacity=0,
         )
         root.add_widget(self.ver_lbl)
@@ -1449,7 +1468,7 @@ class SettingsScreen(Screen):
         card_border(engine_card, C_BORDER, 12)
         engine_card.add_widget(sec_header('TTS Engine Info'))
         for line in [
-            'Primary: Kokoro TTS (Offline, Neural)',
+            'Primary: kokoro-onnx TTS (Offline, Neural, Multilingual)',
             'English: True Male + Female voices',
             'Voice IDs: am_michael, af_heart, etc.',
             'Fallback: gTTS (Online, for other langs)',
@@ -1620,11 +1639,11 @@ class BatchQueueScreen(Screen):
                 os.makedirs(get_audio_folder(), exist_ok=True)
 
                 kokoro_speed = slider_to_kokoro_speed(speed_pct, emotion)
-                voice_id, use_kokoro = pick_kokoro_voice(lang, gender)
+                voice_id, kk_lang, use_kokoro = pick_kokoro_voice(lang, gender)
 
                 ok = False
                 if use_kokoro and voice_id:
-                    ok, err = kokoro_generate(text, voice_id, kokoro_speed, dest)
+                    ok, err = kokoro_generate(text, voice_id, kk_lang, kokoro_speed, 0, dest)
 
                 if not ok:
                     # gTTS fallback
@@ -2139,9 +2158,9 @@ class StudioScreen(Screen):
                 pass
 
         # Update engine badge
-        _, use_kokoro = pick_kokoro_voice(lang, self.voice_sel)
+        _, _kk_lang, use_kokoro = pick_kokoro_voice(lang, self.voice_sel)
         if use_kokoro:
-            self.engine_lbl.text = 'Engine: Kokoro TTS (Offline Neural)'
+            self.engine_lbl.text = 'Engine: kokoro-onnx (Offline Neural)'
             self.engine_lbl.color = hex_c(C_GREEN)
         else:
             self.engine_lbl.text = 'Engine: gTTS Fallback (Online)'
@@ -2172,10 +2191,10 @@ class StudioScreen(Screen):
                 b.color = hex_c(C_TEXT)
         # Update engine badge when gender changes
         lang = self.lang_spin.text if hasattr(self, 'lang_spin') else 'English'
-        _, use_kokoro = pick_kokoro_voice(lang, name)
+        _, _kk_lang, use_kokoro = pick_kokoro_voice(lang, name)
         if hasattr(self, 'engine_lbl'):
             if use_kokoro:
-                self.engine_lbl.text = 'Engine: Kokoro TTS (Offline Neural)'
+                self.engine_lbl.text = 'Engine: kokoro-onnx (Offline Neural)'
                 self.engine_lbl.color = hex_c(C_GREEN)
             else:
                 self.engine_lbl.text = 'Engine: gTTS Fallback (Online)'
@@ -2382,7 +2401,7 @@ class StudioScreen(Screen):
                 speed_pct = max(10, speed_pct - 5)
 
             kokoro_speed = slider_to_kokoro_speed(speed_pct, emotion)
-            voice_id, use_kokoro = pick_kokoro_voice(lang_name, gender)
+            voice_id, kk_lang, use_kokoro = pick_kokoro_voice(lang_name, gender)
 
             app = App.get_running_app()
             ext = 'wav' if use_kokoro else 'mp3'
@@ -2394,7 +2413,7 @@ class StudioScreen(Screen):
 
             if use_kokoro and voice_id:
                 Clock.schedule_once(lambda dt: self._upd(30, 'Kokoro: Generating ' + label + '...'))
-                ok, err = kokoro_generate(text, voice_id, kokoro_speed, out)
+                ok, err = kokoro_generate(text, voice_id, kk_lang, kokoro_speed, pitch_val, out)
                 if ok:
                     Clock.schedule_once(lambda dt: self._upd(90, 'Processing audio...'))
                     self.out_file = out
@@ -2443,7 +2462,7 @@ class StudioScreen(Screen):
 
         self._audio = SoundLoader.load(self.out_file)
         if engine == 'kokoro':
-            msg = 'Audio ready! Kokoro neural voice. Preview or Save.'
+            msg = 'Audio ready! kokoro-onnx neural voice. Preview or Save.'
         else:
             msg = 'Audio ready! (gTTS online mode). Preview or Save.'
         self._upd(100, msg)
