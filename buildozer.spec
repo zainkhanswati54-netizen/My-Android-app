@@ -7,33 +7,40 @@ package.domain = org.titanstudio
 
 # ── Source ──────────────────────────────────────────────────
 source.dir = .
-source.include_exts = py,png,jpg,kv,atlas,ttf
+source.include_exts = py,png,jpg,jpeg,kv,atlas,mp3,ttf,json,wav,pt,onnx
 source.exclude_dirs = tests, bin, build, .git, __pycache__, venv, .venv
 
 # ── Version ─────────────────────────────────────────────────
-version = 1.0.0
+version = 2.0.0
 
 # ── Requirements ────────────────────────────────────────────
-# IMPORTANT: List every Python package your app imports.
-# edge-tts requires aiohttp + aiofiles which need special recipes.
-# If edge-tts causes build issues, remove it - gTTS will be used as fallback.
-requirements = python3,kivy==2.3.0,gtts,requests,urllib3,certifi,charset-normalizer,idna,edge-tts,aiohttp,aiofiles,multidict,yarl,frozenlist,async-timeout,attrs
+# Kokoro TTS replaces edge-tts.
+# kokoro needs numpy, soundfile (libsndfile), and torch (or onnxruntime).
+# For Android, onnxruntime is lighter than torch.
+#
+# IMPORTANT: kokoro on Android uses onnxruntime backend.
+# If kokoro build fails, use the lightweight kokoro-onnx package:
+#   Change 'kokoro' to 'kokoro-onnx' below.
+#
+# soundfile on Android needs libsndfile.so - included via p4a recipe.
+# numpy is available as a p4a recipe.
+requirements = python3,kivy==2.3.0,gtts,requests,urllib3,certifi,charset-normalizer,idna,numpy,soundfile,kokoro
 
 # ── Orientation ─────────────────────────────────────────────
 orientation = portrait
 
 # ── Icon & Presplash ────────────────────────────────────────
-# Place your icon file (png, 512x512 recommended) in project root
-# and uncomment these lines:
-# icon.filename = %(source.dir)s/AI.png
+icon.filename = %(source.dir)s/AI.png
 # presplash.filename = %(source.dir)s/presplash.png
 
 # ── Android Permissions ─────────────────────────────────────
+# INTERNET needed for gTTS fallback (non-English languages)
+# WRITE/READ for saving audio files
 android.permissions = INTERNET, WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE, MANAGE_EXTERNAL_STORAGE
 
 # ── Android API Levels ──────────────────────────────────────
 # minapi 21 = Android 5.0+
-# target 33 = Android 13 (stable for most apps)
+# target 33 = Android 13
 android.minapi = 21
 android.ndk_api = 21
 android.api = 33
@@ -41,11 +48,9 @@ android.api = 33
 # ── Architecture ────────────────────────────────────────────
 # arm64-v8a  = modern phones (2016+), 64-bit
 # armeabi-v7a = older phones, 32-bit
-# Build both for maximum compatibility
 android.archs = arm64-v8a, armeabi-v7a
 
 # ── Android SDK/NDK ─────────────────────────────────────────
-# Buildozer auto-downloads these. Set versions explicitly for reproducibility.
 android.ndk = 25b
 android.sdk = 33
 
@@ -54,7 +59,6 @@ android.allow_backup = True
 android.wakelock = False
 
 # ── Entry Point ─────────────────────────────────────────────
-# The class name inside main.py that extends App
 android.entrypoint = org.kivy.android.PythonActivity
 
 # ── Fullscreen ──────────────────────────────────────────────
@@ -64,30 +68,26 @@ fullscreen = 0
 log_level = 2
 
 # ── p4a (python-for-android) ────────────────────────────────
-# Uncomment to use local p4a recipes directory
-# p4a.local_recipes = %(source.dir)s/p4a_recipes
-
-# p4a branch - use develop for latest fixes
+# Use develop branch for latest numpy/soundfile recipe fixes
 # p4a.branch = develop
 
-# Uncomment if you need to patch p4a source
-# p4a.source_dir = /path/to/python-for-android
+# ── Extra libs for soundfile (libsndfile) ───────────────────
+# android.add_libs_armeabi_v7a = libs/armeabi-v7a/libsndfile.so
+# android.add_libs_arm64_v8a   = libs/arm64-v8a/libsndfile.so
 
 [buildozer]
 
 # ── Build Directory ─────────────────────────────────────────
-# Where build artifacts are stored
 build_dir = ./.buildozer
 
 # ── Bin Directory ───────────────────────────────────────────
-# Where the final APK/AAB is placed
 bin_dir = ./bin
 
 # ── Warn on root ────────────────────────────────────────────
 warn_on_root = 1
 
 # ── Android Debug Key ───────────────────────────────────────
-# For release builds, set your keystore details here:
+# For release builds:
 # android.keystore = /path/to/your/keystore.jks
 # android.keystore_alias = your_alias
 # android.keystore_passwd = your_password
