@@ -29,7 +29,7 @@ version = 2.0.0
 # p4a uses its own numpy recipe from GitHub and does a git checkout
 # which fails if the version tag format doesn't match exactly.
 # Let p4a handle numpy version via its recipe automatically.
-requirements = python3,kivy==2.3.1,gtts,requests,urllib3,certifi,charset-normalizer,idna,numpy,soundfile,onnxruntime,kokoro
+requirements = python3,kivy==2.3.1,gtts,requests,urllib3,certifi,charset-normalizer,idna,numpy,soundfile,onnxruntime,kokoro-onnx
 
 # ── Orientation ─────────────────────────────────────────────
 orientation = portrait
