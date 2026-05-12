@@ -25,6 +25,41 @@ jobs:
           flutter-version: '3.22.0'
           channel: 'stable'
 
+      - name: Install Python dependencies
+        run: pip install Pillow
+
+      - name: Generate launcher icons   # ← NEW
+        working-directory: titan_v2
+        run: |
+          mkdir -p android/app/src/main/res/mipmap-mdpi
+          mkdir -p android/app/src/main/res/mipmap-hdpi
+          mkdir -p android/app/src/main/res/mipmap-xhdpi
+          mkdir -p android/app/src/main/res/mipmap-xxhdpi
+          mkdir -p android/app/src/main/res/mipmap-xxxhdpi
+          python3 << 'EOF'
+          from PIL import Image, ImageDraw
+          sizes = {
+              'mipmap-mdpi': 48, 'mipmap-hdpi': 72,
+              'mipmap-xhdpi': 96, 'mipmap-xxhdpi': 144, 'mipmap-xxxhdpi': 192,
+          }
+          for folder, size in sizes.items():
+              img = Image.new('RGBA', (size, size), (33, 150, 243, 255))
+              draw = ImageDraw.Draw(img)
+              draw.ellipse([size//4, size//4, 3*size//4, 3*size//4], fill=(255,255,255,255))
+              img.save(f"android/app/src/main/res/{folder}/ic_launcher.png")
+          print("All icons generated!")
+          EOF
+
+      - name: Create assets placeholder   # ← NEW
+        working-directory: titan_v2
+        run: |
+          mkdir -p assets/icons
+          python3 -c "
+          import base64
+          png = base64.b64decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==')
+          open('assets/icons/placeholder.png','wb').write(png)
+          "
+
       - name: Install dependencies
         working-directory: titan_v2
         run: flutter pub get
