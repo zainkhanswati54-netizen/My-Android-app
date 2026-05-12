@@ -1,6 +1,6 @@
 # ============================================================
 #  Titan Studio PRO - requirements.txt
-#  Version 14.0.0 - Python 3.14 Fix
+#  Version 15.0.0 - Python 3.14 Full Fix
 # ============================================================
 #
 #  INSTALL (PC/dev environment):
@@ -10,17 +10,19 @@
 #        buildozer.spec under [app] requirements = ...
 #        This file is for your development environment only.
 #
-#  CHANGELOG v14.0.0:
-#    - aiohttp pinned to ==3.10.11 (fixes Python 3.14 build crash)
-#      Errors fixed:
-#        * 'ma_version_tag' missing in PyDictObject
-#        * 'ob_digit' missing in _longobject struct
-#        * _PyLong_AsByteArray argument count mismatch
-#    - edge-tts pinned to ==6.1.9 for stability
+#  CHANGELOG:
+#    v14.0.0:
+#      - aiohttp pinned to ==3.10.11
+#        Fixes: 'ma_version_tag' / 'ob_digit' Python 3.14 crash
+#    v15.0.0:
+#      - kivy upgraded to ==2.3.1
+#        Fixes: 'too few arguments to function call, expected 6, have 5'
+#        Fixes: 'member reference type int is not a pointer'
+#        (All kivy Cython C files now Python 3.14 compatible)
 # ============================================================
 
 # ── UI Framework ────────────────────────────────────────────
-kivy==2.3.0
+kivy==2.3.1
 kivymd==1.2.0            # Optional - not used in current build
 
 # ── TTS Engine 1: Neural voices (primary) ───────────────────
