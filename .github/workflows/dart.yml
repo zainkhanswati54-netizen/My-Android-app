@@ -8,10 +8,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4 # Update to v4
+      - uses: actions/checkout@v4
       
       - name: Setup Java
-        uses: actions/setup-java@v4 # Update to v4
+        uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
           java-version: '17'
@@ -22,13 +22,16 @@ jobs:
           channel: 'stable'
 
       - name: Install dependencies
+        # Hum 'working-directory' use kar rahe hain taake GitHub folder ke andar jaye
         run: flutter pub get
+        working-directory: titan_flutter
 
       - name: Build APK
         run: flutter build apk --release
+        working-directory: titan_flutter
 
       - name: Upload APK
-        uses: actions/upload-artifact@v4 # Ye main error tha, ab v4 kar diya hai
+        uses: actions/upload-artifact@v4
         with:
           name: release-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
+          path: titan_flutter/build/app/outputs/flutter-apk/app-release.apk
