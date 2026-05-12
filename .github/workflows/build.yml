@@ -1,6 +1,6 @@
 # ============================================================
 #  Titan Studio PRO - GitHub Actions Build Workflow
-#  Version: 15.0.0 - Python 3.14 aiohttp Fix
+#  Version: 16.0.0 - kivy==2.3.1 Python 3.14 Fix
 # ============================================================
 
 name: Build Titan Studio PRO APK
@@ -78,11 +78,10 @@ jobs:
               grep -q 'android.sdk_path' buildozer.spec || \
                 echo 'android.sdk_path = /root/.buildozer/android/platform/android-sdk' >> buildozer.spec
 
-              # ── Step H: FIX - aiohttp version pin verify ─────
-              # Ensure aiohttp==3.10.11 is set (Python 3.14 fix)
-              echo '=== Verifying aiohttp version pin ==='
-              grep 'aiohttp' buildozer.spec
-              echo 'aiohttp pin: OK'
+              # ── Step H: Version pin verify ───────────────────
+              echo '=== Verifying version pins ==='
+              grep 'aiohttp' buildozer.spec && echo 'aiohttp pin: OK'
+              grep 'kivy' buildozer.spec && echo 'kivy pin: OK'
 
               # ── Step I: BUILD ─────────────────────────────────
               echo '=== STARTING BUILD ==='
@@ -107,7 +106,7 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: TitanStudioPRO-v14-debug
+          name: TitanStudioPRO-v15-debug
           path: bin/*.apk
           retention-days: 30
           if-no-files-found: error
