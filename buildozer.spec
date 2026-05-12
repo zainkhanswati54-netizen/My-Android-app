@@ -14,12 +14,11 @@ source.exclude_dirs = tests, bin, build, .git, __pycache__, venv, .venv
 version = 1.0.0
 
 # ── Requirements ────────────────────────────────────────────
-# FIX v1.2: aiohttp pinned to ==3.10.11 to fix Python 3.14 build errors:
-#   - 'ma_version_tag' missing in PyDictObject
-#   - 'ob_digit' missing in _longobject
-#   - _PyLong_AsByteArray argument mismatch
-# edge-tts pinned to ==6.1.9 for stability
-requirements = python3,kivy==2.3.0,gtts,requests,urllib3,certifi,charset-normalizer,idna,edge-tts==6.1.9,aiohttp==3.10.11,aiofiles,multidict,yarl,frozenlist,async-timeout,attrs
+# FIX v1.2: aiohttp pinned to ==3.10.11 (fixes Python 3.14 build errors)
+# FIX v1.3: kivy upgraded to ==2.3.1 (fixes Python 3.14 Cython C errors):
+#   - 'too few arguments to function call, expected 6, have 5'
+#   - 'member reference type int is not a pointer'
+requirements = python3,kivy==2.3.1,gtts,requests,urllib3,certifi,charset-normalizer,idna,edge-tts==6.1.9,aiohttp==3.10.11,aiofiles,multidict,yarl,frozenlist,async-timeout,attrs
 
 # ── Orientation ─────────────────────────────────────────────
 orientation = portrait
@@ -82,7 +81,7 @@ log_level = 2
 build_dir = ./.buildozer
 
 # ── Bin Directory ───────────────────────────────────────────
-# Where the final APK/AAB is placed
+# Where the final APK is placed
 bin_dir = ./bin
 
 # ── Warn on root ────────────────────────────────────────────
