@@ -25,49 +25,40 @@ jobs:
           flutter-version: '3.22.0'
           channel: 'stable'
 
-      - name: Create missing asset folders
+      - name: Setup Python & generate valid icons
         run: |
-          mkdir -p titan_v2_fixed/assets/icons
-          # Create a placeholder icon if missing
-          cd titan_v2_fixed/android/app/src/main/res
-          for dir in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
-            mkdir -p $dir
-            # Copy existing icon or create blank
-            if [ ! -f "$dir/ic_launcher.png" ]; then
-              cp ../drawable/launch_background.xml $dir/ 2>/dev/null || true
-            fi
-          done
+          pip install Pillow --quiet
+          python3 << 'PYEOF'
+import os
+from PIL import Image, ImageDraw
 
-      - name: Generate launcher icons
-        working-directory: titan_v2_fixed
-        run: |
-          # Download a simple green icon for all densities
-          curl -L "https://via.placeholder.com/48x48/10B981/ffffff.png" -o assets/icons/app_logo.png 2>/dev/null || \
-          python3 -c "
-          import struct, zlib
-          def png(w,h,color):
-              def chunk(t,d): c=zlib.crc32(t+d)&0xffffffff; return struct.pack('>I',len(d))+t+d+struct.pack('>I',c)
-              raw=b''.join(b'\x00'+bytes([color[0],color[1],color[2],255]*w) for _ in range(h))
-              return b'\x89PNG\r\n\x1a\n'+chunk(b'IHDR',struct.pack('>IIBBBBB',w,h,8,2,0,0,0))+chunk(b'IDAT',zlib.compress(raw))+chunk(b'IEND',b'')
-          with open('assets/icons/app_logo.png','wb') as f: f.write(png(512,512,(16,185,129)))
-          "
-          # Generate icons for each density
-          python3 -c "
-          import struct, zlib, os
-          def make_png(w,h,r,g,b):
-              def chunk(t,d):
-                  c=zlib.crc32(t+d)&0xffffffff
-                  return struct.pack('>I',len(d))+t+d+struct.pack('>I',c)
-              raw=b''.join(b'\x00'+bytes([r,g,b,255]*w) for _ in range(h))
-              return b'\x89PNG\r\n\x1a\n'+chunk(b'IHDR',struct.pack('>IIBBBBB',w,h,8,2,0,0,0))+chunk(b'IDAT',zlib.compress(raw))+chunk(b'IEND',b'')
-          sizes={'mipmap-mdpi':48,'mipmap-hdpi':72,'mipmap-xhdpi':96,'mipmap-xxhdpi':144,'mipmap-xxxhdpi':192}
-          base='android/app/src/main/res'
-          for d,s in sizes.items():
-              os.makedirs(f'{base}/{d}',exist_ok=True)
-              with open(f'{base}/{d}/ic_launcher.png','wb') as f:
-                  f.write(make_png(s,s,16,185,129))
-          print('Icons generated!')
-          "
+def make_icon(size):
+    img = Image.new('RGB', (size, size), (16, 185, 129))
+    draw = ImageDraw.Draw(img)
+    # White T letter
+    s = size
+    # horizontal bar
+    draw.rectangle([s//4, s//4, s*3//4, s//4 + s//8], fill=(255,255,255))
+    # vertical bar
+    draw.rectangle([s*7//16, s//4, s*9//16, s*3//4], fill=(255,255,255))
+    return img
+
+sizes = {
+    'mipmap-mdpi': 48,
+    'mipmap-hdpi': 72,
+    'mipmap-xhdpi': 96,
+    'mipmap-xxhdpi': 144,
+    'mipmap-xxxhdpi': 192,
+}
+base = 'titan_v2_fixed/android/app/src/main/res'
+os.makedirs('titan_v2_fixed/assets/icons', exist_ok=True)
+for folder, size in sizes.items():
+    os.makedirs(f'{base}/{folder}', exist_ok=True)
+    make_icon(size).save(f'{base}/{folder}/ic_launcher.png', 'PNG')
+    print(f'OK: {folder}/ic_launcher.png ({size}x{size})')
+make_icon(512).save('titan_v2_fixed/assets/icons/app_logo.png', 'PNG')
+print('OK: app_logo.png')
+PYEOF
 
       - name: Install dependencies
         working-directory: titan_v2_fixed
