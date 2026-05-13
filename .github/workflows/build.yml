@@ -1,0 +1,85 @@
+name: Build Titan Studio PRO APK
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.22.0'
+          channel: 'stable'
+
+      - name: Create missing asset folders
+        run: |
+          mkdir -p titan_v2_fixed/assets/icons
+          # Create a placeholder icon if missing
+          cd titan_v2_fixed/android/app/src/main/res
+          for dir in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
+            mkdir -p $dir
+            # Copy existing icon or create blank
+            if [ ! -f "$dir/ic_launcher.png" ]; then
+              cp ../drawable/launch_background.xml $dir/ 2>/dev/null || true
+            fi
+          done
+
+      - name: Generate launcher icons
+        working-directory: titan_v2_fixed
+        run: |
+          # Download a simple green icon for all densities
+          curl -L "https://via.placeholder.com/48x48/10B981/ffffff.png" -o assets/icons/app_logo.png 2>/dev/null || \
+          python3 -c "
+          import struct, zlib
+          def png(w,h,color):
+              def chunk(t,d): c=zlib.crc32(t+d)&0xffffffff; return struct.pack('>I',len(d))+t+d+struct.pack('>I',c)
+              raw=b''.join(b'\x00'+bytes([color[0],color[1],color[2],255]*w) for _ in range(h))
+              return b'\x89PNG\r\n\x1a\n'+chunk(b'IHDR',struct.pack('>IIBBBBB',w,h,8,2,0,0,0))+chunk(b'IDAT',zlib.compress(raw))+chunk(b'IEND',b'')
+          with open('assets/icons/app_logo.png','wb') as f: f.write(png(512,512,(16,185,129)))
+          "
+          # Generate icons for each density
+          python3 -c "
+          import struct, zlib, os
+          def make_png(w,h,r,g,b):
+              def chunk(t,d):
+                  c=zlib.crc32(t+d)&0xffffffff
+                  return struct.pack('>I',len(d))+t+d+struct.pack('>I',c)
+              raw=b''.join(b'\x00'+bytes([r,g,b,255]*w) for _ in range(h))
+              return b'\x89PNG\r\n\x1a\n'+chunk(b'IHDR',struct.pack('>IIBBBBB',w,h,8,2,0,0,0))+chunk(b'IDAT',zlib.compress(raw))+chunk(b'IEND',b'')
+          sizes={'mipmap-mdpi':48,'mipmap-hdpi':72,'mipmap-xhdpi':96,'mipmap-xxhdpi':144,'mipmap-xxxhdpi':192}
+          base='android/app/src/main/res'
+          for d,s in sizes.items():
+              os.makedirs(f'{base}/{d}',exist_ok=True)
+              with open(f'{base}/{d}/ic_launcher.png','wb') as f:
+                  f.write(make_png(s,s,16,185,129))
+          print('Icons generated!')
+          "
+
+      - name: Install dependencies
+        working-directory: titan_v2_fixed
+        run: flutter pub get
+
+      - name: Build APK
+        working-directory: titan_v2_fixed
+        run: flutter build apk --release --no-tree-shake-icons
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: TitanStudioPRO-v2-release
+          path: titan_v2_fixed/build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 30
