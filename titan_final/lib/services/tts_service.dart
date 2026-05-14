@@ -26,18 +26,17 @@ class TtsService {
       final langConfig = kLanguages[language];
       if (langConfig == null) return TtsResult.error('Invalid language');
 
-      // ── FIX: Use correct voice key from language config ──
+      // ── Voice key from language config ──
       final voiceKey = gender == 'Male'
           ? langConfig.maleVoice
           : langConfig.femaleVoice;
 
-      // ── FIX: Character overrides gender/voice ──
+      // ── Character overrides gender/voice ──
       String finalCharacter = character;
       String finalVoice = voiceKey;
       if (character.isNotEmpty) {
         final charCfg = kCharacters[character];
         if (charCfg != null) {
-          // Use character's own gender voice
           final charLangCfg = kLanguages[language]!;
           finalVoice = charCfg.gender == 'Male'
               ? charLangCfg.maleVoice
@@ -45,7 +44,7 @@ class TtsService {
         }
       }
 
-      // ── FIX: Preset applies on top, does not clear character ──
+      // ── Preset applies on top, does not clear character ──
       if (preset.isNotEmpty && character.isEmpty) {
         finalCharacter = '';
       }
@@ -54,32 +53,20 @@ class TtsService {
       int pitch = pitchVal * 15;
       int volume = _emotionVolume(emotion);
 
-      // ── FIX: Adaptive pacing actually works ──
+      // ── Adaptive pacing for long text ──
       if (adaptivePacing && text.length > 300) {
         rate = _speedToRate((speedPct - 8).clamp(10, 100), emotion);
       }
 
-      // ── FIX: Ultra-low latency — shorter text chunk ──
+      // ── FIX: SSML Mode — wrap text in <speak> tag ──
+      // Server-side SSML parser will handle the tags correctly.
+      // XTTS tags ko strip karta hai lekin hints use karta hai.
       String processedText = text;
-      if (lowLatency && text.length > 100) {
-        processedText = text.substring(0, 100);
-      }
-
-      // ── FIX: SSML mode — wrap text ──
       if (ssmlMode && !processedText.contains('<speak>')) {
-        processedText = processedText; // server handles emotion via param
+        processedText = '<speak>$processedText</speak>';
       }
 
-      // ── FIX: Dynamic breath simulation ──
-      if (useBreaths) {
-        // Add natural pause markers at punctuation
-        processedText = processedText
-            .replaceAll('. ', '.  ')
-            .replaceAll('، ', '،  ')
-            .replaceAll(', ', ',  ');
-      }
-
-      // ── FIX: Urdu → transliterate to make XTTS pronounce correctly ──
+      // ── Urdu → normalize for XTTS pronunciation ──
       if (language == 'Urdu') {
         processedText = _urduToArabicPronunciation(processedText);
       }
@@ -93,19 +80,19 @@ class TtsService {
         volume: volume,
         character: finalCharacter,
         preset: preset,
+        // ── FIX: Teen features ab server ko properly bhej rahe hain ──
+        useBreaths: useBreaths,
+        ssmlMode: ssmlMode,
+        lowLatency: lowLatency,
       );
     } catch (e) {
       return TtsResult.error('Generation failed: $e');
     }
   }
 
-  // ── FIX: Urdu text preprocessing for XTTS ──────────
-  // XTTS v2 uses Hindi engine for Urdu. We normalize
-  // Urdu-specific chars to standard Arabic/Devanagari
-  // so the model pronounces them correctly.
+  // ── Urdu text preprocessing for XTTS ──────────
   static String _urduToArabicPronunciation(String text) {
     return text
-        // Normalize Urdu-specific letters to Arabic equivalents
         .replaceAll('ک', 'ك')
         .replaceAll('ی', 'ي')
         .replaceAll('ے', 'ي')
@@ -129,6 +116,10 @@ class TtsService {
     required int volume,
     String character = '',
     String preset = '',
+    // ── FIX: Teen naye parameters ──
+    bool useBreaths = false,
+    bool ssmlMode = false,
+    bool lowLatency = false,
   }) async {
     try {
       final hasNet = await _checkInternet();
@@ -146,13 +137,22 @@ class TtsService {
         'volume':  volume.toString(),
         if (character.isNotEmpty) 'character': character,
         if (preset.isNotEmpty)    'preset':    preset,
+        // ── FIX 1: Dynamic Breath Simulation → server ko bhejo ──
+        if (useBreaths)  'use_breaths': 'true',
+        // ── FIX 2: SSML Mode → server ko bhejo ──
+        if (ssmlMode)    'ssml_mode':   'true',
+        // ── FIX 3: Ultra-Low Latency → server ko bhejo ──
+        if (lowLatency)  'low_latency': 'true',
       };
 
       final uri = Uri.parse(_apiBase).replace(queryParameters: params);
 
-      // Coqui is slow — 120 second timeout
-      final response =
-          await http.get(uri).timeout(const Duration(seconds: 120));
+      // Low latency mode mein timeout 60s, normal mein 120s
+      final timeout = lowLatency
+          ? const Duration(seconds: 60)
+          : const Duration(seconds: 120);
+
+      final response = await http.get(uri).timeout(timeout);
 
       if (response.statusCode == 200 && response.bodyBytes.length > 500) {
         final file = await _saveTemp(response.bodyBytes, '.wav');
@@ -194,17 +194,14 @@ class TtsService {
     return f;
   }
 
-  // ── FIX: Save to Downloads folder (visible in file manager) ──
+  // ── Save to Downloads folder (visible in file manager) ──
   static Future<File> savePermanent(File temp, String filename) async {
-    // Try Downloads directory first (visible in file manager)
     Directory? saveDir;
 
     if (Platform.isAndroid) {
-      // Android external Downloads — visible in file manager
       saveDir = Directory('/storage/emulated/0/Download/TitanStudioPRO');
     }
 
-    // Fallback to app documents
     saveDir ??= Directory(
         '${(await getApplicationDocumentsDirectory()).path}/TitanStudioPRO/Audio');
 
