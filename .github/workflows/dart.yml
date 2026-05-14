@@ -32,16 +32,16 @@ jobs:
         run: python3 generate_icons.py
 
       - name: Install dependencies
-        working-directory: TitanStudioPRO_v3_FIXED
+        working-directory: titan_v2_fixed
         run: flutter pub get
 
       - name: Build APK
-        working-directory: TitanStudioPRO_v3_FIXED
+        working-directory: titan_v2_fixed
         run: flutter build apk --release --no-tree-shake-icons
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: TitanStudioPRO-v3-release
-          path: TitanStudioPRO_v3_FIXED/build/app/outputs/flutter-apk/app-release.apk
+          path: titan_v2_fixed/build/app/outputs/flutter-apk/app-release.apk
           retention-days: 30
