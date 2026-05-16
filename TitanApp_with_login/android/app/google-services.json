@@ -1,5 +1,0 @@
-{
-  "__INSTRUCTIONS__": "Yahan apna actual google-services.json rakho — FIREBASE_SETUP.md guide dekho",
-  "__STEP__": "Firebase Console → Android App → Download google-services.json",
-  "project_info": { "project_id": "YOUR_PROJECT_ID" }
-}
