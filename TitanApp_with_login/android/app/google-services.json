@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "611473805842",
-    "project_id": "titanstudiopro",
-    "storage_bucket": "titanstudiopro.firebasestorage.app"
+    "project_number": "621140150167",
+    "project_id": "titanstudiopro-ec4f3",
+    "storage_bucket": "titanstudiopro-ec4f3.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:611473805842:android:d3d5c3e0c76e92d2fa3ecb",
+        "mobilesdk_app_id": "1:621140150167:android:c5f6f8ea29c3ce597b26d2",
         "android_client_info": {
           "package_name": "com.example.titan_studio_pro"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyBpzxDqu36Maolfa4FdpZ70EIwDJTz-wss"
+          "current_key": "AIzaSyCmMIeT5KQFjskzXNnxh_6WXHbqxSZWCFw"
         }
       ],
       "services": {
