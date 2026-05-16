@@ -1,7 +1,8 @@
 import 'package:firebase_auth/firebase_auth.dart';
 
 class AuthService {
-  static final _auth        = FirebaseAuth.instance;
+  static final _auth = FirebaseAuth.instance;
+
   // ── Current user ──────────────────────────────────────────
   static User? get currentUser => _auth.currentUser;
   static Stream<User?> get authStateChanges => _auth.authStateChanges();
@@ -17,7 +18,6 @@ class AuthService {
         email: email.trim(),
         password: password,
       );
-      // Set display name
       await cred.user?.updateDisplayName(displayName.trim());
       await cred.user?.reload();
       return AuthResult.success(cred.user!);
@@ -60,28 +60,27 @@ class AuthService {
 
   // ── Sign Out ──────────────────────────────────────────────
   static Future<void> signOut() async {
-    await _googleSignIn.signOut();
     await _auth.signOut();
   }
 
-  // ── Firebase error codes → human readable ─────────────────
+  // ── Firebase error → human readable ──────────────────────
   static String _friendlyError(String code) {
     switch (code) {
-      case 'user-not-found':        return 'No account found with this email.';
-      case 'wrong-password':        return 'Incorrect password. Please try again.';
-      case 'email-already-in-use':  return 'This email is already registered.';
-      case 'weak-password':         return 'Password must be at least 6 characters.';
-      case 'invalid-email':         return 'Please enter a valid email address.';
-      case 'user-disabled':         return 'This account has been disabled.';
-      case 'too-many-requests':     return 'Too many attempts. Please try again later.';
-      case 'network-request-failed':return 'No internet connection.';
-      case 'invalid-credential':    return 'Invalid email or password.';
-      default:                      return 'Something went wrong. Please try again.';
+      case 'user-not-found':         return 'No account found with this email.';
+      case 'wrong-password':         return 'Incorrect password. Please try again.';
+      case 'email-already-in-use':   return 'This email is already registered.';
+      case 'weak-password':          return 'Password must be at least 6 characters.';
+      case 'invalid-email':          return 'Please enter a valid email address.';
+      case 'user-disabled':          return 'This account has been disabled.';
+      case 'too-many-requests':      return 'Too many attempts. Please try again later.';
+      case 'network-request-failed': return 'No internet connection.';
+      case 'invalid-credential':     return 'Invalid email or password.';
+      default:                       return 'Something went wrong. Please try again.';
     }
   }
 }
 
-// ── Result wrapper ─────────────────────────────────────────
+// ── Result wrapper ────────────────────────────────────────
 class AuthResult {
   final bool ok;
   final User? user;
