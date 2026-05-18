@@ -1,0 +1,55 @@
+{
+  "project_info": {
+    "project_number": "621140150167",
+    "project_id": "titanstudiopro-ec4f3",
+    "storage_bucket": "titanstudiopro-ec4f3.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:621140150167:android:c5f6f8ea29c3ce597b26d2",
+        "android_client_info": {
+          "package_name": "com.example.titan_studio_pro"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "621140150167-gq3sff5vt8v6m8fgdercm4fj803dc3qu.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.titan_studio_pro",
+            "certificate_hash": "ff49da055aaffd058da95a9e81cbfbcccdff049f"
+          }
+        },
+        {
+          "client_id": "621140150167-m29srm69hs5834kmuft0jdtu699qt6ok.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.titan_studio_pro",
+            "certificate_hash": "64f559522df399724ccdac117885b931f497348d"
+          }
+        },
+        {
+          "client_id": "621140150167-ffeofj2oud6bbgm68fb9324bij8poeo4.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCmMIeT5KQFjskzXNnxh_6WXHbqxSZWCFw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "621140150167-ffeofj2oud6bbgm68fb9324bij8poeo4.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
