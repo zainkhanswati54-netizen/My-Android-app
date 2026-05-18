@@ -19,16 +19,9 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
-      - name: Print DEBUG SHA-1 (Firebase ke liye)
+      - name: Generate keystore and print SHA-1
         run: |
-          echo "========================================="
-          echo "  FIREBASE SHA-1 FINGERPRINT:"
-          echo "========================================="
-          keytool -list -v \
-            -keystore ~/.android/debug.keystore \
-            -alias androiddebugkey \
-            -storepass android \
-            -keypass android 2>/dev/null | grep -E "SHA1:|SHA256:" || \
+          mkdir -p ~/.android
           keytool -genkey -v \
             -keystore ~/.android/debug.keystore \
             -storepass android \
@@ -37,7 +30,10 @@ jobs:
             -dname "CN=Android Debug,O=Android,C=US" \
             -keyalg RSA \
             -keysize 2048 \
-            -validity 10000 2>/dev/null && \
+            -validity 10000
+          echo "========================================="
+          echo "  FIREBASE SHA-1 ADD KARO:"
+          echo "========================================="
           keytool -list -v \
             -keystore ~/.android/debug.keystore \
             -alias androiddebugkey \
@@ -63,15 +59,11 @@ jobs:
           PUBSPEC=$(find . -name "pubspec.yaml" -not -path "*/.*" | head -1)
           PROJECT_DIR=$(dirname "$PUBSPEC")
           echo "project_dir=$PROJECT_DIR" >> $GITHUB_OUTPUT
-          echo "Found project at: $PROJECT_DIR"
 
-      - name: Verify google-services.json exists
+      - name: Verify google-services.json
         run: |
           FILE=$(find . -name "google-services.json" | head -1)
-          if [ -z "$FILE" ]; then
-            echo "❌ google-services.json not found!"
-            exit 1
-          fi
+          if [ -z "$FILE" ]; then echo "❌ Not found!"; exit 1; fi
           echo "✅ Found: $FILE"
 
       - name: Install dependencies
