@@ -6,6 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/studio_screen.dart';
+import 'screens/suspended_screen.dart';
 import 'services/auth_service.dart';
 import 'services/admin_service.dart';
 import 'utils/constants.dart';
@@ -86,6 +87,8 @@ class _AuthGateState extends State<_AuthGate> {
   bool _inactiveLogout = false;
   bool _maintenance    = false;
   String _maintenanceMsg = 'App is under maintenance. Please check back later.';
+  bool _suspended      = false;
+  String _suspendReason = '';
   User? _user;
 
   // Periodic timer — checks maintenance every 20 sec while app is open
@@ -111,6 +114,7 @@ class _AuthGateState extends State<_AuthGate> {
     } catch (_) {}
 
     await _checkMaintenance();
+    await _checkSuspension();
 
     _user = FirebaseAuth.instance.currentUser;
 
@@ -121,7 +125,10 @@ class _AuthGateState extends State<_AuthGate> {
     _maintenanceTimer?.cancel();
     _maintenanceTimer = Timer.periodic(
       const Duration(seconds: 20),
-      (_) => _checkMaintenance(),
+      (_) async {
+        await _checkMaintenance();
+        await _checkSuspension();
+      },
     );
   }
 
@@ -133,6 +140,21 @@ class _AuthGateState extends State<_AuthGate> {
         setState(() {
           _maintenance    = m.enabled;
           _maintenanceMsg = m.message;
+        });
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _checkSuspension() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+      final data = await AdminService.getUserData(user.uid)
+          .timeout(const Duration(seconds: 8));
+      if (mounted) {
+        setState(() {
+          _suspended     = data['banned'] == true;
+          _suspendReason = data['suspendReason'] ?? '';
         });
       }
     } catch (_) {}
@@ -199,6 +221,9 @@ class _AuthGateState extends State<_AuthGate> {
     }
 
     final user = FirebaseAuth.instance.currentUser;
+    if (user != null && _suspended) {
+      return SuspendedScreen(reason: _suspendReason);
+    }
     if (user != null && !_inactiveLogout) {
       return const StudioScreen();
     }

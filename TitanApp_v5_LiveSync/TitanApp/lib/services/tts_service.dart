@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:typed_data';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import '../utils/constants.dart';
@@ -202,6 +203,7 @@ class TtsService {
           await f.writeAsBytes(bytes, flush: true);
           if (await f.exists() && await f.length() >= 500) {
             dest = f;
+            await _scanFile(dest.path); // ← media scan: file appears instantly
             break;
           }
         } catch (_) { continue; }
@@ -224,6 +226,14 @@ class TtsService {
     return dest;
   }
 
+
+  static const _mediaChannel = MethodChannel('titan/media_scan');
+
+  static Future<void> _scanFile(String path) async {
+    try {
+      await _mediaChannel.invokeMethod('scanFile', {'path': path});
+    } catch (_) {}
+  }
 
   static Future<String> getAudioFolder() async {
     if (Platform.isAndroid) {

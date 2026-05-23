@@ -1287,8 +1287,85 @@ class _UsersTabState extends State<_UsersTab> {
             child: _UserTile(
               user: u,
               onBan: () async {
-                await AdminService.banUser(u.uid, !u.banned);
-                _load();
+                if (!u.banned) {
+                  // Suspending: show dialog to enter reason
+                  final reasonCtrl = TextEditingController();
+                  final confirmed = await showDialog<bool>(
+                    context: context,
+                    builder: (_) => AlertDialog(
+                      backgroundColor: cBg2,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16)),
+                      title: const Text('Suspend Account',
+                          style: TextStyle(
+                              color: cText, fontWeight: FontWeight.w800)),
+                      content: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Suspending: ${u.displayName.isNotEmpty ? u.displayName : u.email}',
+                            style: const TextStyle(fontSize: 13, color: cText2),
+                          ),
+                          const SizedBox(height: 16),
+                          const Text('Reason (optional):',
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  color: cMuted,
+                                  fontWeight: FontWeight.w600)),
+                          const SizedBox(height: 8),
+                          TextField(
+                            controller: reasonCtrl,
+                            maxLines: 3,
+                            style: const TextStyle(color: cText, fontSize: 13),
+                            decoration: InputDecoration(
+                              hintText: 'e.g. Violated terms of service...',
+                              hintStyle: const TextStyle(
+                                  color: cMuted, fontSize: 12),
+                              filled: true,
+                              fillColor: cSurface,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                                borderSide: const BorderSide(color: cBorder),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                                borderSide: const BorderSide(color: cRed),
+                              ),
+                              contentPadding: const EdgeInsets.all(12),
+                            ),
+                          ),
+                        ],
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, false),
+                          child: const Text('Cancel',
+                              style: TextStyle(color: cMuted)),
+                        ),
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, true),
+                          child: const Text('Suspend',
+                              style: TextStyle(
+                                  color: cRed,
+                                  fontWeight: FontWeight.w700)),
+                        ),
+                      ],
+                    ),
+                  );
+                  if (confirmed == true) {
+                    await AdminService.banUser(
+                      u.uid,
+                      true,
+                      reason: reasonCtrl.text.trim(),
+                    );
+                    _load();
+                  }
+                } else {
+                  // Unsuspending: no dialog needed
+                  await AdminService.banUser(u.uid, false);
+                  _load();
+                }
               },
             ),
           )),
@@ -1423,6 +1500,33 @@ class _UserTile extends StatelessWidget {
             const Icon(Icons.copy_rounded, color: cMuted, size: 12),
           ]),
         ),
+        // Suspend reason chip
+        if (user.banned && user.suspendReason.isNotEmpty) ...[
+          const SizedBox(height: 6),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: cRed.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: cRed.withOpacity(0.25)),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.info_outline_rounded, color: cRed, size: 12),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    user.suspendReason,
+                    style: const TextStyle(
+                        fontSize: 11, color: cText2, height: 1.4),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ]),
     );
   }

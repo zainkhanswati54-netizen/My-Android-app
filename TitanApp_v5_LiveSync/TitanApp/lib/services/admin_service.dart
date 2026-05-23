@@ -197,8 +197,15 @@ class AdminService {
     }
   }
 
-  static Future<bool> banUser(String uid, bool banned) async {
-    return await _patch('admin/users/$uid', {'banned': banned});
+  static Future<Map<String, dynamic>> getUserData(String uid) async {
+    final data = await _get('admin/users/$uid');
+    return data ?? {};
+  }
+
+  static Future<bool> banUser(String uid, bool banned, {String reason = ''}) async {    return await _patch('admin/users/$uid', {
+      'banned': banned,
+      'suspendReason': banned ? reason : '',
+    });
   }
 
   static Future<bool> setPremiumUser(String uid, bool premium) async {
@@ -413,6 +420,7 @@ class AdminUserRecord {
   final int createdAt;
   final bool isPremium;
   final bool banned;
+  final String suspendReason;
   final int totalRequests;
   final int todayRequests;
 
@@ -424,6 +432,7 @@ class AdminUserRecord {
     required this.createdAt,
     this.isPremium = false,
     this.banned = false,
+    this.suspendReason = '',
     this.totalRequests = 0,
     this.todayRequests = 0,
   });
@@ -437,6 +446,7 @@ class AdminUserRecord {
         createdAt: m['createdAt'] ?? 0,
         isPremium: m['isPremium'] == true,
         banned: m['banned'] == true,
+        suspendReason: m['suspendReason'] ?? '',
         totalRequests: m['totalRequests'] ?? 0,
         todayRequests: m['todayRequests'] ?? 0,
       );
