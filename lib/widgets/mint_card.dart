@@ -106,7 +106,9 @@ class _MintBtnState extends State<MintBtn> with SingleTickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
-    final bg = widget.disabled ? cMuted : (widget.bg ?? cGreen);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final defaultBg = isDark ? cGreen : cLAccent;
+    final bg = widget.disabled ? (isDark ? cMuted : cLMuted) : (widget.bg ?? defaultBg);
     final fg = widget.fg ?? Colors.white;
     return ScaleTransition(
       scale: _scale,

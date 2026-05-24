@@ -184,10 +184,15 @@ class _HistoryState extends State<HistoryScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    backgroundColor: cBg,
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor   = isDark ? cBg   : cLBg;
+    final bg2Color  = isDark ? cBg2  : cLBg2;
+    final textColor = isDark ? cText : cLText;
+    return Scaffold(
+    backgroundColor: bgColor,
     appBar: AppBar(
-      backgroundColor: cBg2, elevation: 0, foregroundColor: cText,
+      backgroundColor: bg2Color, elevation: 0, foregroundColor: textColor,
       title: const Text('Download History',
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: cText)),
       actions: [
