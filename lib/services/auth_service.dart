@@ -120,7 +120,7 @@ class AuthService {
       final googleAuth = await googleUser.authentication;
       if (googleAuth.idToken == null) {
         return AuthResult.error(
-            'Google auth failed. Please add SHA1 fingerprint in Firebase Console.');
+            'Google sign-in failed. Please try again or use email login.');
       }
       final credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
@@ -139,7 +139,7 @@ class AuthService {
       final s = e.toString();
       if (s.contains('10:') || s.contains('DEVELOPER_ERROR')) {
         return AuthResult.error(
-            'SHA1 fingerprint missing. Add it in Firebase → Project Settings → Your App.');
+            'Google sign-in is not available right now. Please use email login.');
       }
       return AuthResult.error('Google sign-in failed. Please try again.');
     }

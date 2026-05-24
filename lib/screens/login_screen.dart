@@ -11,7 +11,7 @@ import 'admin_dashboard_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   final bool showInactiveMessage;
-  final String? prefillEmail; // Account switcher se aaya hua email
+  final String? prefillEmail;
   const LoginScreen({super.key, this.showInactiveMessage = false, this.prefillEmail});
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -41,7 +41,6 @@ class _LoginScreenState extends State<LoginScreen>
     _slideAnim = Tween<Offset>(begin: const Offset(0, 0.08), end: Offset.zero)
         .animate(CurvedAnimation(parent: _animCtrl, curve: Curves.easeOut));
     _animCtrl.forward();
-    // Account switcher se aaya hua email pre-fill karo
     if (widget.prefillEmail != null && widget.prefillEmail!.isNotEmpty) {
       _emailCtrl.text = widget.prefillEmail!;
     }
@@ -55,7 +54,6 @@ class _LoginScreenState extends State<LoginScreen>
     super.dispose();
   }
 
-  // ── Internet check ───────────────────────────────────────
   Future<bool> _hasInternet() async {
     try {
       final r = await InternetAddress.lookup('google.com')
@@ -68,10 +66,11 @@ class _LoginScreenState extends State<LoginScreen>
 
   void _showNoInternet() {
     setState(() => _errorMsg = null);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        backgroundColor: Theme.of(context).colorScheme.surface,
+        backgroundColor: isDark ? cBg2 : cLCard,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         content: Column(mainAxisSize: MainAxisSize.min, children: [
           Container(
@@ -84,12 +83,14 @@ class _LoginScreenState extends State<LoginScreen>
             child: const Icon(Icons.wifi_off_rounded, color: cAmber, size: 30),
           ),
           const SizedBox(height: 16),
-          const Text('No Internet Connection',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: cText),
+          Text('No Internet Connection',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800,
+                  color: isDark ? cText : cLText),
               textAlign: TextAlign.center),
           const SizedBox(height: 8),
-          const Text('Please turn on WiFi or mobile data to continue.',
-              style: TextStyle(fontSize: 13, color: cText2, height: 1.5),
+          Text('Please turn on WiFi or mobile data to continue.',
+              style: TextStyle(fontSize: 13,
+                  color: isDark ? cText2 : cLText2, height: 1.5),
               textAlign: TextAlign.center),
           const SizedBox(height: 20),
           GestureDetector(
@@ -110,7 +111,6 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
-  // ── Email Login ───────────────────────────────────────────
   Future<void> _loginEmail() async {
     if (!_formKey.currentState!.validate()) return;
     if (!await _hasInternet()) { _showNoInternet(); return; }
@@ -131,7 +131,6 @@ class _LoginScreenState extends State<LoginScreen>
     }
   }
 
-  // ── Forgot Password ───────────────────────────────────────
   Future<void> _forgotPassword() async {
     final email = _emailCtrl.text.trim();
     if (email.isEmpty) {
@@ -140,18 +139,20 @@ class _LoginScreenState extends State<LoginScreen>
     }
     final result = await AuthService.sendPasswordReset(email);
     if (!mounted) return;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(result.ok
           ? 'Reset link sent to $email'
           : result.error ?? 'Failed'),
-      backgroundColor: result.ok ? cGreen : cRed,
+      backgroundColor: result.ok
+          ? (isDark ? cGreen : cLGreen)
+          : (isDark ? cRed : cLRed),
       behavior: SnackBarBehavior.floating,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       margin: const EdgeInsets.all(12),
     ));
   }
 
-  // ── Google Sign-In ───────────────────────────────────────
   Future<void> _loginGoogle() async {
     if (!await _hasInternet()) { _showNoInternet(); return; }
     setState(() => _googleLoading = true);
@@ -178,8 +179,20 @@ class _LoginScreenState extends State<LoginScreen>
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    // Theme-aware colors
+    final bgColor     = isDark ? cBg      : cLBg;
+    final cardColor   = isDark ? cCard    : cLCard;
+    final textColor   = isDark ? cText    : cLText;
+    final text2Color  = isDark ? cText2   : cLText2;
+    final mutedColor  = isDark ? cMuted   : cLMuted;
+    final borderColor = isDark ? cBorder  : cLBorder;
+    final accentColor = isDark ? cGreen   : cLAccent;
+    final redColor    = isDark ? cRed     : cLRed;
+
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: bgColor,
       body: SafeArea(
         child: FadeTransition(
           opacity: _fadeAnim,
@@ -194,17 +207,17 @@ class _LoginScreenState extends State<LoginScreen>
                   children: [
                     const SizedBox(height: 60),
 
-                    // ── Logo + Title ──────────────────────────
+                    // ── Logo ──────────────────────────
                     Center(
                       child: Container(
                         width: 80, height: 80,
                         decoration: BoxDecoration(
-                          color: cCard,
+                          color: cardColor,
                           borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: cBorder),
+                          border: Border.all(color: borderColor),
                           boxShadow: [
                             BoxShadow(
-                              color: cGreen.withOpacity(0.25),
+                              color: accentColor.withOpacity(isDark ? 0.25 : 0.15),
                               blurRadius: 30,
                               offset: const Offset(0, 8),
                             ),
@@ -215,12 +228,12 @@ class _LoginScreenState extends State<LoginScreen>
                           child: Image.asset(
                             'assets/icons/logo.png',
                             fit: BoxFit.contain,
-                            errorBuilder: (_, __, ___) => const Center(
+                            errorBuilder: (_, __, ___) => Center(
                               child: Text('T',
                                   style: TextStyle(
                                       fontSize: 40,
                                       fontWeight: FontWeight.w900,
-                                      color: Colors.white)),
+                                      color: textColor)),
                             ),
                           ),
                         ),
@@ -229,16 +242,16 @@ class _LoginScreenState extends State<LoginScreen>
 
                     const SizedBox(height: 20),
 
-                    const Text(
+                    Text(
                       'Welcome Back',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 26, fontWeight: FontWeight.w800,
-                        color: cText,
+                        color: textColor,
                       ),
                     ),
                     const SizedBox(height: 6),
-                    _SecretTitleText(),
+                    _SecretTitleText(textColor: mutedColor),
 
                     const SizedBox(height: 40),
 
@@ -252,11 +265,11 @@ class _LoginScreenState extends State<LoginScreen>
                           border: Border.all(
                               color: const Color(0xFFFF9800).withOpacity(0.4)),
                         ),
-                        child: const Row(children: [
-                          Icon(Icons.access_time_rounded,
+                        child: Row(children: [
+                          const Icon(Icons.access_time_rounded,
                               color: Color(0xFFFF9800), size: 18),
-                          SizedBox(width: 10),
-                          Expanded(
+                          const SizedBox(width: 10),
+                          const Expanded(
                             child: Text(
                               'You were logged out due to 7 days of inactivity.',
                               style: TextStyle(
@@ -273,32 +286,38 @@ class _LoginScreenState extends State<LoginScreen>
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: cRed.withOpacity(0.08),
+                          color: redColor.withOpacity(0.08),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: cRed.withOpacity(0.3)),
+                          border: Border.all(color: redColor.withOpacity(0.3)),
                         ),
                         child: Row(children: [
-                          const Icon(Icons.error_outline_rounded,
-                              color: cRed, size: 18),
+                          Icon(Icons.error_outline_rounded,
+                              color: redColor, size: 18),
                           const SizedBox(width: 10),
                           Expanded(child: Text(_errorMsg!,
-                              style: const TextStyle(
-                                  fontSize: 13, color: cRed))),
+                              style: TextStyle(
+                                  fontSize: 13, color: redColor))),
                         ]),
                       ),
                       const SizedBox(height: 16),
                     ],
 
                     // ── Email field ───────────────────────────
-                    _buildLabel('Email'),
+                    _buildLabel('Email', text2Color),
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: _emailCtrl,
                       keyboardType: TextInputType.emailAddress,
-                      style: const TextStyle(color: cText, fontSize: 15),
+                      style: TextStyle(color: textColor, fontSize: 15),
                       decoration: _inputDecor(
                           hint: 'you@example.com',
-                          icon: Icons.email_outlined),
+                          icon: Icons.email_outlined,
+                          isDark: isDark,
+                          cardColor: cardColor,
+                          borderColor: borderColor,
+                          accentColor: accentColor,
+                          mutedColor: mutedColor,
+                          redColor: redColor),
                       validator: (v) {
                         if (v == null || v.trim().isEmpty) {
                           return 'Email is required';
@@ -311,21 +330,27 @@ class _LoginScreenState extends State<LoginScreen>
                     const SizedBox(height: 18),
 
                     // ── Password field ────────────────────────
-                    _buildLabel('Password'),
+                    _buildLabel('Password', text2Color),
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: _passwordCtrl,
                       obscureText: _obscurePass,
-                      style: const TextStyle(color: cText, fontSize: 15),
+                      style: TextStyle(color: textColor, fontSize: 15),
                       decoration: _inputDecor(
                         hint: '••••••••',
                         icon: Icons.lock_outline_rounded,
+                        isDark: isDark,
+                        cardColor: cardColor,
+                        borderColor: borderColor,
+                        accentColor: accentColor,
+                        mutedColor: mutedColor,
+                        redColor: redColor,
                         suffix: IconButton(
                           icon: Icon(
                             _obscurePass
                                 ? Icons.visibility_outlined
                                 : Icons.visibility_off_outlined,
-                            color: cMuted, size: 20,
+                            color: mutedColor, size: 20,
                           ),
                           onPressed: () =>
                               setState(() => _obscurePass = !_obscurePass),
@@ -347,10 +372,10 @@ class _LoginScreenState extends State<LoginScreen>
                         style: TextButton.styleFrom(
                             padding: const EdgeInsets.symmetric(
                                 vertical: 4, horizontal: 0)),
-                        child: const Text('Forgot password?',
+                        child: Text('Forgot password?',
                             style: TextStyle(
                                 fontSize: 13,
-                                color: cGreen,
+                                color: accentColor,
                                 fontWeight: FontWeight.w600)),
                       ),
                     ),
@@ -362,22 +387,23 @@ class _LoginScreenState extends State<LoginScreen>
                       label: 'Sign In',
                       loading: _loading,
                       onTap: _loginEmail,
+                      isDark: isDark,
                     ),
 
                     const SizedBox(height: 20),
 
                     // ── OR divider ────────────────────────────
                     Row(children: [
-                      Expanded(child: Container(height: 1, color: cBorder)),
+                      Expanded(child: Container(height: 1, color: borderColor)),
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 14),
                         child: Text('OR',
                             style: TextStyle(
                                 fontSize: 12,
-                                color: cMuted,
+                                color: mutedColor,
                                 fontWeight: FontWeight.w600)),
                       ),
-                      Expanded(child: Container(height: 1, color: cBorder)),
+                      Expanded(child: Container(height: 1, color: borderColor)),
                     ]),
 
                     const SizedBox(height: 16),
@@ -386,31 +412,34 @@ class _LoginScreenState extends State<LoginScreen>
                     _GoogleButton(
                       loading: _googleLoading,
                       onTap: _loginGoogle,
+                      isDark: isDark,
+                      cardColor: cardColor,
+                      borderColor: borderColor,
+                      textColor: textColor,
+                      accentColor: accentColor,
                     ),
 
                     const SizedBox(height: 24),
 
                     // ── Register link ─────────────────────────
                     Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                      const Text("Don't have an account? ",
-                          style: TextStyle(fontSize: 14, color: cMuted)),
+                      Text("Don't have an account? ",
+                          style: TextStyle(fontSize: 14, color: mutedColor)),
                       GestureDetector(
                         onTap: () => Navigator.push(
                           context,
                           MaterialPageRoute(
                               builder: (_) => const RegisterScreen()),
                         ),
-                        child: const Text('Sign Up',
+                        child: Text('Sign Up',
                             style: TextStyle(
                                 fontSize: 14,
-                                color: cGreen,
+                                color: accentColor,
                                 fontWeight: FontWeight.w700)),
                       ),
                     ]),
 
                     const SizedBox(height: 40),
-
-                    const SizedBox(height: 20),
                   ],
                 ),
               ),
@@ -421,47 +450,53 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
-  Widget _buildLabel(String text) => Text(
+  Widget _buildLabel(String text, Color color) => Text(
     text,
-    style: const TextStyle(
-        fontSize: 13, fontWeight: FontWeight.w600, color: cText2),
+    style: TextStyle(
+        fontSize: 13, fontWeight: FontWeight.w600, color: color),
   );
 
   InputDecoration _inputDecor({
     required String hint,
     required IconData icon,
+    required bool isDark,
+    required Color cardColor,
+    required Color borderColor,
+    required Color accentColor,
+    required Color mutedColor,
+    required Color redColor,
     Widget? suffix,
   }) =>
       InputDecoration(
         hintText: hint,
-        hintStyle: TextStyle(color: cMuted.withOpacity(0.6), fontSize: 14),
-        prefixIcon: Icon(icon, color: cMuted, size: 20),
+        hintStyle: TextStyle(color: mutedColor.withOpacity(0.6), fontSize: 14),
+        prefixIcon: Icon(icon, color: mutedColor, size: 20),
         suffixIcon: suffix,
         filled: true,
-        fillColor: cCard,
+        fillColor: cardColor,
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: cBorder),
+          borderSide: BorderSide(color: borderColor),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: cBorder),
+          borderSide: BorderSide(color: borderColor),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: cGreen, width: 1.5),
+          borderSide: BorderSide(color: accentColor, width: 1.5),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: cRed),
+          borderSide: BorderSide(color: redColor),
         ),
         focusedErrorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: cRed, width: 1.5),
+          borderSide: BorderSide(color: redColor, width: 1.5),
         ),
-        errorStyle: const TextStyle(color: cRed, fontSize: 12),
+        errorStyle: TextStyle(color: redColor, fontSize: 12),
       );
 }
 
@@ -469,62 +504,74 @@ class _LoginScreenState extends State<LoginScreen>
 class _GreenButton extends StatelessWidget {
   final String label;
   final bool loading;
+  final bool isDark;
   final VoidCallback onTap;
   const _GreenButton(
-      {required this.label, required this.loading, required this.onTap});
+      {required this.label, required this.loading,
+       required this.onTap, required this.isDark});
 
   @override
-  Widget build(BuildContext context) => GestureDetector(
-        onTap: loading ? null : () {
-          HapticFeedback.lightImpact();
-          onTap();
-        },
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          height: 54,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: loading
-                  ? [cMuted, cMuted2]
-                  : [cGreen, cGreen2],
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight,
-            ),
-            borderRadius: BorderRadius.circular(14),
-            boxShadow: loading
-                ? []
-                : [
-                    BoxShadow(
-                        color: cGreen.withOpacity(0.40),
-                        blurRadius: 20,
-                        offset: const Offset(0, 6)),
-                    BoxShadow(
-                        color: cGreen.withOpacity(0.15),
-                        blurRadius: 35,
-                        spreadRadius: 2),
-                  ],
+  Widget build(BuildContext context) {
+    final accentColor = isDark ? cGreen : cLAccent;
+    final accent2Color = isDark ? cGreen2 : cLAccent2;
+    return GestureDetector(
+      onTap: loading ? null : () {
+        HapticFeedback.lightImpact();
+        onTap();
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        height: 54,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: loading
+                ? [cMuted, isDark ? cMuted2 : const Color(0xFFD1D5DB)]
+                : [accentColor, accent2Color],
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
           ),
-          child: Center(
-            child: loading
-                ? const SizedBox(
-                    width: 22, height: 22,
-                    child: CircularProgressIndicator(
-                        color: Colors.white, strokeWidth: 2.5))
-                : Text(label,
-                    style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white)),
-          ),
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: loading
+              ? []
+              : [
+                  BoxShadow(
+                      color: accentColor.withOpacity(0.35),
+                      blurRadius: 20,
+                      offset: const Offset(0, 6)),
+                ],
         ),
-      );
+        child: Center(
+          child: loading
+              ? const SizedBox(
+                  width: 22, height: 22,
+                  child: CircularProgressIndicator(
+                      color: Colors.white, strokeWidth: 2.5))
+              : Text(label,
+                  style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white)),
+        ),
+      ),
+    );
+  }
 }
 
 // ── Google sign-in button ─────────────────────────────────────
 class _GoogleButton extends StatelessWidget {
   final bool loading;
+  final bool isDark;
+  final Color cardColor;
+  final Color borderColor;
+  final Color textColor;
+  final Color accentColor;
   final VoidCallback onTap;
-  const _GoogleButton({required this.loading, required this.onTap});
+  const _GoogleButton({
+    required this.loading, required this.onTap,
+    required this.isDark, required this.cardColor,
+    required this.borderColor, required this.textColor,
+    required this.accentColor,
+  });
 
   @override
   Widget build(BuildContext context) => GestureDetector(
@@ -532,30 +579,36 @@ class _GoogleButton extends StatelessWidget {
         child: Container(
           height: 54,
           decoration: BoxDecoration(
-            color: cCard,
+            color: cardColor,
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: cBorder),
+            border: Border.all(color: borderColor),
+            boxShadow: isDark ? [] : [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.06),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
           child: Center(
             child: loading
-                ? const SizedBox(
+                ? SizedBox(
                     width: 22, height: 22,
                     child: CircularProgressIndicator(
-                        color: cGreen, strokeWidth: 2.5))
+                        color: accentColor, strokeWidth: 2.5))
                 : Row(mainAxisSize: MainAxisSize.min, children: [
-                    // Official Google logo from assets
                     Image.asset(
                       'assets/icons/google_logo.png',
                       width: 22,
                       height: 22,
                     ),
                     const SizedBox(width: 12),
-                    const Text(
+                    Text(
                       'Continue with Google',
                       style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w600,
-                          color: cText),
+                          color: textColor),
                     ),
                   ]),
           ),
@@ -563,15 +616,13 @@ class _GoogleButton extends StatelessWidget {
       );
 }
 
-
-
-
 // ═══════════════════════════════════════════════════════
-//  SECRET ADMIN — "Sign in to Titan Studio PRO" text
-//  10 taps → Admin Dashboard (PIN protected)
+//  SECRET ADMIN — 10 taps on subtitle → Admin Dashboard
 // ═══════════════════════════════════════════════════════
 
 class _SecretTitleText extends StatefulWidget {
+  final Color textColor;
+  const _SecretTitleText({required this.textColor});
   @override
   State<_SecretTitleText> createState() => _SecretTitleTextState();
 }
@@ -600,16 +651,15 @@ class _SecretTitleTextState extends State<_SecretTitleText> {
 
   @override
   Widget build(BuildContext context) {
-    // Completely invisible tap area - zero visual feedback
     return GestureDetector(
       onTap: _onTap,
       behavior: HitTestBehavior.opaque,
-      child: const Text(
+      child: Text(
         'Sign in to Titan Studio PRO',
         textAlign: TextAlign.center,
         style: TextStyle(
           fontSize: 14,
-          color: cMuted,
+          color: widget.textColor,
           fontWeight: FontWeight.w400,
         ),
       ),

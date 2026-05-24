@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../services/auth_service.dart';
 import '../utils/constants.dart';
 import 'studio_screen.dart';
 import 'login_screen.dart';
+import 'terms_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -22,6 +24,7 @@ class _RegisterScreenState extends State<RegisterScreen>
   bool _googleLoading  = false;
   bool _obscurePass   = true;
   bool _obscureConf   = true;
+  bool _agreeTerms    = false;
   String? _errorMsg;
 
   late AnimationController _animCtrl;
@@ -51,6 +54,10 @@ class _RegisterScreenState extends State<RegisterScreen>
 
   Future<void> _register() async {
     if (!_formKey.currentState!.validate()) return;
+    if (!_agreeTerms) {
+      setState(() => _errorMsg = 'Please agree to the Terms & Conditions to continue.');
+      return;
+    }
     setState(() { _loading = true; _errorMsg = null; });
 
     final result = await AuthService.registerWithEmail(
@@ -95,12 +102,17 @@ class _RegisterScreenState extends State<RegisterScreen>
 
   @override
   Widget build(BuildContext context) {
+    final isDark    = Theme.of(context).brightness == Brightness.dark;
+    final bgColor   = isDark ? cBg    : cLBg;
+    final textColor = isDark ? cText  : cLText;
+    final mutedColor= isDark ? cMuted : cLMuted;
+
     return Scaffold(
-      backgroundColor: cBg,
+      backgroundColor: bgColor,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        foregroundColor: cText,
+        foregroundColor: textColor,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_rounded, size: 20),
           onPressed: () => Navigator.pop(context),
@@ -121,39 +133,41 @@ class _RegisterScreenState extends State<RegisterScreen>
                     const SizedBox(height: 10),
 
                     // ── Title ─────────────────────────────────
-                    const Text(
+                    Text(
                       'Create Account',
                       style: TextStyle(
                           fontSize: 26,
                           fontWeight: FontWeight.w800,
-                          color: cText),
+                          color: textColor),
                     ),
                     const SizedBox(height: 6),
-                    const Text(
+                    Text(
                       'Join Titan Studio PRO — Always Free',
-                      style: TextStyle(fontSize: 14, color: cMuted),
+                      style: TextStyle(fontSize: 14, color: mutedColor),
                     ),
 
                     const SizedBox(height: 32),
-
                     // ── Error box ─────────────────────────────
                     if (_errorMsg != null) ...[
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: cRed.withOpacity(0.08),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: cRed.withOpacity(0.3)),
-                        ),
-                        child: Row(children: [
-                          const Icon(Icons.error_outline_rounded,
-                              color: cRed, size: 18),
-                          const SizedBox(width: 10),
-                          Expanded(child: Text(_errorMsg!,
-                              style:
-                                  const TextStyle(fontSize: 13, color: cRed))),
-                        ]),
-                      ),
+                      Builder(builder: (ctx) {
+                        final dk = Theme.of(ctx).brightness == Brightness.dark;
+                        final red = dk ? cRed : cLRed;
+                        return Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: red.withOpacity(0.08),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: red.withOpacity(0.3)),
+                          ),
+                          child: Row(children: [
+                            Icon(Icons.error_outline_rounded,
+                                color: red, size: 18),
+                            const SizedBox(width: 10),
+                            Expanded(child: Text(_errorMsg!,
+                                style: TextStyle(fontSize: 13, color: red))),
+                          ]),
+                        );
+                      }),
                       const SizedBox(height: 16),
                     ],
 
@@ -163,7 +177,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                     TextFormField(
                       controller: _nameCtrl,
                       textCapitalization: TextCapitalization.words,
-                      style: const TextStyle(color: cText, fontSize: 15),
+                      style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 15),
                       decoration: _inputDecor(
                           hint: 'Your full name',
                           icon: Icons.person_outline_rounded),
@@ -183,7 +197,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                     TextFormField(
                       controller: _emailCtrl,
                       keyboardType: TextInputType.emailAddress,
-                      style: const TextStyle(color: cText, fontSize: 15),
+                      style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 15),
                       decoration: _inputDecor(
                           hint: 'you@example.com',
                           icon: Icons.email_outlined),
@@ -204,7 +218,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                     TextFormField(
                       controller: _passwordCtrl,
                       obscureText: _obscurePass,
-                      style: const TextStyle(color: cText, fontSize: 15),
+                      style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 15),
                       decoration: _inputDecor(
                         hint: 'Min. 6 characters',
                         icon: Icons.lock_outline_rounded,
@@ -213,7 +227,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                             _obscurePass
                                 ? Icons.visibility_outlined
                                 : Icons.visibility_off_outlined,
-                            color: cMuted, size: 20,
+                            color: Theme.of(context).brightness == Brightness.dark ? cMuted : cLMuted, size: 20,
                           ),
                           onPressed: () =>
                               setState(() => _obscurePass = !_obscurePass),
@@ -234,7 +248,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                     TextFormField(
                       controller: _confirmCtrl,
                       obscureText: _obscureConf,
-                      style: const TextStyle(color: cText, fontSize: 15),
+                      style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 15),
                       decoration: _inputDecor(
                         hint: 'Re-enter password',
                         icon: Icons.lock_outline_rounded,
@@ -243,7 +257,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                             _obscureConf
                                 ? Icons.visibility_outlined
                                 : Icons.visibility_off_outlined,
-                            color: cMuted, size: 20,
+                            color: Theme.of(context).brightness == Brightness.dark ? cMuted : cLMuted, size: 20,
                           ),
                           onPressed: () =>
                               setState(() => _obscureConf = !_obscureConf),
@@ -263,6 +277,71 @@ class _RegisterScreenState extends State<RegisterScreen>
 
                     const SizedBox(height: 28),
 
+                    // ── Terms & Conditions checkbox ───────────
+                    Builder(builder: (context) {
+                      final isDark = Theme.of(context).brightness == Brightness.dark;
+                      final accent = isDark ? cGreen : cLAccent;
+                      final text2  = isDark ? cText2 : cLText2;
+                      final border = isDark ? cBorder : cLBorder;
+                      return GestureDetector(
+                        onTap: () => setState(() => _agreeTerms = !_agreeTerms),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              width: 22, height: 22,
+                              decoration: BoxDecoration(
+                                color: _agreeTerms ? accent : Colors.transparent,
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                    color: _agreeTerms ? accent : border,
+                                    width: 2),
+                              ),
+                              child: _agreeTerms
+                                  ? const Icon(Icons.check_rounded,
+                                      color: Colors.white, size: 14)
+                                  : null,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: RichText(
+                                text: TextSpan(
+                                  style: TextStyle(
+                                      fontSize: 13, color: text2, height: 1.5),
+                                  children: [
+                                    const TextSpan(text: 'I agree to the '),
+                                    WidgetSpan(
+                                      child: GestureDetector(
+                                        onTap: () => Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (_) => const TermsScreen(mustAccept: false),
+                                          ),
+                                        ),
+                                        child: Text(
+                                          'Terms & Conditions',
+                                          style: TextStyle(
+                                            color: accent,
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    const TextSpan(
+                                        text: ' and Privacy Policy of Titan Studio PRO'),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }),
+
+                    const SizedBox(height: 20),
+
                     // ── Register button ───────────────────────
                     _GreenButton(
                       label: 'Create Account',
@@ -273,18 +352,21 @@ class _RegisterScreenState extends State<RegisterScreen>
                     const SizedBox(height: 20),
 
                     // ── OR divider ────────────────────────────
-                    Row(children: [
-                      Expanded(child: Container(height: 1, color: cBorder)),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 14),
-                        child: Text('OR',
-                            style: TextStyle(
-                                fontSize: 12,
-                                color: cMuted,
-                                fontWeight: FontWeight.w600)),
-                      ),
-                      Expanded(child: Container(height: 1, color: cBorder)),
-                    ]),
+                    Builder(builder: (ctx) {
+                      final dk = Theme.of(ctx).brightness == Brightness.dark;
+                      return Row(children: [
+                        Expanded(child: Container(height: 1, color: dk ? cBorder : cLBorder)),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 14),
+                          child: Text('OR',
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  color: dk ? cMuted : cLMuted,
+                                  fontWeight: FontWeight.w600)),
+                        ),
+                        Expanded(child: Container(height: 1, color: dk ? cBorder : cLBorder)),
+                      ]);
+                    }),
                     const SizedBox(height: 16),
 
                     _GoogleButton(
@@ -295,22 +377,25 @@ class _RegisterScreenState extends State<RegisterScreen>
                     const SizedBox(height: 24),
 
                     // ── Login link ────────────────────────────
-                    Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                      const Text('Already have an account? ',
-                          style: TextStyle(fontSize: 14, color: cMuted)),
-                      GestureDetector(
-                        onTap: () => Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                              builder: (_) => const LoginScreen()),
+                    Builder(builder: (ctx) {
+                      final dk = Theme.of(ctx).brightness == Brightness.dark;
+                      return Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                        Text('Already have an account? ',
+                            style: TextStyle(fontSize: 14, color: dk ? cMuted : cLMuted)),
+                        GestureDetector(
+                          onTap: () => Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => const LoginScreen()),
+                          ),
+                          child: Text('Sign In',
+                              style: TextStyle(
+                                  fontSize: 14,
+                                  color: dk ? cGreen : cLAccent,
+                                  fontWeight: FontWeight.w700)),
                         ),
-                        child: const Text('Sign In',
-                            style: TextStyle(
-                                fontSize: 14,
-                                color: cGreen,
-                                fontWeight: FontWeight.w700)),
-                      ),
-                    ]),
+                      ]);
+                    }),
 
                     const SizedBox(height: 40),
                   ],
@@ -323,48 +408,59 @@ class _RegisterScreenState extends State<RegisterScreen>
     );
   }
 
-  Widget _buildLabel(String text) => Text(
-        text,
-        style: const TextStyle(
-            fontSize: 13, fontWeight: FontWeight.w600, color: cText2),
-      );
+  Widget _buildLabel(String text) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Text(
+      text,
+      style: TextStyle(
+          fontSize: 13, fontWeight: FontWeight.w600,
+          color: isDark ? cText2 : cLText2),
+    );
+  }
 
   InputDecoration _inputDecor({
     required String hint,
     required IconData icon,
     Widget? suffix,
-  }) =>
-      InputDecoration(
-        hintText: hint,
-        hintStyle: TextStyle(color: cMuted.withOpacity(0.6), fontSize: 14),
-        prefixIcon: Icon(icon, color: cMuted, size: 20),
-        suffixIcon: suffix,
-        filled: true,
-        fillColor: cCard,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: cBorder),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: cBorder),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: cGreen, width: 1.5),
-        ),
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: cRed),
-        ),
-        focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: cRed, width: 1.5),
-        ),
-        errorStyle: const TextStyle(color: cRed, fontSize: 12),
-      );
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardColor   = isDark ? cCard   : cLCard;
+    final borderColor = isDark ? cBorder : cLBorder;
+    final accentColor = isDark ? cGreen  : cLAccent;
+    final mutedColor  = isDark ? cMuted  : cLMuted;
+    final redColor    = isDark ? cRed    : cLRed;
+    return InputDecoration(
+      hintText: hint,
+      hintStyle: TextStyle(color: mutedColor.withOpacity(0.6), fontSize: 14),
+      prefixIcon: Icon(icon, color: mutedColor, size: 20),
+      suffixIcon: suffix,
+      filled: true,
+      fillColor: cardColor,
+      contentPadding:
+          const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide(color: borderColor),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide(color: borderColor),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide(color: accentColor, width: 1.5),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide(color: redColor),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide(color: redColor, width: 1.5),
+      ),
+      errorStyle: TextStyle(color: redColor, fontSize: 12),
+    );
+  }
 }
 
 // ── Reusable widgets (same as login_screen) ───────────────────
@@ -376,38 +472,48 @@ class _GreenButton extends StatelessWidget {
       {required this.label, required this.loading, required this.onTap});
 
   @override
-  Widget build(BuildContext context) => GestureDetector(
-        onTap: loading ? null : onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          height: 54,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-                colors: loading ? [cMuted, cMuted2] : [cGreen, cGreen2]),
-            borderRadius: BorderRadius.circular(14),
-            boxShadow: loading
-                ? []
-                : [
-                    BoxShadow(
-                        color: cGreen.withOpacity(0.35),
-                        blurRadius: 16,
-                        offset: const Offset(0, 6))
-                  ],
-          ),
-          child: Center(
-            child: loading
-                ? const SizedBox(
-                    width: 22, height: 22,
-                    child: CircularProgressIndicator(
-                        color: Colors.white, strokeWidth: 2.5))
-                : Text(label,
-                    style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white)),
-          ),
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accent = isDark ? cGreen : cLAccent;
+    final accent2 = isDark ? cGreen2 : cLAccent2;
+    return GestureDetector(
+      onTap: loading ? null : () {
+        HapticFeedback.lightImpact();
+        onTap();
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        height: 54,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+              colors: loading
+                  ? [cMuted, isDark ? cMuted2 : const Color(0xFFD1D5DB)]
+                  : [accent, accent2]),
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: loading
+              ? []
+              : [
+                  BoxShadow(
+                      color: accent.withOpacity(0.35),
+                      blurRadius: 16,
+                      offset: const Offset(0, 6))
+                ],
         ),
-      );
+        child: Center(
+          child: loading
+              ? const SizedBox(
+                  width: 22, height: 22,
+                  child: CircularProgressIndicator(
+                      color: Colors.white, strokeWidth: 2.5))
+              : Text(label,
+                  style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white)),
+        ),
+      ),
+    );
+  }
 }
 
 class _GoogleButton extends StatelessWidget {
@@ -416,56 +522,48 @@ class _GoogleButton extends StatelessWidget {
   const _GoogleButton({required this.loading, required this.onTap});
 
   @override
-  Widget build(BuildContext context) => GestureDetector(
-        onTap: loading ? null : onTap,
-        child: Container(
-          height: 54,
-          decoration: BoxDecoration(
-            color: cCard,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: cBorder),
-          ),
-          child: Center(
-            child: loading
-                ? const SizedBox(
-                    width: 22, height: 22,
-                    child: CircularProgressIndicator(
-                        color: cGreen, strokeWidth: 2.5))
-                : Row(mainAxisSize: MainAxisSize.min, children: [
-                    SizedBox(
-                        width: 22,
-                        height: 22,
-                        child: CustomPaint(painter: _GoogleLogoPainter())),
-                    const SizedBox(width: 12),
-                    const Text('Continue with Google',
-                        style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                            color: cText)),
-                  ]),
-          ),
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = isDark ? cCard : cLCard;
+    final borderColor = isDark ? cBorder : cLBorder;
+    final textColor = isDark ? cText : cLText;
+    final accentColor = isDark ? cGreen : cLAccent;
+    return GestureDetector(
+      onTap: loading ? null : onTap,
+      child: Container(
+        height: 54,
+        decoration: BoxDecoration(
+          color: cardColor,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: borderColor),
+          boxShadow: isDark ? [] : [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.06),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
-      );
-}
-
-class _GoogleLogoPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final w = size.width;
-    final cx = w / 2;
-    final cy = w / 2;
-    final r = w * 0.44;
-    final sw = w * 0.165;
-    final rect = Rect.fromCircle(center: Offset(cx, cy), radius: r);
-    const pi = 3.14159265358979;
-    Paint p(Color c) => Paint()..color = c..style = PaintingStyle.stroke..strokeWidth = sw..strokeCap = StrokeCap.butt;
-    canvas.drawArc(rect, -35 * pi / 180, 80 * pi / 180, false, p(const Color(0xFF4285F4)));
-    canvas.drawArc(rect, -120 * pi / 180, 85 * pi / 180, false, p(const Color(0xFFEA4335)));
-    canvas.drawArc(rect, 160 * pi / 180, 85 * pi / 180, false, p(const Color(0xFFFBBC05)));
-    canvas.drawArc(rect, 45 * pi / 180, 115 * pi / 180, false, p(const Color(0xFF34A853)));
-    canvas.drawCircle(Offset(cx, cy), r - sw / 2 - 0.5, Paint()..color = const Color(0xFF1A2E21));
-    canvas.drawRect(Rect.fromLTRB(cx, cy - sw / 2, cx + r + sw / 2, cy + sw / 2), Paint()..color = const Color(0xFF4285F4));
+        child: Center(
+          child: loading
+              ? SizedBox(
+                  width: 22, height: 22,
+                  child: CircularProgressIndicator(
+                      color: accentColor, strokeWidth: 2.5))
+              : Row(mainAxisSize: MainAxisSize.min, children: [
+                  Image.asset(
+                    'assets/icons/google_logo.png',
+                    width: 22, height: 22,
+                  ),
+                  const SizedBox(width: 12),
+                  Text('Continue with Google',
+                      style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: textColor)),
+                ]),
+        ),
+      ),
+    );
   }
-  @override
-  bool shouldRepaint(_) => false;
 }
