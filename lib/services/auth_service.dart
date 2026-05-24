@@ -140,10 +140,15 @@ class AuthService {
     } catch (e) {
       final s = e.toString();
       if (s.contains('10:') || s.contains('DEVELOPER_ERROR')) {
-        return AuthResult.error(
-            'Google sign-in setup incomplete. Add SHA-1 fingerprint in Firebase Console → Project Settings → Your App.');
+        return AuthResult.error('Error 10: SHA-1 mismatch. Code: ${s.substring(0, s.length > 100 ? 100 : s.length)}');
       }
-      return AuthResult.error('Google sign-in failed. Please try again.');
+      if (s.contains('network') || s.contains('Network')) {
+        return AuthResult.error('Network error. Check your internet connection.');
+      }
+      if (s.contains('canceled') || s.contains('cancelled')) {
+        return AuthResult.error('Sign-in cancelled.');
+      }
+      return AuthResult.error('Google error: ${s.substring(0, s.length > 120 ? 120 : s.length)}');
     }
   }
 

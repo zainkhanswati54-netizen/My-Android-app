@@ -66,7 +66,6 @@ class _LoginScreenState extends State<LoginScreen>
 
   void _showNoInternet() {
     setState(() => _errorMsg = null);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
@@ -139,7 +138,6 @@ class _LoginScreenState extends State<LoginScreen>
     }
     final result = await AuthService.sendPasswordReset(email);
     if (!mounted) return;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(result.ok
           ? 'Reset link sent to $email'
@@ -179,9 +177,7 @@ class _LoginScreenState extends State<LoginScreen>
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    // Theme-aware colors
+    // Dark theme colors
     final bgColor     = cBg;
     final cardColor   = cCard;
     final textColor   = cText;
