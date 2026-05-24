@@ -8,7 +8,9 @@ import 'history_service.dart';
 
 class AuthService {
   static final _auth         = FirebaseAuth.instance;
-  static final _googleSignIn = GoogleSignIn();
+  static final _googleSignIn = GoogleSignIn(
+    serverClientId: '621140150167-ffeofj2oud6bbgm68fb9324bij8poeo4.apps.googleusercontent.com',
+  );
   static const _lastLoginKey = 'last_login_timestamp';
   static const _inactiveDays = 7;
 
