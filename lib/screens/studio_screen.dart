@@ -73,6 +73,9 @@ class _StudioState extends State<StudioScreen>
   // UX helpers
   String _langSearch     = '';
   bool   _showAllChars   = false;
+  bool   _advancedOpen   = false;  // Advanced options collapsed by default
+  bool   _genderOpen     = false;  // Gender collapsed by default
+  bool   _speedPitchOpen = false;  // Speed/Pitch collapsed by default
 
   // ── Admin: disabled characters from Firebase ──
   Set<String> _disabledChars = {};
@@ -1040,88 +1043,99 @@ class _StudioState extends State<StudioScreen>
 
       const SizedBox(height: 10),
 
-      // ── GENDER CARD (full width, horizontal pills) ──────────────
-      MintCard(
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const SectionHeader('Gender'),
-          const SizedBox(height: 10),
-          Row(children: ['Male', 'Female'].map((g) {
-            final sel = _gender == g;
-            final locked = _character.isNotEmpty;
-            final isMale = g == 'Male';
-            return Expanded(
-              child: Padding(
-                padding: EdgeInsets.only(
-                  right: g == 'Male' ? 6 : 0,
-                  left: g == 'Female' ? 6 : 0,
+      // ── GENDER CARD — Collapsible ──────────────────
+      Builder(builder: (gCtx) {
+        final isDkG = Theme.of(gCtx).brightness == Brightness.dark;
+        final accentG = isDkG ? cGreen : cLAccent;
+        final textG   = isDkG ? cText  : cLText;
+        final mutedG  = isDkG ? cMuted : cLMuted;
+        final borderG = isDkG ? cBorder: cLBorder;
+        final surfG   = isDkG ? cSurface: cLSurface;
+        final cardG   = isDkG ? cCard2 : cLCard2;
+        final locked  = _character.isNotEmpty;
+        return MintCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          GestureDetector(
+            onTap: () => setState(() => _genderOpen = !_genderOpen),
+            child: Row(children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: accentG.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                child: GestureDetector(
-                  onTap: locked ? null : () => setState(() => _gender = g),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    curve: Curves.easeOutCubic,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: sel
-                          ? accentColor.withOpacity(0.15)
-                          : (locked ? bgCard : bgSurface),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: sel
-                            ? accentColor
-                            : (locked
-                                ? borderCol.withOpacity(0.25)
-                                : borderCol),
-                        width: sel ? 1.5 : 1,
-                      ),
-                      boxShadow: sel
-                          ? [BoxShadow(
-                              color: accentColor.withOpacity(0.18),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            )]
-                          : [],
+                child: Icon(
+                  _gender == 'Male' ? Icons.male_rounded : Icons.female_rounded,
+                  size: 16, color: accentG),
+              ),
+              const SizedBox(width: 10),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('Gender', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: textG)),
+                Text(locked ? '$_gender  •  Set by character' : _gender,
+                  style: TextStyle(fontSize: 11, color: mutedG)),
+              ])),
+              AnimatedRotation(
+                turns: _genderOpen ? 0.5 : 0,
+                duration: const Duration(milliseconds: 250),
+                child: Icon(Icons.keyboard_arrow_down_rounded, color: accentG, size: 22),
+              ),
+            ]),
+          ),
+          AnimatedCrossFade(
+            duration: const Duration(milliseconds: 300),
+            crossFadeState: _genderOpen ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+            firstChild: const SizedBox.shrink(),
+            secondChild: Column(children: [
+              const SizedBox(height: 12),
+              Divider(color: borderG, height: 1),
+              const SizedBox(height: 10),
+              Row(children: ['Male', 'Female'].map((g) {
+                final sel = _gender == g;
+                final isMale = g == 'Male';
+                return Expanded(
+                  child: Padding(
+                    padding: EdgeInsets.only(
+                      right: g == 'Male' ? 5 : 0,
+                      left: g == 'Female' ? 5 : 0,
                     ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          isMale ? Icons.male_rounded : Icons.female_rounded,
-                          size: 20,
-                          color: sel
-                              ? accentColor
-                              : (locked
-                                  ? mutedColor.withOpacity(0.35)
-                                  : mutedColor),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          g,
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            color: sel
-                                ? accentColor
-                                : (locked
-                                    ? mutedColor.withOpacity(0.4)
-                                    : textColor),
+                    child: GestureDetector(
+                      onTap: locked ? null : () => setState(() => _gender = g),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: sel ? accentG.withOpacity(0.12) : (locked ? cardG : surfG),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: sel ? accentG : (locked ? borderG.withOpacity(0.3) : borderG),
+                            width: sel ? 1.5 : 1,
                           ),
                         ),
-                        if (locked) ...[
-                          const SizedBox(width: 4),
-                          Icon(Icons.lock_rounded,
-                              size: 10,
-                              color: mutedColor.withOpacity(0.3)),
-                        ],
-                      ],
+                        child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                          Icon(
+                            isMale ? Icons.male_rounded : Icons.female_rounded,
+                            size: 20,
+                            color: sel ? accentG : (locked ? mutedG.withOpacity(0.35) : mutedG),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(g, style: TextStyle(
+                            fontSize: 14, fontWeight: FontWeight.w700,
+                            color: sel ? accentG : (locked ? mutedG.withOpacity(0.4) : textG),
+                          )),
+                          if (locked) ...[
+                            const SizedBox(width: 4),
+                            Icon(Icons.lock_rounded, size: 10, color: mutedG.withOpacity(0.3)),
+                          ],
+                        ]),
+                      ),
                     ),
                   ),
-                ),
-              ),
-            );
-          }).toList()),
-        ]),
-      ),
+                );
+              }).toList()),
+            ]),
+          ),
+        ]));
+      }),
+
     ]);
   });
 
@@ -1185,48 +1199,137 @@ class _StudioState extends State<StudioScreen>
   );
 
   // ── SPEED + PITCH ─────────────────────────────
-  Widget _buildSpeedPitch() => Column(children: [
-    MintCard(
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          const SectionHeader('Speed'),
-          const Spacer(),
-          Text('${_speed.round()}%', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: cGreen)),
+  Widget _buildSpeedPitch() => Builder(builder: (ctx) {
+    final isDk = Theme.of(ctx).brightness == Brightness.dark;
+    final accentCol = isDk ? cGreen : cLAccent;
+    final textCol   = isDk ? cText  : cLText;
+    final mutedCol  = isDk ? cMuted : cLMuted;
+    final borderCol = isDk ? cBorder: cLBorder;
+    return MintCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      GestureDetector(
+        onTap: () => setState(() => _speedPitchOpen = !_speedPitchOpen),
+        child: Row(children: [
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: accentCol.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(Icons.tune_rounded, size: 16, color: accentCol),
+          ),
+          const SizedBox(width: 10),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('Speed & Pitch', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: textCol)),
+            Text(_speedPitchOpen
+              ? 'Speed: ${_speed.round()}%  •  Pitch: ${_pitch >= 0 ? '+' : ''}${_pitch.round()}'
+              : 'Tap to adjust voice speed and pitch',
+              style: TextStyle(fontSize: 11, color: mutedCol)),
+          ])),
+          AnimatedRotation(
+            turns: _speedPitchOpen ? 0.5 : 0,
+            duration: const Duration(milliseconds: 250),
+            child: Icon(Icons.keyboard_arrow_down_rounded, color: accentCol, size: 22),
+          ),
         ]),
-        Row(children: [
-          const Text('Slow', style: TextStyle(fontSize: 12, color: cMuted)),
-          Expanded(child: SliderTheme(
-            data: SliderTheme.of(context).copyWith(activeTrackColor: cGreen, thumbColor: cGreen, inactiveTrackColor: cBorder, overlayColor: cGreen.withOpacity(0.1), trackHeight: 4),
-            child: Slider(min: 10, max: 100, divisions: 18, value: _speed, onChanged: (v) => setState(() { _speed = v; _preset = ''; })),
-          )),
-          const Text('Fast', style: TextStyle(fontSize: 12, color: cMuted)),
+      ),
+      AnimatedCrossFade(
+        duration: const Duration(milliseconds: 300),
+        crossFadeState: _speedPitchOpen ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+        firstChild: const SizedBox.shrink(),
+        secondChild: Column(children: [
+          const SizedBox(height: 12),
+          Divider(color: borderCol, height: 1),
+          const SizedBox(height: 10),
+          // Speed
+          Row(children: [
+            Text('Speed', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: textCol)),
+            const Spacer(),
+            Text('${_speed.round()}%', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: accentCol)),
+          ]),
+          Row(children: [
+            Text('Slow', style: TextStyle(fontSize: 11, color: mutedCol)),
+            Expanded(child: SliderTheme(
+              data: SliderTheme.of(ctx).copyWith(
+                activeTrackColor: accentCol, thumbColor: accentCol,
+                inactiveTrackColor: borderCol,
+                overlayColor: accentCol.withOpacity(0.1), trackHeight: 4),
+              child: Slider(min: 10, max: 100, divisions: 18, value: _speed,
+                onChanged: (v) => setState(() { _speed = v; _preset = ''; })),
+            )),
+            Text('Fast', style: TextStyle(fontSize: 11, color: mutedCol)),
+          ]),
+          const SizedBox(height: 6),
+          // Pitch
+          Row(children: [
+            Text('Pitch', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: textCol)),
+            const Spacer(),
+            Text('${_pitch >= 0 ? '+' : ''}${_pitch.round()}',
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: accentCol)),
+          ]),
+          Row(children: [
+            Text('Low', style: TextStyle(fontSize: 11, color: mutedCol)),
+            Expanded(child: SliderTheme(
+              data: SliderTheme.of(ctx).copyWith(
+                activeTrackColor: accentCol, thumbColor: accentCol,
+                inactiveTrackColor: borderCol,
+                overlayColor: accentCol.withOpacity(0.1), trackHeight: 4),
+              child: Slider(min: -10, max: 10, divisions: 20, value: _pitch,
+                onChanged: (v) => setState(() { _pitch = v; _preset = ''; })),
+            )),
+            Text('High', style: TextStyle(fontSize: 11, color: mutedCol)),
+          ]),
         ]),
-      ]),
-    ),
-    const SizedBox(height: 10),
-    MintCard(
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          const SectionHeader('Pitch'),
-          const Spacer(),
-          Text('${_pitch >= 0 ? '+' : ''}${_pitch.round()}', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: cGreen)),
-        ]),
-        Row(children: [
-          const Text('Low', style: TextStyle(fontSize: 12, color: cMuted)),
-          Expanded(child: SliderTheme(
-            data: SliderTheme.of(context).copyWith(activeTrackColor: cGreen, thumbColor: cGreen, inactiveTrackColor: cBorder, overlayColor: cGreen.withOpacity(0.1), trackHeight: 4),
-            child: Slider(min: -10, max: 10, divisions: 20, value: _pitch, onChanged: (v) => setState(() { _pitch = v; _preset = ''; })),
-          )),
-          const Text('High', style: TextStyle(fontSize: 12, color: cMuted)),
-        ]),
-      ]),
-    ),
-  ]);
+      ),
+    ]));
+  });
 
   // ── ADVANCED OPTIONS ─────────────────────────
   Widget _buildAdvanced() {
-    return MintCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      const SectionHeader('Advanced Options'),
+    return Builder(builder: (ctx) {
+      final isDk = Theme.of(ctx).brightness == Brightness.dark;
+      final btnBg = isDk ? cCard2 : cLCard2;
+      final btnBorder = isDk ? cBorder : cLBorder;
+      final btnText = isDk ? cText : cLText;
+      final btnMuted = isDk ? cMuted : cLMuted;
+      final accentCol = isDk ? cGreen : cLAccent;
+      return MintCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      // ── Collapsible Header Button ─────────────────
+      GestureDetector(
+        onTap: () => setState(() => _advancedOpen = !_advancedOpen),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+          child: Row(children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: accentCol.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(Icons.tune_rounded, size: 16, color: accentCol),
+            ),
+            const SizedBox(width: 10),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('Advanced Options',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: btnText)),
+              Text(_advancedOpen ? 'Tap to collapse' : 'Speed, Pitch, SSML, HD Voice & more',
+                style: TextStyle(fontSize: 11, color: btnMuted)),
+            ])),
+            AnimatedRotation(
+              turns: _advancedOpen ? 0.5 : 0,
+              duration: const Duration(milliseconds: 250),
+              child: Icon(Icons.keyboard_arrow_down_rounded, color: accentCol, size: 22),
+            ),
+          ]),
+        ),
+      ),
+      // ── Collapsible Content ───────────────────────
+      AnimatedCrossFade(
+        duration: const Duration(milliseconds: 300),
+        crossFadeState: _advancedOpen ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+        firstChild: const SizedBox.shrink(),
+        secondChild: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      const SizedBox(height: 12),
+      const Divider(height: 1),
       const SizedBox(height: 6),
 
       // ── SECTION 1: Core Audio ─────────────────────────
@@ -1603,7 +1706,10 @@ class _StudioState extends State<StudioScreen>
         ),
       ],
 
-    ]));
+    ]),
+        ),
+      ]));
+    });
   }
 
   Widget _sectionLabel(String label, IconData icon) => Padding(
