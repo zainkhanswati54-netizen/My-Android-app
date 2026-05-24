@@ -249,7 +249,7 @@ class _TermsScreenState extends State<TermsScreen> {
                   Container(
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                      color: cBg22,
+                      color: cBg2,
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: border),
                     ),
@@ -364,7 +364,7 @@ class _TermsScreenState extends State<TermsScreen> {
                                 end: Alignment.centerRight,
                               )
                             : null,
-                        color: _agreed ? null : (cBg22),
+                        color: _agreed ? null : (cBg2),
                         borderRadius: BorderRadius.circular(14),
                         border: _agreed
                             ? null
