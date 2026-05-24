@@ -229,7 +229,8 @@ class _HistoryState extends State<HistoryScreen> {
                 itemCount: _history.length,
                 itemBuilder: (_, i) => _buildCard(_history[i]),
               ),
-  );
+    );
+  }
 
   Widget _buildCard(HistoryEntry e) {
     final exists    = File(e.path).existsSync();
