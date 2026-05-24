@@ -15,11 +15,11 @@
       },
       "oauth_client": [
         {
-          "client_id": "621140150167-hompse8pur3gefc0kduonoh35idlq8vd.apps.googleusercontent.com",
+          "client_id": "621140150167-gdbqlm21gos2s3db34vop8r46ctp0hrq.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
             "package_name": "com.example.titan_studio_pro",
-            "certificate_hash": "177e3329d0d75459f821137fe5931fa63d4bdd05"
+            "certificate_hash": "dfe9f4ac4dd4e578f3be7bf2bf7fa97540cb4209"
           }
         },
         {
