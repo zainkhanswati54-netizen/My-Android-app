@@ -3,11 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/studio_screen.dart';
 import 'screens/suspended_screen.dart';
 import 'screens/admin_dashboard_screen.dart';
+import 'screens/terms_screen.dart';
 import 'services/auth_service.dart';
 import 'services/admin_service.dart';
 import 'services/ad_service.dart';
@@ -65,6 +67,7 @@ class _AuthGate extends StatefulWidget {
 
 class _AuthGateState extends State<_AuthGate> {
   bool _splashDone     = false;
+  bool _termsAccepted  = true;  // assume true until checked
   bool _inactiveLogout = false;
   bool _maintenance    = false;
   String _maintenanceMsg = 'App is under maintenance. Please check back later.';
@@ -87,6 +90,11 @@ class _AuthGateState extends State<_AuthGate> {
   }
 
   Future<void> _init() async {
+    // ── Check if user has accepted terms ──
+    final prefs = await SharedPreferences.getInstance();
+    final accepted = prefs.getBool('terms_accepted') ?? false;
+    if (mounted) setState(() => _termsAccepted = accepted);
+
     bool loggedOut = false;
     try {
       loggedOut = await AuthService.checkInactiveLogout()
@@ -149,12 +157,26 @@ class _AuthGateState extends State<_AuthGate> {
     setState(() => _splashDone = true);
   }
 
+  Future<void> _onTermsAccepted() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('terms_accepted', true);
+    if (mounted) setState(() => _termsAccepted = true);
+  }
+
   @override
   Widget build(BuildContext context) {
     if (!_splashDone) {
       return SplashScreen(
         autoNavigate: false,
         onComplete: _onSplashComplete,
+      );
+    }
+
+    // ── Show Terms on first launch ──
+    if (!_termsAccepted) {
+      return TermsScreen(
+        mustAccept: true,
+        onAccepted: _onTermsAccepted,
       );
     }
 

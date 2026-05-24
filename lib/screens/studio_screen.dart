@@ -268,8 +268,8 @@ class _StudioState extends State<StudioScreen>
   void _showLangError(String text) {
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        backgroundColor: cBg,
+      builder: (bCtx) => AlertDialog(
+        backgroundColor: Theme.of(bCtx).colorScheme.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Row(children: [
           Icon(Icons.warning_rounded, color: cAmber, size: 26),
@@ -393,8 +393,8 @@ class _StudioState extends State<StudioScreen>
         : 'App Documents/TitanStudioPRO/';
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        backgroundColor: cBg,
+      builder: (bCtx) => AlertDialog(
+        backgroundColor: Theme.of(bCtx).colorScheme.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Row(children: [
           Icon(Icons.check_circle_rounded, color: cGreen, size: 26),
@@ -461,8 +461,8 @@ class _StudioState extends State<StudioScreen>
   void _showNoInternetBanner() {
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        backgroundColor: cBg2,
+      builder: (bCtx) => AlertDialog(
+        backgroundColor: Theme.of(bCtx).colorScheme.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         content: Column(mainAxisSize: MainAxisSize.min, children: [
           Container(
@@ -632,8 +632,9 @@ class _StudioState extends State<StudioScreen>
   // ═══════════════════════════════════════════
   @override
   Widget build(BuildContext context) {
+    final isDarkTheme = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor: cBg,
+      backgroundColor: isDarkTheme ? cBg : cLBg2,
       body: SafeArea(
         child: Column(
           children: [
