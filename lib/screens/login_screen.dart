@@ -177,7 +177,8 @@ class _LoginScreenState extends State<LoginScreen>
 
   @override
   Widget build(BuildContext context) {
-    // Dark theme colors
+    // Dark theme only
+    const isDark = true;
     final bgColor     = cBg;
     final cardColor   = cCard;
     final textColor   = cText;
