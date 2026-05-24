@@ -38,8 +38,8 @@ class _MintCardState extends State<MintCard>
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardBg = isDark ? cCard : cLCard;
-    final borderColor = isDark ? cBorder : cLBorder;
+    final cardBg = cCard;
+    final borderColor = cBorder;
 
     final card = ScaleTransition(
       scale: _scale,
@@ -107,8 +107,8 @@ class _MintBtnState extends State<MintBtn> with SingleTickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final defaultBg = isDark ? cGreen : cLAccent;
-    final bg = widget.disabled ? (isDark ? cMuted : cLMuted) : (widget.bg ?? defaultBg);
+    final defaultBg = cGreen;
+    final bg = widget.disabled ? (cMuted) : (widget.bg ?? defaultBg);
     final fg = widget.fg ?? Colors.white;
     return ScaleTransition(
       scale: _scale,
@@ -157,7 +157,7 @@ class SectionHeader extends StatelessWidget {
     style: TextStyle(
       fontSize: 13,
       fontWeight: FontWeight.w700,
-      color: color ?? (isDark ? cGreen : cLAccent),
+      color: color ?? (cGreen),
       letterSpacing: 0.5,
     ),
   );
@@ -170,7 +170,7 @@ class TitanDivider extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
-    height: 1, color: isDark ? cBorder : cLBorder,
+    height: 1, color: cBorder,
     margin: const EdgeInsets.symmetric(vertical: 2),
   );
   }

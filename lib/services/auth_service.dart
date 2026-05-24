@@ -139,7 +139,7 @@ class AuthService {
       final s = e.toString();
       if (s.contains('10:') || s.contains('DEVELOPER_ERROR')) {
         return AuthResult.error(
-            'Google sign-in is not available right now. Please use email login.');
+            'Google sign-in setup incomplete. Add SHA-1 fingerprint in Firebase Console → Project Settings → Your App.');
       }
       return AuthResult.error('Google sign-in failed. Please try again.');
     }

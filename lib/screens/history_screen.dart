@@ -186,9 +186,9 @@ class _HistoryState extends State<HistoryScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgColor   = isDark ? cBg   : cLBg;
-    final bg2Color  = isDark ? cBg2  : cLBg2;
-    final textColor = isDark ? cText : cLText;
+    final bgColor   = cBg;
+    final bg2Color  = cBg2;
+    final textColor = cText;
     return Scaffold(
     backgroundColor: bgColor,
     appBar: AppBar(

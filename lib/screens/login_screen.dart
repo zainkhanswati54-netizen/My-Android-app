@@ -70,7 +70,7 @@ class _LoginScreenState extends State<LoginScreen>
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        backgroundColor: isDark ? cBg2 : cLCard,
+        backgroundColor: cBg2,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         content: Column(mainAxisSize: MainAxisSize.min, children: [
           Container(
@@ -85,12 +85,12 @@ class _LoginScreenState extends State<LoginScreen>
           const SizedBox(height: 16),
           Text('No Internet Connection',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800,
-                  color: isDark ? cText : cLText),
+                  color: cText),
               textAlign: TextAlign.center),
           const SizedBox(height: 8),
           Text('Please turn on WiFi or mobile data to continue.',
               style: TextStyle(fontSize: 13,
-                  color: isDark ? cText2 : cLText2, height: 1.5),
+                  color: cText2, height: 1.5),
               textAlign: TextAlign.center),
           const SizedBox(height: 20),
           GestureDetector(
@@ -145,8 +145,8 @@ class _LoginScreenState extends State<LoginScreen>
           ? 'Reset link sent to $email'
           : result.error ?? 'Failed'),
       backgroundColor: result.ok
-          ? (isDark ? cGreen : cLGreen)
-          : (isDark ? cRed : cLRed),
+          ? (cGreen)
+          : (cRed),
       behavior: SnackBarBehavior.floating,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       margin: const EdgeInsets.all(12),
@@ -182,14 +182,14 @@ class _LoginScreenState extends State<LoginScreen>
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     // Theme-aware colors
-    final bgColor     = isDark ? cBg      : cLBg;
-    final cardColor   = isDark ? cCard    : cLCard;
-    final textColor   = isDark ? cText    : cLText;
-    final text2Color  = isDark ? cText2   : cLText2;
-    final mutedColor  = isDark ? cMuted   : cLMuted;
-    final borderColor = isDark ? cBorder  : cLBorder;
-    final accentColor = isDark ? cGreen   : cLAccent;
-    final redColor    = isDark ? cRed     : cLRed;
+    final bgColor     = cBg;
+    final cardColor   = cCard;
+    final textColor   = cText;
+    final text2Color  = cText2;
+    final mutedColor  = cMuted;
+    final borderColor = cBorder;
+    final accentColor = cGreen;
+    final redColor    = cRed;
 
     return Scaffold(
       backgroundColor: bgColor,
@@ -512,8 +512,8 @@ class _GreenButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final accentColor = isDark ? cGreen : cLAccent;
-    final accent2Color = isDark ? cGreen2 : cLAccent2;
+    final accentColor = cGreen;
+    final accent2Color = cGreen2;
     return GestureDetector(
       onTap: loading ? null : () {
         HapticFeedback.lightImpact();
@@ -582,13 +582,7 @@ class _GoogleButton extends StatelessWidget {
             color: cardColor,
             borderRadius: BorderRadius.circular(14),
             border: Border.all(color: borderColor),
-            boxShadow: isDark ? [] : [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.06),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
+            boxShadow: [],
           ),
           child: Center(
             child: loading

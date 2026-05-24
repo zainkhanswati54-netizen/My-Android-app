@@ -4,7 +4,6 @@ import '../utils/constants.dart';
 import '../widgets/mint_card.dart';
 import '../services/tts_service.dart';
 import '../services/auth_service.dart';
-import '../main.dart' show themeNotifier;
 import 'profile_screen.dart';
 import 'admin_dashboard_screen.dart';
 
@@ -64,7 +63,7 @@ class _SettingsState extends State<SettingsScreen> {
 
   Widget _aboutRow(BuildContext context, IconData ic, String text) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? cText : const Color(0xFF0F1B2D);
+    final textColor = cText;
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(children: [
@@ -78,12 +77,12 @@ class _SettingsState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark    = Theme.of(context).brightness == Brightness.dark;
-    final bgColor   = isDark ? cBg    : cLBg;
-    final bg2Color  = isDark ? cBg2   : cLBg2;
-    final cardColor = isDark ? cCard  : cLCard;
-    final textColor = isDark ? cText  : cLText;
-    final mutedColor= isDark ? cMuted : cLMuted;
-    final borderCol = isDark ? cBorder: cLBorder;
+    final bgColor   = cBg;
+    final bg2Color  = cBg2;
+    final cardColor = cCard;
+    final textColor = cText;
+    final mutedColor= cMuted;
+    final borderCol = cBorder;
 
     return Scaffold(
     backgroundColor: bgColor,
@@ -136,94 +135,6 @@ class _SettingsState extends State<SettingsScreen> {
             ]),
           ),
         ),
-
-        // ── Theme Toggle Card ─────────────────────────
-        ValueListenableBuilder<ThemeMode>(
-          valueListenable: themeNotifier,
-          builder: (ctx2, mode, __) {
-            final isDarkMode = mode == ThemeMode.dark;
-            final tText  = isDarkMode ? cText  : const Color(0xFF0F1B2D);
-            final tMuted = isDarkMode ? cMuted : const Color(0xFF8A99AD);
-            return MintCard(
-              child: Row(children: [
-                Container(
-                  width: 40, height: 40,
-                  decoration: BoxDecoration(
-                    color: isDarkMode
-                        ? const Color(0xFF1C2840)
-                        : const Color(0xFFE8F4FD),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(
-                    isDarkMode ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
-                    color: isDarkMode ? cGreen : const Color(0xFFFF9500),
-                    size: 22,
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      isDarkMode ? 'Dark Mode' : 'Light Mode',
-                      style: TextStyle(fontSize: 14,
-                          fontWeight: FontWeight.w700, color: tText),
-                    ),
-                    Text(
-                      isDarkMode ? 'Switch to light theme' : 'Switch to dark theme',
-                      style: TextStyle(fontSize: 11, color: tMuted),
-                    ),
-                  ],
-                )),
-                GestureDetector(
-                  onTap: () {
-                    themeNotifier.value = isDarkMode
-                        ? ThemeMode.light
-                        : ThemeMode.dark;
-                  },
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 300),
-                    curve: Curves.easeInOut,
-                    width: 52,
-                    height: 28,
-                    decoration: BoxDecoration(
-                      color: isDarkMode ? cGreen : const Color(0xFFFF9500),
-                      borderRadius: BorderRadius.circular(14),
-                      boxShadow: [
-                        BoxShadow(
-                          color: (isDarkMode ? cGreen : const Color(0xFFFF9500))
-                              .withOpacity(0.4),
-                          blurRadius: 8,
-                        ),
-                      ],
-                    ),
-                    child: AnimatedAlign(
-                      duration: const Duration(milliseconds: 300),
-                      curve: Curves.easeInOut,
-                      alignment: isDarkMode
-                          ? Alignment.centerRight
-                          : Alignment.centerLeft,
-                      child: Container(
-                        width: 22, height: 22,
-                        margin: const EdgeInsets.symmetric(horizontal: 3),
-                        decoration: const BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          isDarkMode ? Icons.nights_stay_rounded : Icons.wb_sunny_rounded,
-                          size: 13,
-                          color: isDarkMode ? cGreen : const Color(0xFFFF9500),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ]),
-            );
-          },
-        ),
-        const SizedBox(height: 12),
 
         MintCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           const SectionHeader('Save Location'),

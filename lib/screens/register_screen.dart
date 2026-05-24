@@ -103,9 +103,9 @@ class _RegisterScreenState extends State<RegisterScreen>
   @override
   Widget build(BuildContext context) {
     final isDark    = Theme.of(context).brightness == Brightness.dark;
-    final bgColor   = isDark ? cBg    : cLBg;
-    final textColor = isDark ? cText  : cLText;
-    final mutedColor= isDark ? cMuted : cLMuted;
+    final bgColor   = cBg;
+    final textColor = cText;
+    final mutedColor= cMuted;
 
     return Scaffold(
       backgroundColor: bgColor,
@@ -227,7 +227,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                             _obscurePass
                                 ? Icons.visibility_outlined
                                 : Icons.visibility_off_outlined,
-                            color: Theme.of(context).brightness == Brightness.dark ? cMuted : cLMuted, size: 20,
+                            color: cMuted, size: 20,
                           ),
                           onPressed: () =>
                               setState(() => _obscurePass = !_obscurePass),
@@ -257,7 +257,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                             _obscureConf
                                 ? Icons.visibility_outlined
                                 : Icons.visibility_off_outlined,
-                            color: Theme.of(context).brightness == Brightness.dark ? cMuted : cLMuted, size: 20,
+                            color: cMuted, size: 20,
                           ),
                           onPressed: () =>
                               setState(() => _obscureConf = !_obscureConf),
@@ -280,9 +280,9 @@ class _RegisterScreenState extends State<RegisterScreen>
                     // ── Terms & Conditions checkbox ───────────
                     Builder(builder: (context) {
                       final isDark = Theme.of(context).brightness == Brightness.dark;
-                      final accent = isDark ? cGreen : cLAccent;
-                      final text2  = isDark ? cText2 : cLText2;
-                      final border = isDark ? cBorder : cLBorder;
+                      final accent = cGreen;
+                      final text2  = cText2;
+                      final border = cBorder;
                       return GestureDetector(
                         onTap: () => setState(() => _agreeTerms = !_agreeTerms),
                         child: Row(
@@ -355,16 +355,16 @@ class _RegisterScreenState extends State<RegisterScreen>
                     Builder(builder: (ctx) {
                       final dk = Theme.of(ctx).brightness == Brightness.dark;
                       return Row(children: [
-                        Expanded(child: Container(height: 1, color: dk ? cBorder : cLBorder)),
+                        Expanded(child: Container(height: 1, color: cBorder)),
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 14),
                           child: Text('OR',
                               style: TextStyle(
                                   fontSize: 12,
-                                  color: dk ? cMuted : cLMuted,
+                                  color: cMuted,
                                   fontWeight: FontWeight.w600)),
                         ),
-                        Expanded(child: Container(height: 1, color: dk ? cBorder : cLBorder)),
+                        Expanded(child: Container(height: 1, color: cBorder)),
                       ]);
                     }),
                     const SizedBox(height: 16),
@@ -381,7 +381,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                       final dk = Theme.of(ctx).brightness == Brightness.dark;
                       return Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                         Text('Already have an account? ',
-                            style: TextStyle(fontSize: 14, color: dk ? cMuted : cLMuted)),
+                            style: TextStyle(fontSize: 14, color: cMuted)),
                         GestureDetector(
                           onTap: () => Navigator.pushReplacement(
                             context,
@@ -391,7 +391,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                           child: Text('Sign In',
                               style: TextStyle(
                                   fontSize: 14,
-                                  color: dk ? cGreen : cLAccent,
+                                  color: cGreen,
                                   fontWeight: FontWeight.w700)),
                         ),
                       ]);
@@ -414,7 +414,7 @@ class _RegisterScreenState extends State<RegisterScreen>
       text,
       style: TextStyle(
           fontSize: 13, fontWeight: FontWeight.w600,
-          color: isDark ? cText2 : cLText2),
+          color: cText2),
     );
   }
 
@@ -424,10 +424,10 @@ class _RegisterScreenState extends State<RegisterScreen>
     Widget? suffix,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardColor   = isDark ? cCard   : cLCard;
-    final borderColor = isDark ? cBorder : cLBorder;
-    final accentColor = isDark ? cGreen  : cLAccent;
-    final mutedColor  = isDark ? cMuted  : cLMuted;
+    final cardColor   = cCard;
+    final borderColor = cBorder;
+    final accentColor = cGreen;
+    final mutedColor  = cMuted;
     final redColor    = isDark ? cRed    : cLRed;
     return InputDecoration(
       hintText: hint,
@@ -474,8 +474,8 @@ class _GreenButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final accent = isDark ? cGreen : cLAccent;
-    final accent2 = isDark ? cGreen2 : cLAccent2;
+    final accent = cGreen;
+    final accent2 = cGreen2;
     return GestureDetector(
       onTap: loading ? null : () {
         HapticFeedback.lightImpact();
@@ -524,10 +524,10 @@ class _GoogleButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardColor = isDark ? cCard : cLCard;
-    final borderColor = isDark ? cBorder : cLBorder;
-    final textColor = isDark ? cText : cLText;
-    final accentColor = isDark ? cGreen : cLAccent;
+    final cardColor = cCard;
+    final borderColor = cBorder;
+    final textColor = cText;
+    final accentColor = cGreen;
     return GestureDetector(
       onTap: loading ? null : onTap,
       child: Container(

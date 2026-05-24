@@ -54,19 +54,19 @@ class _TermsScreenState extends State<TermsScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark   = Theme.of(context).brightness == Brightness.dark;
-    final bgColor  = isDark ? cBg    : cLBg;
-    final bg2Color = isDark ? cBg2   : cLBg2;
-    final cardColor= isDark ? cCard  : cLCard;
-    final textColor= isDark ? cText  : cLText;
-    final text2    = isDark ? cText2 : cLText2;
-    final muted    = isDark ? cMuted : cLMuted;
-    final border   = isDark ? cBorder: cLBorder;
-    final accent   = isDark ? cGreen : cLAccent;
+    final bgColor  = cBg;
+    final bg2Color = cBg2;
+    final cardColor= cCard;
+    final textColor= cText;
+    final text2    = cText2;
+    final muted    = cMuted;
+    final border   = cBorder;
+    final accent   = cGreen;
 
     return Scaffold(
       backgroundColor: bgColor,
       appBar: AppBar(
-        backgroundColor: isDark ? cBg2 : cLBg,
+        backgroundColor: cBg2,
         elevation: 0,
         surfaceTintColor: Colors.transparent,
         leading: widget.mustAccept
@@ -249,7 +249,7 @@ class _TermsScreenState extends State<TermsScreen> {
                   Container(
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                      color: isDark ? cBg2 : cLCard2,
+                      color: cBg22,
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: border),
                     ),
@@ -275,7 +275,7 @@ class _TermsScreenState extends State<TermsScreen> {
           if (widget.mustAccept) ...[
             Container(
               decoration: BoxDecoration(
-                color: isDark ? cBg2 : cLBg,
+                color: cBg2,
                 border: Border(top: BorderSide(color: border)),
                 boxShadow: [
                   BoxShadow(
@@ -359,12 +359,12 @@ class _TermsScreenState extends State<TermsScreen> {
                             ? LinearGradient(
                                 colors: isDark
                                     ? [cGreen, cGreen2]
-                                    : [cLAccent, cLAccent2],
+                                    : [cGreen, cGreen2],
                                 begin: Alignment.centerLeft,
                                 end: Alignment.centerRight,
                               )
                             : null,
-                        color: _agreed ? null : (isDark ? cBg2 : cLCard2),
+                        color: _agreed ? null : (cBg22),
                         borderRadius: BorderRadius.circular(14),
                         border: _agreed
                             ? null

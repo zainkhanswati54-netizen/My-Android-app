@@ -634,7 +634,7 @@ class _StudioState extends State<StudioScreen>
   Widget build(BuildContext context) {
     final isDarkTheme = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor: isDarkTheme ? cBg : cLBg2,
+      backgroundColor: cBg,
       body: SafeArea(
         child: Column(
           children: [
@@ -760,7 +760,7 @@ class _StudioState extends State<StudioScreen>
                         children: [
                           Builder(builder: (ctx) {
                             final isDk = Theme.of(ctx).brightness == Brightness.dark;
-                            final iconCol = disabled ? cMuted : (selected ? Colors.white : (isDk ? const Color(0xFF00FFFF) : cLAccent));
+                            final iconCol = disabled ? cMuted : (selected ? Colors.white : (const Color(0xFF00FFFF)));
                             return SvgPicture.asset(cfg.icon, width: selected ? 30 : 26, height: selected ? 30 : 26,
                               colorFilter: ColorFilter.mode(iconCol, BlendMode.srcIn));
                           }),
@@ -820,16 +820,16 @@ class _StudioState extends State<StudioScreen>
           duration: const Duration(milliseconds: 250),
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
           decoration: BoxDecoration(
-            color: isDkSF ? cGreen3 : cLAccent.withOpacity(0.08),
+            color: cGreen3,
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: isDkSF ? cBorder : cLAccent.withOpacity(0.25)),
+            border: Border.all(color: cBorder),
           ),
           child: Row(children: [
-            Icon(Icons.auto_awesome_rounded, size: 13, color: isDkSF ? cGreen : cLAccent),
+            Icon(Icons.auto_awesome_rounded, size: 13, color: cGreen),
             const SizedBox(width: 6),
             Expanded(child: Text(
               kCharacters[_character]?.specialtyDesc ?? '',
-              style: TextStyle(fontSize: 11, color: isDkSF ? cGreenL : cLText2, height: 1.3),
+              style: TextStyle(fontSize: 11, color: cGreenL, height: 1.3),
             )),
             const SizedBox(width: 6),
             // Quick cross-lingual lock toggle
@@ -896,8 +896,8 @@ class _StudioState extends State<StudioScreen>
               onTap: blocked ? null : () => _applyPreset(e.key),
               child: Builder(builder: (bCtx) {
                 final isDkP = Theme.of(bCtx).brightness == Brightness.dark;
-                final presetIconCol = blocked ? Colors.white24 : (isDkP ? const Color(0xFF00FFFF) : cLAccent);
-                final presetTextCol = blocked ? cMuted.withOpacity(0.3) : (selected ? Colors.white : (isDkP ? cText : cLText));
+                final presetIconCol = blocked ? Colors.white24 : (const Color(0xFF00FFFF));
+                final presetTextCol = blocked ? cMuted.withOpacity(0.3) : (selected ? Colors.white : (cText));
                 return AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
                 margin: const EdgeInsets.only(right: 10),
@@ -940,12 +940,12 @@ class _StudioState extends State<StudioScreen>
   // Language upar (full width), Gender neeche (full width, horizontal pills)
   Widget _buildLangGender() => Builder(builder: (context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgSurface  = isDark ? cSurface  : cLSurface;
-    final bgCard     = isDark ? cBg2      : cLCard2;
-    final textColor  = isDark ? cText     : cLText;
-    final mutedColor = isDark ? cMuted    : cLMuted;
-    final borderCol  = isDark ? cBorder   : cLBorder;
-    final accentColor = isDark ? cGreen   : cLAccent;
+    final bgSurface  = cSurface;
+    final bgCard     = cBg2;
+    final textColor  = cText;
+    final mutedColor = cMuted;
+    final borderCol  = cBorder;
+    final accentColor = cGreen;
 
     return Column(children: [
       // ── LANGUAGE CARD (full width) ──────────────────────────
@@ -1047,12 +1047,12 @@ class _StudioState extends State<StudioScreen>
       // ── GENDER CARD — Collapsible ──────────────────
       Builder(builder: (gCtx) {
         final isDkG = Theme.of(gCtx).brightness == Brightness.dark;
-        final accentG = isDkG ? cGreen : cLAccent;
-        final textG   = isDkG ? cText  : cLText;
-        final mutedG  = isDkG ? cMuted : cLMuted;
-        final borderG = isDkG ? cBorder: cLBorder;
-        final surfG   = isDkG ? cSurface: cLSurface;
-        final cardG   = isDkG ? cCard2 : cLCard2;
+        final accentG = cGreen;
+        final textG   = cText;
+        final mutedG  = cMuted;
+        final borderG = cBorder;
+        final surfG   = cSurface;
+        final cardG   = cCard2;
         final locked  = _character.isNotEmpty;
         return MintCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           GestureDetector(
@@ -1181,14 +1181,14 @@ class _StudioState extends State<StudioScreen>
               child: Builder(builder: (emCtx) {
                 final isDkE = Theme.of(emCtx).brightness == Brightness.dark;
                 return Row(mainAxisSize: MainAxisSize.min, children: [
-                SvgPicture.asset(e.value.icon, width: 16, height: 16, colorFilter: ColorFilter.mode(allowed ? (isDkE ? const Color(0xFF00FFFF) : cLAccent) : Colors.grey.shade400, BlendMode.srcIn)),
+                SvgPicture.asset(e.value.icon, width: 16, height: 16, colorFilter: ColorFilter.mode(allowed ? (const Color(0xFF00FFFF)) : Colors.grey.shade400, BlendMode.srcIn)),
                 const SizedBox(width: 5),
                 Text(e.key, style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
                   color: !allowed
                       ? cMuted.withOpacity(0.3)
-                      : sel ? Colors.white : (isDkE ? cText : cLText),
+                      : sel ? Colors.white : (cText),
                 )),
               ]);
               }),
@@ -1202,10 +1202,10 @@ class _StudioState extends State<StudioScreen>
   // ── SPEED + PITCH ─────────────────────────────
   Widget _buildSpeedPitch() => Builder(builder: (ctx) {
     final isDk = Theme.of(ctx).brightness == Brightness.dark;
-    final accentCol = isDk ? cGreen : cLAccent;
-    final textCol   = isDk ? cText  : cLText;
-    final mutedCol  = isDk ? cMuted : cLMuted;
-    final borderCol = isDk ? cBorder: cLBorder;
+    final accentCol = cGreen;
+    final textCol   = cText;
+    final mutedCol  = cMuted;
+    final borderCol = cBorder;
     return MintCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       GestureDetector(
         onTap: () => setState(() => _speedPitchOpen = !_speedPitchOpen),
@@ -1288,11 +1288,11 @@ class _StudioState extends State<StudioScreen>
   Widget _buildAdvanced() {
     return Builder(builder: (ctx) {
       final isDk = Theme.of(ctx).brightness == Brightness.dark;
-      final btnBg = isDk ? cCard2 : cLCard2;
-      final btnBorder = isDk ? cBorder : cLBorder;
-      final btnText = isDk ? cText : cLText;
-      final btnMuted = isDk ? cMuted : cLMuted;
-      final accentCol = isDk ? cGreen : cLAccent;
+      final btnBg = cCard2;
+      final btnBorder = cBorder;
+      final btnText = cText;
+      final btnMuted = cMuted;
+      final accentCol = cGreen;
       return MintCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       // ── Collapsible Header Button ─────────────────
       GestureDetector(
@@ -1822,11 +1822,11 @@ class _StudioState extends State<StudioScreen>
   Widget _buildTextInput() {
     final langCfg = kLanguages[_language]!;
     final isDkTI = Theme.of(context).brightness == Brightness.dark;
-    final tiTextCol  = isDkTI ? cText2  : cLText;
-    final tiFillCol  = isDkTI ? cCard2  : cLCard2;
-    final tiBorderCol = isDkTI ? cBorder : cLBorder;
-    final tiHintCol  = isDkTI ? cMuted2 : cLMuted;
-    final tiCountCol = isDkTI ? cMuted  : cLMuted;
+    final tiTextCol  = cText2;
+    final tiFillCol  = cCard2;
+    final tiBorderCol = cBorder;
+    final tiHintCol  = cMuted2;
+    final tiCountCol = cMuted;
     return MintCard(
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
@@ -1834,8 +1834,8 @@ class _StudioState extends State<StudioScreen>
           const SizedBox(width: 8),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-            decoration: BoxDecoration(color: (isDkTI ? cGreen : cLAccent).withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
-            child: Row(mainAxisSize: MainAxisSize.min, children: [SvgPicture.asset(langCfg.flag, width: 14, height: 14), const SizedBox(width: 4), Text(_language, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: isDkTI ? cGreen : cLAccent))]),
+            decoration: BoxDecoration(color: cGreen.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [SvgPicture.asset(langCfg.flag, width: 14, height: 14), const SizedBox(width: 4), Text(_language, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: cGreen))]),
           ),
           const Spacer(),
           Text(
@@ -1918,7 +1918,7 @@ class _StudioState extends State<StudioScreen>
         Builder(builder: (btnCtx) {
           final isDkBtn = Theme.of(btnCtx).brightness == Brightness.dark;
           final clearCol = isDkBtn ? cRed : cLRed;
-          final pasteCol = isDkBtn ? cGreen : cLAccent;
+          final pasteCol = cGreen;
           return Row(children: [
           Expanded(child: GestureDetector(
             onTap: () => setState(() {
@@ -2124,7 +2124,7 @@ class _StudioState extends State<StudioScreen>
   // ── NAV ROW ───────────────────────────────────
   Widget _buildNavRow() => Builder(builder: (navCtx) {
     final isDkNav = Theme.of(navCtx).brightness == Brightness.dark;
-    final navAccent = isDkNav ? cGreen : cLAccent;
+    final navAccent = cGreen;
     return Row(children: [
     Expanded(child: GestureDetector(
       onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const HistoryScreen())),
