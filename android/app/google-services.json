@@ -23,6 +23,14 @@
           }
         },
         {
+          "client_id": "621140150167-io76p7nrnkfmfssv0r4nfstvppikpbpm.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.titan_studio_pro",
+            "certificate_hash": "b6a8c1335904550e2a0b841af3c42282ea14d921"
+          }
+        },
+        {
           "client_id": "621140150167-ffeofj2oud6bbgm68fb9324bij8poeo4.apps.googleusercontent.com",
           "client_type": 3
         }
