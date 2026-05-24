@@ -51,7 +51,7 @@ class _MintCardState extends State<MintCard>
           border: Border.all(color: borderColor, width: 1.5),
           boxShadow: [
             BoxShadow(
-              color: cGreen.withOpacity(isDark ? 0.06 : 0.04),
+              color: cGreen.withOpacity(0.06),
               blurRadius: 12,
               offset: const Offset(0, 4),
             ),

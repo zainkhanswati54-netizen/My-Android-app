@@ -52,20 +52,6 @@ const LinearGradient kSubtleGradient = LinearGradient(
 //  LIGHT THEME PALETTE — Professional Clean
 //  YouTube / ChatGPT / Claude style
 // ═══════════════════════════════════════════════
-const Color cLBg      = Color(0xFFFFFFFF);  // Pure White
-const Color cLBg2     = Color(0xFFF9FAFB);  // Gray 50
-const Color cLCard    = Color(0xFFFFFFFF);
-const Color cLCard2   = Color(0xFFF3F4F6);  // Gray 100
-const Color cLBorder  = Color(0xFFE5E7EB);  // Gray 200
-const Color cLText    = Color(0xFF111827);  // Gray 900
-const Color cLText2   = Color(0xFF6B7280);  // Gray 500
-const Color cLMuted   = Color(0xFF9CA3AF);  // Gray 400
-const Color cLSurface = Color(0xFFF9FAFB);
-const Color cLAccent  = Color(0xFF2563EB);  // Blue 600
-const Color cLAccent2 = Color(0xFF3B82F6);  // Blue 500
-const Color cLRed     = Color(0xFFDC2626);  // Red 600
-const Color cLGreen   = Color(0xFF16A34A);  // Green 600
-const Color cLAmber   = Color(0xFFD97706);  // Amber 600
 
 // ═══════════════════════════════════════════════
 //  LANGUAGES — 39 languages, Azure Edge TTS

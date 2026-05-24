@@ -279,7 +279,7 @@ class _TermsScreenState extends State<TermsScreen> {
                 border: Border(top: BorderSide(color: border)),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(isDark ? 0.3 : 0.08),
+                    color: Colors.black.withOpacity(0.3),
                     blurRadius: 12,
                     offset: const Offset(0, -4),
                   ),

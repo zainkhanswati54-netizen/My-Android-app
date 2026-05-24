@@ -1848,7 +1848,7 @@ class _StudioState extends State<StudioScreen>
           ),
           const SizedBox(width: 8),
           Builder(builder: (xCtx) {
-            final xRed = Theme.of(xCtx).brightness == Brightness.dark ? cRed : cLRed;
+            final xRed = Theme.of(xCtx).brightness == Brightness.dark ? cRed : cRed;
             return GestureDetector(
             onTap: () => setState(() => _textCtrl.clear()),
             child: Container(
@@ -1917,7 +1917,7 @@ class _StudioState extends State<StudioScreen>
         // ── Quick Actions inside text card ──────────
         Builder(builder: (btnCtx) {
           final isDkBtn = Theme.of(btnCtx).brightness == Brightness.dark;
-          final clearCol = isDkBtn ? cRed : cLRed;
+          final clearCol = isDkBtn ? cRed : cRed;
           final pasteCol = cGreen;
           return Row(children: [
           Expanded(child: GestureDetector(

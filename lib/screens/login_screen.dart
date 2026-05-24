@@ -214,7 +214,7 @@ class _LoginScreenState extends State<LoginScreen>
                           border: Border.all(color: borderColor),
                           boxShadow: [
                             BoxShadow(
-                              color: accentColor.withOpacity(isDark ? 0.25 : 0.15),
+                              color: accentColor.withOpacity(0.25),
                               blurRadius: 30,
                               offset: const Offset(0, 8),
                             ),
@@ -522,7 +522,7 @@ class _GreenButton extends StatelessWidget {
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: loading
-                ? [cMuted, isDark ? cMuted2 : const Color(0xFFD1D5DB)]
+                ? [cMuted, cMuted2]
                 : [accentColor, accent2Color],
             begin: Alignment.centerLeft,
             end: Alignment.centerRight,

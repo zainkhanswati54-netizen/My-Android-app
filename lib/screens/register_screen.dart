@@ -151,7 +151,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                     if (_errorMsg != null) ...[
                       Builder(builder: (ctx) {
                         final dk = Theme.of(ctx).brightness == Brightness.dark;
-                        final red = dk ? cRed : cLRed;
+                        final red = dk ? cRed : cRed;
                         return Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
@@ -428,7 +428,7 @@ class _RegisterScreenState extends State<RegisterScreen>
     final borderColor = cBorder;
     final accentColor = cGreen;
     final mutedColor  = cMuted;
-    final redColor    = isDark ? cRed    : cLRed;
+    final redColor    = isDark ? cRed    : cRed;
     return InputDecoration(
       hintText: hint,
       hintStyle: TextStyle(color: mutedColor.withOpacity(0.6), fontSize: 14),
@@ -487,7 +487,7 @@ class _GreenButton extends StatelessWidget {
         decoration: BoxDecoration(
           gradient: LinearGradient(
               colors: loading
-                  ? [cMuted, isDark ? cMuted2 : const Color(0xFFD1D5DB)]
+                  ? [cMuted, cMuted2]
                   : [accent, accent2]),
           borderRadius: BorderRadius.circular(14),
           boxShadow: loading
