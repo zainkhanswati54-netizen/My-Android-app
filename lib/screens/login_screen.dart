@@ -416,6 +416,35 @@ class _LoginScreenState extends State<LoginScreen>
                       accentColor: accentColor,
                     ),
 
+                    const SizedBox(height: 20),
+
+                    // ── OR divider ────────────────────────────────────────
+                    Row(children: [
+                      Expanded(child: Container(height: 1, color: borderColor)),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                        child: Text('OR',
+                            style: TextStyle(
+                                fontSize: 12,
+                                color: mutedColor,
+                                fontWeight: FontWeight.w600)),
+                      ),
+                      Expanded(child: Container(height: 1, color: borderColor)),
+                    ]),
+
+                    const SizedBox(height: 16),
+
+                    // ── Google Sign-In button ─────────────────
+                    _GoogleButton(
+                      loading: _googleLoading,
+                      onTap: _loginGoogle,
+                      isDark: isDark,
+                      cardColor: cardColor,
+                      borderColor: borderColor,
+                      textColor: textColor,
+                      accentColor: accentColor,
+                    ),
+
                     const SizedBox(height: 24),
 
                     // ── Register link ─────────────────────────
