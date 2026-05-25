@@ -5,6 +5,12 @@ plugins {
     id "com.google.gms.google-services"   // Firebase
 }
 
+def keystoreProperties = new Properties()
+def keystorePropertiesFile = rootProject.file('key.properties')
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+
 android {
     namespace "com.titanstudio.pro"
     compileSdk flutter.compileSdkVersion
@@ -19,6 +25,15 @@ android {
         jvmTarget = '1.8'
     }
 
+    signingConfigs {
+        release {
+            keyAlias keystoreProperties['keyAlias'] ?: 'titan'
+            keyPassword keystoreProperties['keyPassword'] ?: 'titan1234'
+            storeFile keystoreProperties['storeFile'] ? file(keystoreProperties['storeFile']) : file(System.getenv('HOME') + '/.android/titan_release.jks')
+            storePassword keystoreProperties['storePassword'] ?: 'titan1234'
+        }
+    }
+
     defaultConfig {
         applicationId "com.titanstudio.pro"
         minSdk 23
@@ -29,7 +44,7 @@ android {
 
     buildTypes {
         release {
-            signingConfig signingConfigs.debug
+            signingConfig signingConfigs.release
             minifyEnabled false
             shrinkResources false
         }

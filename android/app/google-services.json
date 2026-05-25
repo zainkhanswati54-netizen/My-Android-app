@@ -76,6 +76,14 @@
           }
         },
         {
+          "client_id": "621140150167-ojogjfdl21cl1mfr4egpetna2ukdcrgo.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.titanstudio.pro",
+            "certificate_hash": "3ea12f64248e0f838e0e5c4bbb412d1cf5f6d1aa"
+          }
+        },
+        {
           "client_id": "621140150167-ffeofj2oud6bbgm68fb9324bij8poeo4.apps.googleusercontent.com",
           "client_type": 3
         }

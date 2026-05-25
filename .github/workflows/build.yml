@@ -19,18 +19,17 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
-      - name: Setup fixed keystore
+      - name: Setup release keystore
         run: |
           mkdir -p ~/.android
-          echo "${{ secrets.DEBUG_KEYSTORE_BASE64 }}" | base64 -d > ~/.android/debug.keystore
+          echo "${{ secrets.DEBUG_KEYSTORE_BASE64 }}" | base64 -d > ~/.android/titan_release.jks
           echo "========================================="
-          echo "  KEYSTORE SHA-1:"
+          echo "  RELEASE KEYSTORE SHA-1:"
           echo "========================================="
           keytool -list -v \
-            -keystore ~/.android/debug.keystore \
-            -alias androiddebugkey \
-            -storepass android \
-            -keypass android | grep -E "SHA1:|SHA256:"
+            -keystore ~/.android/titan_release.jks \
+            -alias titan \
+            -storepass titan1234 | grep -E "SHA1:|SHA256:"
           echo "========================================="
 
       - name: Setup Flutter
@@ -52,19 +51,18 @@ jobs:
           PROJECT_DIR=$(dirname "$PUBSPEC")
           echo "project_dir=$PROJECT_DIR" >> $GITHUB_OUTPUT
 
-      - name: Verify google-services.json
-        run: |
-          FILE=$(find . -name "google-services.json" | head -1)
-          if [ -z "$FILE" ]; then echo "❌ Not found!"; exit 1; fi
-          echo "✅ Found: $FILE"
-
       - name: Install dependencies
         working-directory: ${{ steps.find_project.outputs.project_dir }}
         run: flutter pub get
 
-      - name: Build APK
+      - name: Build signed APK
         working-directory: ${{ steps.find_project.outputs.project_dir }}
-        run: flutter build apk --release --no-tree-shake-icons
+        run: |
+          flutter build apk --release --no-tree-shake-icons \
+            --dart-define=KEYSTORE_PATH=$HOME/.android/titan_release.jks \
+            --dart-define=KEYSTORE_PASS=titan1234 \
+            --dart-define=KEY_ALIAS=titan \
+            --dart-define=KEY_PASS=titan1234
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
