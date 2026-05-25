@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace "com.example.titan_studio_pro"
+    namespace "com.titanstudio.pro"
     compileSdk flutter.compileSdkVersion
     ndkVersion flutter.ndkVersion
 
@@ -20,7 +20,7 @@ android {
     }
 
     defaultConfig {
-        applicationId "com.example.titan_studio_pro"
+        applicationId "com.titanstudio.pro"
         minSdk 23
         targetSdk flutter.targetSdkVersion
         versionCode 1
