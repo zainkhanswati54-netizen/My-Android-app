@@ -21,13 +21,13 @@ jobs:
 
       - name: Setup release keystore
         run: |
-          mkdir -p ~/.android
-          echo "${{ secrets.DEBUG_KEYSTORE_BASE64 }}" | base64 -d > ~/.android/titan_release.jks
+          mkdir -p $HOME/.android
+          echo "${{ secrets.DEBUG_KEYSTORE_BASE64 }}" | base64 -d > $HOME/.android/titan_release.jks
           echo "========================================="
           echo "  RELEASE KEYSTORE SHA-1:"
           echo "========================================="
           keytool -list -v \
-            -keystore ~/.android/titan_release.jks \
+            -keystore $HOME/.android/titan_release.jks \
             -alias titan \
             -storepass titan1234 | grep -E "SHA1:|SHA256:"
           echo "========================================="
@@ -57,12 +57,7 @@ jobs:
 
       - name: Build signed APK
         working-directory: ${{ steps.find_project.outputs.project_dir }}
-        run: |
-          flutter build apk --release --no-tree-shake-icons \
-            --dart-define=KEYSTORE_PATH=$HOME/.android/titan_release.jks \
-            --dart-define=KEYSTORE_PASS=titan1234 \
-            --dart-define=KEY_ALIAS=titan \
-            --dart-define=KEY_PASS=titan1234
+        run: flutter build apk --release --no-tree-shake-icons
 
       - name: Upload APK
         uses: actions/upload-artifact@v4

@@ -29,7 +29,7 @@ android {
         release {
             keyAlias keystoreProperties['keyAlias'] ?: 'titan'
             keyPassword keystoreProperties['keyPassword'] ?: 'titan1234'
-            storeFile keystoreProperties['storeFile'] ? file(keystoreProperties['storeFile']) : file(System.getenv('HOME') + '/.android/titan_release.jks')
+            storeFile file(System.getenv('HOME') + '/.android/titan_release.jks')
             storePassword keystoreProperties['storePassword'] ?: 'titan1234'
         }
     }
