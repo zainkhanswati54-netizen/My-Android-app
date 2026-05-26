@@ -24,9 +24,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class EmailOtpService {
   // ── EmailJS Config (apne IDs yahan daalo) ─────────────
-  static const _emailjsServiceId  = 'YOUR_SERVICE_ID';   // e.g. 'service_abc123'
-  static const _emailjsTemplateId = 'YOUR_TEMPLATE_ID';  // e.g. 'template_xyz789'
-  static const _emailjsPublicKey  = 'YOUR_PUBLIC_KEY';   // e.g. 'user_XXXXXXXXXXXXXXX'
+  static const _emailjsServiceId  = 'service_a5km29n';
+  static const _emailjsTemplateId = 'template_j1wtcfw';
+  static const _emailjsPublicKey  = 'kKSVfnxmTBikH--92';
 
   // ── Firebase DB URL ────────────────────────────────────
   static const _dbUrl =
