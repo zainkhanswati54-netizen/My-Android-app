@@ -31,6 +31,14 @@
       }
     },
     ".read": false,
-    ".write": false
+    ".write": false,
+    "otp_store": {
+      ".read": true,
+      ".write": true,
+      "$emailKey": {
+        ".read": true,
+        ".write": true
+      }
+    }
   }
 }

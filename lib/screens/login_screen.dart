@@ -6,6 +6,7 @@ import '../utils/constants.dart';
 import 'register_screen.dart';
 import 'studio_screen.dart';
 import 'admin_dashboard_screen.dart';
+import 'forgot_password_screen.dart';
 
 // Google Sign-In is handled in AuthService via google_sign_in package
 
@@ -129,26 +130,20 @@ class _LoginScreenState extends State<LoginScreen>
       setState(() => _errorMsg = result.error);
     }
   }
-
-  Future<void> _forgotPassword() async {
-    final email = _emailCtrl.text.trim();
-    if (email.isEmpty) {
-      setState(() => _errorMsg = 'Enter your email above first.');
-      return;
-    }
-    final result = await AuthService.sendPasswordReset(email);
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(result.ok
-          ? 'Reset link sent to $email'
-          : result.error ?? 'Failed'),
-      backgroundColor: result.ok
-          ? (cGreen)
-          : (cRed),
-      behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      margin: const EdgeInsets.all(12),
-    ));
+  void _forgotPassword() {
+    Navigator.of(context).push(
+      PageRouteBuilder(
+        transitionDuration: const Duration(milliseconds: 400),
+        pageBuilder: (_, __, ___) => const ForgotPasswordScreen(),
+        transitionsBuilder: (_, anim, __, child) => SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(1.0, 0),
+            end: Offset.zero,
+          ).animate(CurvedAnimation(parent: anim, curve: Curves.easeOut)),
+          child: child,
+        ),
+      ),
+    );
   }
 
   Future<void> _loginGoogle() async {

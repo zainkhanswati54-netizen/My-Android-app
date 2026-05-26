@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/auth_service.dart';
+import '../services/email_otp_service.dart';
 import '../utils/constants.dart';
 import 'studio_screen.dart';
 import 'login_screen.dart';
 import 'terms_screen.dart';
+import 'email_otp_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -60,19 +62,36 @@ class _RegisterScreenState extends State<RegisterScreen>
     }
     setState(() { _loading = true; _errorMsg = null; });
 
-    final result = await AuthService.registerWithEmail(
-      email:       _emailCtrl.text,
-      password:    _passwordCtrl.text,
-      displayName: _nameCtrl.text,
+    // Step 1: Send Email OTP (free verification)
+    final otpResult = await EmailOtpService.sendOtp(
+      email: _emailCtrl.text.trim(),
+      name:  _nameCtrl.text.trim(),
     );
 
     if (!mounted) return;
     setState(() => _loading = false);
 
-    if (result.ok) {
-      _goToStudio();
+    if (otpResult.ok) {
+      // Step 2: Navigate to OTP verification screen
+      Navigator.of(context).push(
+        PageRouteBuilder(
+          transitionDuration: const Duration(milliseconds: 400),
+          pageBuilder: (_, __, ___) => EmailOtpScreen(
+            email:    _emailCtrl.text.trim(),
+            name:     _nameCtrl.text.trim(),
+            password: _passwordCtrl.text,
+          ),
+          transitionsBuilder: (_, anim, __, child) => SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(1.0, 0),
+              end: Offset.zero,
+            ).animate(CurvedAnimation(parent: anim, curve: Curves.easeOut)),
+            child: child,
+          ),
+        ),
+      );
     } else {
-      setState(() => _errorMsg = result.error);
+      setState(() => _errorMsg = otpResult.message);
     }
   }
 
