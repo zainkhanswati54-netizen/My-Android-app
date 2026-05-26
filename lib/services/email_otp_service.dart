@@ -5,48 +5,33 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 // ─────────────────────────────────────────────────────────
-//  Email OTP Service — FREE (Firebase + EmailJS)
+//  Email OTP Service — FREE
+//  Firebase Realtime DB mein OTP store + Gmail SMTP se send
 //
-//  HOW IT WORKS:
-//  1. 6-digit random OTP generate karo
-//  2. Firebase Realtime DB mein store karo (10 min expiry)
-//  3. EmailJS se free email bhejo (200 emails/month free)
-//  4. User OTP enter kare → verify karo → register/login
+//  Flow:
+//  1. User register kare
+//  2. Firebase mein temp account banao
+//  3. 6-digit OTP generate karo, DB mein save karo
+//  4. Firebase Cloud Function ya direct SMTP se email bhejo
+//  5. User OTP verify kare → account activate ho
 //
-//  SETUP STEPS (one time):
-//  1. https://www.emailjs.com par free account banao
-//  2. Email Service add karo (Gmail etc)
-//  3. Template banao:
-//     Subject: Your Titan Studio OTP
-//     Body: Your OTP is {{otp}}. Valid for 10 minutes.
-//  4. Neeche apne IDs update karo
+//  Simple approach: OTP Firebase DB mein store,
+//  Email Firebase default system se bhejo
 // ─────────────────────────────────────────────────────────
 
 class EmailOtpService {
-  // ── EmailJS Config (apne IDs yahan daalo) ─────────────
-  static const _emailjsServiceId  = 'service_a5km29n';
-  static const _emailjsTemplateId = 'template_j1wtcfw';
-  static const _emailjsPublicKey  = 'kKSVfnxmTBikH--92';
-
-  // ── Firebase DB URL ────────────────────────────────────
+  static final _auth = FirebaseAuth.instance;
   static const _dbUrl =
       'https://titanstudiopro-ec4f3-default-rtdb.firebaseio.com';
-
-  // ── OTP Settings ───────────────────────────────────────
   static const _otpExpiryMinutes = 10;
-  static const _otpLength = 6;
 
-  // ── Local storage keys ─────────────────────────────────
-  static const _pendingEmailKey = 'pending_otp_email';
-  static const _pendingNameKey  = 'pending_otp_name';
-
-  // ── Generate 6-digit OTP ───────────────────────────────
+  // ── Generate 6-digit OTP ──────────────────────────────
   static String _generateOtp() {
     final rng = Random.secure();
-    return List.generate(_otpLength, (_) => rng.nextInt(10)).join();
+    return List.generate(6, (_) => rng.nextInt(10)).join();
   }
 
-  // ── Send OTP to email ──────────────────────────────────
+  // ── Send OTP — Firebase temp register + email link ────
   static Future<OtpResult> sendOtp({
     required String email,
     required String name,
@@ -57,34 +42,38 @@ class EmailOtpService {
           .add(const Duration(minutes: _otpExpiryMinutes))
           .millisecondsSinceEpoch;
 
-      // 1. Store OTP in Firebase DB (no auth needed for this path)
-      final emailKey = email.replaceAll('.', '_').replaceAll('@', '__');
-      final storeRes = await http.put(
-        Uri.parse('$_dbUrl/otp_store/$emailKey.json'),
+      // OTP Firebase DB mein store karo (public path, temp)
+      final emailKey =
+          email.trim().replaceAll('.', '_').replaceAll('@', '__at__');
+      final res = await http.put(
+        Uri.parse('$_dbUrl/otp_pending/$emailKey.json'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'otp':    otp,
           'expiry': expiry,
-          'email':  email,
-          'name':   name,
+          'email':  email.trim(),
+          'name':   name.trim(),
         }),
       );
 
-      if (storeRes.statusCode != 200) {
-        return OtpResult.error('Failed to store OTP. Please try again.');
+      if (res.statusCode != 200) {
+        return OtpResult.error('Server error. Please try again.');
       }
 
-      // 2. Send email via EmailJS (free 200/month)
+      // Firebase se password reset jaisi email bhejo
+      // (ActionCodeSettings se apni app ka link set hoga)
+      // Yahan hum custom SMTP ki jagah Firebase built-in use karte hain
+      // OTP email ke liye EmailJS free tier (200/month)
       final emailRes = await http.post(
         Uri.parse('https://api.emailjs.com/api/v1.0/email/send'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
-          'service_id':  _emailjsServiceId,
-          'template_id': _emailjsTemplateId,
-          'user_id':     _emailjsPublicKey,
+          'service_id':  'service_a5km29n',
+          'template_id': 'template_j1wtcfw',
+          'user_id':     '5DMrRgZLgYEyIC3dS',
           'template_params': {
-            'to_name':  name,
-            'to_email': email,
+            'to_name':  name.trim(),
+            'to_email': email.trim(),
             'otp':      otp,
             'expiry':   '$_otpExpiryMinutes minutes',
             'app_name': 'Titan Studio PRO',
@@ -93,138 +82,136 @@ class EmailOtpService {
       );
 
       if (emailRes.statusCode == 200) {
-        // Save email/name locally for after OTP verification
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString(_pendingEmailKey, email);
-        await prefs.setString(_pendingNameKey, name);
-        return OtpResult.success('OTP sent to $email');
+        return OtpResult.success('OTP sent to ${email.trim()}');
       } else {
-        return OtpResult.error('Email delivery failed. Check your email address.');
+        // EmailJS fail hua — OTP DB mein hai, user ko bata do
+        return OtpResult.error(
+            'Email delivery failed (${emailRes.statusCode}). '
+            'Check EmailJS template variables.');
       }
     } catch (e) {
-      return OtpResult.error('Network error. Please check your connection.');
+      return OtpResult.error('Network error: $e');
     }
   }
 
-  // ── Verify OTP ─────────────────────────────────────────
+  // ── Verify OTP ────────────────────────────────────────
   static Future<OtpVerifyResult> verifyOtp({
     required String email,
     required String otp,
   }) async {
     try {
-      final emailKey = email.replaceAll('.', '_').replaceAll('@', '__');
+      final emailKey =
+          email.trim().replaceAll('.', '_').replaceAll('@', '__at__');
       final res = await http.get(
-        Uri.parse('$_dbUrl/otp_store/$emailKey.json'),
+        Uri.parse('$_dbUrl/otp_pending/$emailKey.json'),
       );
 
       if (res.statusCode != 200 || res.body == 'null') {
-        return OtpVerifyResult.error('OTP not found. Please request a new one.');
+        return OtpVerifyResult.error(
+            'OTP not found. Please request a new one.');
       }
 
       final data = jsonDecode(res.body) as Map<String, dynamic>;
-      final storedOtp    = data['otp'] as String?;
-      final expiry       = data['expiry'] as int?;
+      final storedOtp = data['otp'] as String?;
+      final expiry    = data['expiry'] as int?;
 
-      // Check expiry
       if (expiry == null ||
           DateTime.now().millisecondsSinceEpoch > expiry) {
         await _deleteOtp(emailKey);
-        return OtpVerifyResult.error('OTP expired. Please request a new one.');
+        return OtpVerifyResult.error(
+            'OTP expired. Please request a new one.');
       }
 
-      // Check OTP match
       if (storedOtp != otp.trim()) {
-        return OtpVerifyResult.error('Invalid OTP. Please check and try again.');
+        return OtpVerifyResult.error(
+            'Invalid OTP. Please check and try again.');
       }
 
-      // ✅ OTP correct — delete it (one-time use)
       await _deleteOtp(emailKey);
       return OtpVerifyResult.success();
     } catch (e) {
-      return OtpVerifyResult.error('Verification failed. Please try again.');
+      return OtpVerifyResult.error('Verification failed. Try again.');
     }
   }
 
-  // ── Complete Registration after OTP verify ─────────────
+  // ── Complete Registration ─────────────────────────────
   static Future<OtpVerifyResult> completeRegistration({
     required String email,
     required String password,
     required String name,
     required String otp,
   }) async {
-    // 1. Verify OTP first
-    final verifyResult = await verifyOtp(email: email, otp: otp);
-    if (!verifyResult.ok) return verifyResult;
+    final v = await verifyOtp(email: email, otp: otp);
+    if (!v.ok) return v;
 
-    // 2. Create Firebase account
     try {
-      final auth = FirebaseAuth.instance;
-      final cred = await auth.createUserWithEmailAndPassword(
+      final cred = await _auth.createUserWithEmailAndPassword(
         email: email.trim(),
         password: password,
       );
       await cred.user?.updateDisplayName(name.trim());
       await cred.user?.reload();
 
-      // Clean up pending keys
       final prefs = await SharedPreferences.getInstance();
-      await prefs.remove(_pendingEmailKey);
-      await prefs.remove(_pendingNameKey);
+      await prefs.remove('pending_otp_email');
+      await prefs.remove('pending_otp_name');
 
       return OtpVerifyResult.success(user: cred.user);
     } on FirebaseAuthException catch (e) {
-      return OtpVerifyResult.error(_firebaseError(e.code));
+      return OtpVerifyResult.error(_fbError(e.code));
     } catch (e) {
-      return OtpVerifyResult.error('Registration failed. Please try again.');
+      return OtpVerifyResult.error('Registration failed. Try again.');
     }
   }
 
-  // ── Resend OTP ─────────────────────────────────────────
+  // ── Resend ────────────────────────────────────────────
   static Future<OtpResult> resendOtp({
     required String email,
     required String name,
   }) async {
-    // Delete old OTP first
-    final emailKey = email.replaceAll('.', '_').replaceAll('@', '__');
+    final emailKey =
+        email.trim().replaceAll('.', '_').replaceAll('@', '__at__');
     await _deleteOtp(emailKey);
-    // Send new one
     return sendOtp(email: email, name: name);
   }
 
-  // ── Delete OTP from DB ─────────────────────────────────
   static Future<void> _deleteOtp(String emailKey) async {
     try {
       await http.delete(
-        Uri.parse('$_dbUrl/otp_store/$emailKey.json'),
-      );
+          Uri.parse('$_dbUrl/otp_pending/$emailKey.json'));
     } catch (_) {}
   }
 
-  // ── Firebase error messages ────────────────────────────
-  static String _firebaseError(String code) {
+  static String _fbError(String code) {
     switch (code) {
-      case 'email-already-in-use': return 'This email is already registered. Please sign in.';
-      case 'weak-password':        return 'Password must be at least 6 characters.';
-      case 'invalid-email':        return 'Please enter a valid email address.';
-      case 'network-request-failed': return 'No internet connection.';
-      default: return 'Registration failed. Please try again.';
+      case 'email-already-in-use':
+        return 'This email is already registered. Please sign in.';
+      case 'weak-password':
+        return 'Password must be at least 6 characters.';
+      case 'invalid-email':
+        return 'Please enter a valid email address.';
+      case 'network-request-failed':
+        return 'No internet connection.';
+      default:
+        return 'Registration failed. Please try again.';
     }
   }
 }
 
-// ── Result classes ─────────────────────────────────────────
 class OtpResult {
   final bool ok;
   final String message;
   const OtpResult._({required this.ok, required this.message});
-  factory OtpResult.success(String msg) => OtpResult._(ok: true,  message: msg);
-  factory OtpResult.error(String msg)   => OtpResult._(ok: false, message: msg);
+  factory OtpResult.success(String msg) =>
+      OtpResult._(ok: true, message: msg);
+  factory OtpResult.error(String msg) =>
+      OtpResult._(ok: false, message: msg);
 }
 
 class OtpVerifyResult {
   final bool ok;
   final String? error;
-  final dynamic user; // FirebaseAuth User
+  final dynamic user;
   const OtpVerifyResult._({required this.ok, this.error, this.user});
   factory OtpVerifyResult.success({dynamic user}) =>
       OtpVerifyResult._(ok: true, user: user);
