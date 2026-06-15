@@ -23,12 +23,12 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
-        <meta-data android:name="flutterEmbedding" android:value="2"/>
-        <!-- AdMob App ID — APNA REAL ID YAHAN DALO -->
-        <!-- Format: ca-app-pub-XXXXXXXXXXXXXXXX~XXXXXXXXXX -->
-        <meta-data
-            android:name="com.google.android.gms.ads.APPLICATION_ID"
-            android:value="ca-app-pub-3940256099942544~3347511713"/>
+    <meta-data android:name="flutterEmbedding" android:value="2"/>
+    
+    <!-- AdMob App ID -->
+    <meta-data
+        android:name="com.google.android.gms.ads.APPLICATION_ID"
+        android:value="ca-app-pub-9019700052213764~7218473052"/>
     </application>
     <queries>
         <intent>
