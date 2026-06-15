@@ -41,7 +41,10 @@ dependencies:
   google_sign_in: ^6.2.1
 
   # ── ADS ──────────────────────────────────────
-  google_mobile_ads: ^5.1.0
+  dependencies:
+  flutter:
+    sdk: flutter
+  google_mobile_ads: ^5.1.0 
 
 dev_dependencies:
   flutter_test:
