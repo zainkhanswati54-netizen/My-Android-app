@@ -17,6 +17,11 @@ class AdService {
   static const _testInterstitialId = 'ca-app-pub-3940256099942544/1033173712';
   static const _testRewardedId     = 'ca-app-pub-3940256099942544/5224354917';
 
+  // ── YOUR REAL AdMob IDs ──────────────────────────────
+  static const _realBannerId       = 'ca-app-pub-9019700052213764/7651237804';
+  static const _realInterstitialId = 'ca-app-pub-9019700052213764/7268094427';
+  static const _realRewardedId     = 'ca-app-pub-9019700052213764/6777139837';
+
   static InterstitialAd? _interstitialAd;
   static RewardedAd?     _rewardedAd;
 
@@ -51,7 +56,14 @@ class AdService {
   // ══════════════════════════════════════════════════════
   static Widget? buildBannerAd() {
     if (!_adsActive || _config?.bannerEnabled != true) return null;
-    final unitId = _isTest ? _testBannerId : (_config!.bannerAdUnitId);
+
+    // Use real ID directly if config bannerAdUnitId is empty
+    final unitId = _isTest
+        ? _testBannerId
+        : (_config!.bannerAdUnitId.isNotEmpty
+            ? _config!.bannerAdUnitId
+            : _realBannerId);
+
     if (unitId.isEmpty) return null;
 
     final banner = BannerAd(
@@ -96,7 +108,9 @@ class AdService {
     if (!_adsActive) return;
     final unitId = _isTest
         ? _testInterstitialId
-        : (_config?.interstitialAdUnitId ?? '');
+        : (_config?.interstitialAdUnitId.isNotEmpty == true
+            ? _config!.interstitialAdUnitId
+            : _realInterstitialId);
     if (unitId.isEmpty) return;
     try {
       await InterstitialAd.load(
@@ -104,7 +118,7 @@ class AdService {
         request:  const AdRequest(),
         adLoadCallback: InterstitialAdLoadCallback(
           onAdLoaded:       (ad) => _interstitialAd = ad,
-          onAdFailedToLoad: (_) => _interstitialAd = null,  // fixed: 1 param
+          onAdFailedToLoad: (_) => _interstitialAd = null,
         ),
       );
     } catch (_) {}
@@ -134,7 +148,9 @@ class AdService {
     if (!_adsActive) return;
     final unitId = _isTest
         ? _testRewardedId
-        : (_config?.rewardedAdUnitId ?? '');
+        : (_config?.rewardedAdUnitId.isNotEmpty == true
+            ? _config!.rewardedAdUnitId
+            : _realRewardedId);
     if (unitId.isEmpty) return;
     try {
       await RewardedAd.load(
@@ -142,7 +158,7 @@ class AdService {
         request:  const AdRequest(),
         rewardedAdLoadCallback: RewardedAdLoadCallback(
           onAdLoaded:       (ad) => _rewardedAd = ad,
-          onAdFailedToLoad: (_) => _rewardedAd = null,  // fixed: 1 param
+          onAdFailedToLoad: (_) => _rewardedAd = null,
         ),
       );
     } catch (_) {}
