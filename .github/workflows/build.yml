@@ -21,9 +21,10 @@ jobs:
 
       - name: Setup release keystore
         run: |
-          mkdir -p $HOME/.android
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > $HOME/.android/titan_release.jks
-          echo "✅ Keystore ready!"
+          mkdir -p /home/runner/.android
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > /home/runner/.android/titan_release.jks
+          ls -la /home/runner/.android/titan_release.jks
+          echo "✅ Keystore file ready at /home/runner/.android/titan_release.jks"
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
