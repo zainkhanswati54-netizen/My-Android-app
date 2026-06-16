@@ -22,15 +22,8 @@ jobs:
       - name: Setup release keystore
         run: |
           mkdir -p $HOME/.android
-          echo "${{ secrets.DEBUG_KEYSTORE_BASE64 }}" | base64 -d > $HOME/.android/titan_release.jks
-          echo "========================================="
-          echo "  RELEASE KEYSTORE SHA-1:"
-          echo "========================================="
-          keytool -list -v \
-            -keystore $HOME/.android/titan_release.jks \
-            -alias titan \
-            -storepass titan1234 | grep -E "SHA1:|SHA256:"
-          echo "========================================="
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > $HOME/.android/titan_release.jks
+          echo "✅ Keystore ready!"
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -50,6 +43,12 @@ jobs:
           PUBSPEC=$(find . -name "pubspec.yaml" -not -path "*/.*" | head -1)
           PROJECT_DIR=$(dirname "$PUBSPEC")
           echo "project_dir=$PROJECT_DIR" >> $GITHUB_OUTPUT
+
+      - name: Verify google-services.json
+        run: |
+          FILE=$(find . -name "google-services.json" | head -1)
+          if [ -z "$FILE" ]; then echo "❌ Not found!"; exit 1; fi
+          echo "✅ Found: $FILE"
 
       - name: Install dependencies
         working-directory: ${{ steps.find_project.outputs.project_dir }}
